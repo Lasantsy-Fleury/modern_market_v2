@@ -3,7 +3,7 @@ import { DistributionTicketService } from './distribution_ticket.service';
 import { CreateDistributionTicketDto } from './dto/create-distribution_ticket.dto';
 import { UpdateDistributionTicketDto } from './dto/update-distribution_ticket.dto';
 
-@Controller('distribution-ticket')
+@Controller('servicemarche/distribution-ticket')
 export class DistributionTicketController {
   constructor(private readonly distributionTicketService: DistributionTicketService) {}
 

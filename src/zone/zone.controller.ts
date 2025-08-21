@@ -3,7 +3,7 @@ import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 
-@Controller('zone')
+@Controller('servicemarche/zone')
 export class ZoneController {
   constructor(private readonly zoneService: ZoneService) { }
 

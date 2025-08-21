@@ -3,7 +3,7 @@ import { DistributionZoneService } from './distribution_zone.service';
 import { CreateDistributionZoneDto } from './dto/create-distribution_zone.dto';
 import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
 
-@Controller('distribution-zone')
+@Controller('servicemarche/distribution-zone')
 export class DistributionZoneController {
   constructor(private readonly distributionZoneService: DistributionZoneService) { }
 
