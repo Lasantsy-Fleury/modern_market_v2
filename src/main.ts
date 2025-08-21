@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+   app.setGlobalPrefix('servicemarche');
   const config = new DocumentBuilder()
   .setTitle('Recette local')
   .setDescription('Documentation du Recette local ')
