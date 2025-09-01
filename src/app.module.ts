@@ -2,11 +2,15 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
 import { ZoneModule } from './zone/zone.module';
 import * as Joi from 'joi';
-import { DistributionTicketModule } from './distribution_ticket/distribution_ticket.module';
 import { DatabaseModule } from './Database/database.module';
+import { LocalModule } from './local/local.module';
+import { LocationModule } from './location/location.module';
+import { PaiementModule } from './paiement/paiement.module';
+import { PaiementLocationModule } from './paiement_location/paiement_location.module';
+import { NotificationModule } from './notification/notification.module';
+import { TypeLocalModule } from './type_local/type_local.module';
 @Module({
   imports: [
         ConfigModule.forRoot({
@@ -22,9 +26,13 @@ import { DatabaseModule } from './Database/database.module';
     }),
     DatabaseModule,
     ZoneModule,
-    DistributionTicketModule,
-    DistributionZoneModule
-   
+    LocalModule,
+    LocationModule,
+    PaiementModule,
+    PaiementLocationModule,
+    NotificationModule,
+    TypeLocalModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],
