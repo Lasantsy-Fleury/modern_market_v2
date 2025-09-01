@@ -1,20 +1,32 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, PrimaryColumn, Column, OneToMany, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Paiementlocation } from "src/paiement_location/entities/paiement_location.entity";
 import { Local } from "src/local/entities/local.entity";
 
 @Entity('location')
 export class Location {
-    @PrimaryGeneratedColumn()
-    id_location: number;
+    @PrimaryColumn('uuid')
+    id_location: string;
 
     @Column({ length: 10 })
     tarif: number;
 
-    @Column({ length: 25 })
+    @Column({ length: 10 })
     periodicite: string;
 
     @Column({ length: 11 })
     id_user: string;
+
+    @Column({ length: 6 })
+    nif: string;
+
+    @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
+    date_debut_loc: Date;
+
+    @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
+    date_fin_loc: Date;
+
+    @Column({ length: 10 })
+    frequence: number;
 
     @OneToMany(() => Paiementlocation, (tu) => tu.paiement)
     paiement_locations: Paiementlocation[];
@@ -23,9 +35,8 @@ export class Location {
     @JoinColumn({ name: "localId" })
     local: Local;
 
-    @Column()
-    localId: number;  // clé étrangère vers Local
-
+    @Column({ length: 20 })
+    localId: string;  // clé étrangère vers Local
 
 
 }

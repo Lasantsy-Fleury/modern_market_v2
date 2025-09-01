@@ -4,15 +4,14 @@ import { Local } from "src/local/entities/local.entity";
 
 @Entity('zone')
 export class Zone {
-    @PrimaryGeneratedColumn()
-    id_zone: number;
+    @PrimaryGeneratedColumn('uuid')
+    id_zone: string;
 
     @Column({ length: 50 })
     nom: string;
 
-    @Column({ length: 10 })
-    status: number;
-
+    @Column({ type: 'boolean', default: false })
+    status: boolean;
 
     @Column({ length: 10 })
     municipality_id: number;
