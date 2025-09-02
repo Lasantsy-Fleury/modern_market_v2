@@ -1,31 +1,16 @@
-import { ApiProperty } from "@nestjs/swagger";
-import type { Geometry } from 'geojson';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsNumber, IsString } from 'class-validator';
 
 export class CreateZoneDto {
-    @ApiProperty({ description: 'nom pour identifier le zone', maxLength: 50 })
-    nom: string;
+  @ApiProperty({ description: 'Nom de la zone' })
+  @IsString()
+  nom: string;
 
-    @ApiProperty({ description: 'petite description de la zone.ex:en face du bureau fkt', nullable: true })
-    description: string;
+  @ApiProperty({ description: 'Statut de la zone (true = actif, false= inactif)' })
+  @IsBoolean()
+  status: boolean;
 
-    @ApiProperty({
-        description: 'Limite géométrique de la zone sur la carte (format GeoJSON ou WKT)',
-        example: {
-            type: 'Polygon',
-            coordinates: [
-                [
-                    [-1.5, 48.5],
-                    [-1.5, 48.6],
-                    [-1.4, 48.6],
-                    [-1.4, 48.5],
-                    [-1.5, 48.5]
-                ]
-            ]
-        }
-    })
-    delimitation: any;
-
-    @ApiProperty({ description: 'Id de la commune actuelle' })
-    municipality_id: number;
-
+  @ApiProperty({ description: 'ID de la municipalité' })
+  @IsNumber()
+  municipality_id: number;
 }
