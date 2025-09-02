@@ -15,12 +15,9 @@ export class Paiement {
     @Column({ length: 255 })
     raison: string;
 
-    @Column({ length: 10 })
+    @Column()
     paiementId: number;
 
     @OneToMany(() => Paiementlocation, (tu) => tu.location)
     paiement_locations: Paiementlocation[];
-
-
-
 }

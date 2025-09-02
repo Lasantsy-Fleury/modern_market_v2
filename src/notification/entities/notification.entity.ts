@@ -11,7 +11,7 @@ export class Notification {
     @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
     date_paiement: Date;
 
-    @Column({ length: 10 })
+    @Column()
     paiementId: number;
 
 

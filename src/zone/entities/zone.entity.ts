@@ -10,11 +10,10 @@ export class Zone {
     @Column({ length: 50 })
     nom: string;
 
-    @Column({ length: 10 })
+    @Column()
     status: number;
 
-
-    @Column({ length: 10 })
+    @Column()
     municipality_id: number;
 
     @OneToMany(() => Local, (local) => local.zone)

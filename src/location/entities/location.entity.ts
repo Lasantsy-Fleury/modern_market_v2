@@ -7,7 +7,7 @@ export class Location {
     @PrimaryGeneratedColumn()
     id_location: number;
 
-    @Column({ length: 10 })
+    @Column()
     tarif: number;
 
     @Column({ length: 25 })

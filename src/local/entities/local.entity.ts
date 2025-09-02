@@ -5,16 +5,16 @@ import { Location } from "src/location/entities/location.entity";
 
 @Entity('local')
 export class Local {
-    @PrimaryGeneratedColumn()
-    id_local: number;
+    @PrimaryGeneratedColumn("uuid")
+    id_local: string;
 
     @Column({ length: 11 })
     numero: string;
 
-    @Column({ length: 10 })
+    @Column()
     zoneId: number;   // ici tu stockes directement l’ID de la zone
 
-    @Column({ length: 10 })
+    @Column()
     typelocalId: number;
 
     @ManyToOne(() => Zone, (zone) => zone.locaux, { onDelete: 'CASCADE' })
