@@ -6,14 +6,11 @@ export class Typelocal {
     @PrimaryGeneratedColumn()
     id_type_local: number;
 
-    @Column({ length: 255 })
+    @Column({ length: 30 })
     type: string;
 
-    @Column({ length: 255 })
+    @Column({ length: 150 })
     description: string;
-
-    @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
-    date_paiement: Date;
 
     @OneToMany(() => Local, (local) => local.typelocal)
     locaux: Local[];
