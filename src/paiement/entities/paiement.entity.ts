@@ -20,7 +20,4 @@ export class Paiement {
 
     @OneToMany(() => Paiementlocation, (tu) => tu.location)
     paiement_locations: Paiementlocation[];
-
-
-
 }

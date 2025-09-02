@@ -19,5 +19,4 @@ export class Zone {
     @OneToMany(() => Local, (local) => local.zone)
     locaux: Local[];
 
-
 }
