@@ -13,7 +13,7 @@ export class Zone {
     @Column({ type: 'boolean', default: false })
     status: boolean;
 
-    @Column({ length: 10 })
+    @Column({ type: 'int'})
     municipality_id: number;
 
     @OneToMany(() => Local, (local) => local.zone)

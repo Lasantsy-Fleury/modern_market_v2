@@ -7,7 +7,7 @@ export class Location {
     @PrimaryColumn('uuid')
     id_location: string;
 
-    @Column({ length: 10 })
+    @Column({ type: 'int' })
     tarif: number;
 
     @Column({ length: 10 })
@@ -25,7 +25,7 @@ export class Location {
     @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
     date_fin_loc: Date;
 
-    @Column({ length: 10 })
+    @Column({ type: 'int' })
     frequence: number;
 
     @OneToMany(() => Paiementlocation, (tu) => tu.paiement)
@@ -35,7 +35,7 @@ export class Location {
     @JoinColumn({ name: "localId" })
     local: Local;
 
-    @Column({ length: 20 })
+    @Column({ })
     localId: string;  // clé étrangère vers Local
 
 

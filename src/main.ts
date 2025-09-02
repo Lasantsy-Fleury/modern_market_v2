@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-   app.setGlobalPrefix('servicemarche');
+   app.setGlobalPrefix('serviceModernMarket');
   const config = new DocumentBuilder()
   .setTitle('Recette local')
   .setDescription('Documentation du Recette local ')
@@ -14,7 +14,7 @@ async function bootstrap() {
   
   const document = SwaggerModule.createDocument(app, config);
   
-  SwaggerModule.setup('servicemarche/docs', app, document);
+  SwaggerModule.setup('serviceModernMarket/docs', app, document);
   await app.listen(process.env.PORT ?? 3000);
 }
 

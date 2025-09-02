@@ -1,38 +1,47 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, Param ,} from '@nestjs/common';
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 
-@Controller('zone')
+@Controller('zones')
 export class ZoneController {
-  constructor(private readonly zoneService: ZoneService) { }
+  constructor(private readonly zoneService: ZoneService) {}
 
   @Post()
-  create(@Body() createZoneDto: CreateZoneDto) {
-    return this.zoneService.create(createZoneDto);
+  create(
+    @Param('municipalityId') municipalityId: number,
+    @Body() createZoneDto: CreateZoneDto,
+  ) {
+    return this.zoneService.create(+municipalityId, createZoneDto);
   }
 
   @Get()
-  findAll(@Query('municipality_id') municipality_id?: string) {
-    return this.zoneService.findAll(municipality_id ? +municipality_id : undefined);
+  findAll(@Param('municipalityId') municipalityId: number) {
+    return this.zoneService.findAll(+municipalityId);
   }
 
-  @Get(':id')
+  @Get(':nom')
   findOne(
-    @Param('id') id: string,
-    @Param('municipality_id') municipality_id?: string,
+    @Param('municipalityId') municipalityId: number,
+    @Param('nom') nom: string,
   ) {
-    return this.zoneService.findOne(+id, municipality_id ? +municipality_id : undefined);
+    return this.zoneService.findOne(+municipalityId, nom);
   }
 
-  @Patch(':id')
+  @Patch(':nom')
   update(
-    @Param('id') id: string,
+    @Param('municipalityId') municipalityId: number,
+    @Param('nom') nom: string,
     @Body() updateZoneDto: UpdateZoneDto,
-    @Param('municipality_id') municipality_id?: string,
   ) {
-    return this.zoneService.update(+id, updateZoneDto, municipality_id ? +municipality_id : undefined);
+    return this.zoneService.update(+municipalityId, nom, updateZoneDto);
   }
 
-
+  @Delete(':nom')
+  remove(
+    @Param('municipalityId') municipalityId: number,
+    @Param('nom') nom: string,
+  ) {
+    return this.zoneService.remove(+municipalityId, nom);
+  }
 }

@@ -11,10 +11,10 @@ export class Local {
     @Column({ length: 11 })
     numero: string;
 
-    @Column({ length: 10 })
+    @Column({ })
     zoneId: number;   // ici tu stockes directement l’ID de la zone
 
-    @Column({ length: 10 })
+    @Column({  })
     typelocalId: number;
 
     @ManyToOne(() => Zone, (zone) => zone.locaux, { onDelete: 'CASCADE' })
