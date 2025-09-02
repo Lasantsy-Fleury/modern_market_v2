@@ -4,7 +4,6 @@ import { UpdateLocalDto } from './dto/update-local.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Local } from './entities/local.entity';
 import { Repository } from 'typeorm';
-import { object, string } from 'joi';
 
 @Injectable()
 export class LocalService {

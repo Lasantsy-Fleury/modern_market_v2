@@ -2,8 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeor
 
 @Entity('notification')
 export class Notification {
-    @PrimaryGeneratedColumn()
-    id_paiement_location: number;
+    @PrimaryGeneratedColumn('uuid')
+    id_notification: string;
 
     @Column({ length: 255 })
     type: string;
@@ -13,7 +13,4 @@ export class Notification {
 
     @Column()
     paiementId: number;
-
-
-
 }

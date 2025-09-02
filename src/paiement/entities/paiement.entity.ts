@@ -3,8 +3,8 @@ import { Paiementlocation } from "src/paiement_location/entities/paiement_locati
 
 @Entity('paiement')
 export class Paiement {
-    @PrimaryGeneratedColumn()
-    id_paiement: number;
+    @PrimaryGeneratedColumn("uuid")
+    id_paiement: string;
 
     @Column({ length: 255 })
     reference: string;

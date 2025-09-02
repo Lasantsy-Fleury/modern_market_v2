@@ -12,7 +12,7 @@ export class Local {
     numero: string;
 
     @Column()
-    zoneId: number;   // ici tu stockes directement l’ID de la zone
+    zoneId: string;   // ici tu stockes directement l’ID de la zone
 
     @Column()
     typelocalId: number;
@@ -27,6 +27,4 @@ export class Local {
 
     @OneToMany(() => Location, (location) => location.local)
     locations: Location[];
-
-
 }

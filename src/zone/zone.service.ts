@@ -27,7 +27,7 @@ export class ZoneService {
     return await this.zoneRepository.find({ where: whereClause });
   }
 
-async findOne(id_zone: number, municipality_id?: number) {
+  async findOne(id_zone: number, municipality_id?: number) {
   const whereClause: any = { id_zone: id_zone };
   if (municipality_id) {
     whereClause.municipalityId = municipality_id;
