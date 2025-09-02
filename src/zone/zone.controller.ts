@@ -1,43 +1,52 @@
-import { Controller, Get, Post, Body, Patch, Delete, Param ,} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, Param, } from '@nestjs/common';
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 
 @Controller('zones')
 export class ZoneController {
-  constructor(private readonly zoneService: ZoneService) {}
+  constructor(private readonly zoneService: ZoneService) { }
 
   @Post()
   create(
-    @Param('municipalityId') municipalityId: number,
-    @Body() createZoneDto: CreateZoneDto,
+    @Body() createZoneDto: CreateZoneDto
   ) {
-    return this.zoneService.create(+municipalityId, createZoneDto);
+    return this.zoneService.create(createZoneDto);
   }
 
-  @Get()
+
+  @Get(':municipalityId')
   findAll(@Param('municipalityId') municipalityId: number) {
     return this.zoneService.findAll(+municipalityId);
   }
 
-  @Get(':nom')
+  @Get(':municipalityId/:id_zone')
   findOne(
     @Param('municipalityId') municipalityId: number,
-    @Param('nom') nom: string,
+    @Param('id_zone') id_zone: string,
   ) {
-    return this.zoneService.findOne(+municipalityId, nom);
+    return this.zoneService.findOne(+municipalityId, id_zone);
   }
 
-  @Patch(':nom')
+  @Get('search/:municipalityId/:mot')
+  async search(
+    @Param('municipalityId') municipalityId: number,
+    @Param('mot') mot: string,
+  ) {
+    return this.zoneService.searchByName(+municipalityId, mot);
+  }
+
+
+  @Patch(':municipalityId/:id_zone')
   update(
     @Param('municipalityId') municipalityId: number,
-    @Param('nom') nom: string,
+    @Param('id_zone') id_zone: string,
     @Body() updateZoneDto: UpdateZoneDto,
   ) {
-    return this.zoneService.update(+municipalityId, nom, updateZoneDto);
+    return this.zoneService.update(+municipalityId, id_zone, updateZoneDto);
   }
 
-  @Delete(':nom')
+  @Delete(':municipalityId/:nom')
   remove(
     @Param('municipalityId') municipalityId: number,
     @Param('nom') nom: string,

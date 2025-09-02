@@ -1,1 +1,12 @@
-export class CreateTypeLocalDto {}
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
+
+export class CreateTypeLocalDto {
+  @ApiProperty({ description: 'Nom du type de local' })
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: 'Description du type de local' })
+  @IsString()
+  description: string;
+}

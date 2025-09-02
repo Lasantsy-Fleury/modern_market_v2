@@ -16,6 +16,9 @@ export class Zone {
     @Column({ type: 'int'})
     municipality_id: number;
 
+    @Column()
+    zoneId: number;
+
     @OneToMany(() => Local, (local) => local.zone)
     locaux: Local[];
 

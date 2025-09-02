@@ -13,4 +13,8 @@ export class CreateZoneDto {
   @ApiProperty({ description: 'ID de la municipalité' })
   @IsNumber()
   municipality_id: number;
+
+  @ApiProperty({ description: 'ID de la municipalité' })
+  @IsNumber()
+  zoneId: number;
 }

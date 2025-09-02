@@ -1,9 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { TypeLocalService } from './type_local.service';
 import { CreateTypeLocalDto } from './dto/create-type_local.dto';
-import { UpdateTypeLocalDto } from './dto/update-type_local.dto';
-
-@Controller('type-local')
+@Controller('type-locals')
 export class TypeLocalController {
   constructor(private readonly typeLocalService: TypeLocalService) {}
 
@@ -18,17 +16,20 @@ export class TypeLocalController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: number) {
     return this.typeLocalService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTypeLocalDto: UpdateTypeLocalDto) {
-    return this.typeLocalService.update(+id, updateTypeLocalDto);
+  update(
+    @Param('id') id: number,
+    @Body() updateDto: Partial<CreateTypeLocalDto>,
+  ) {
+    return this.typeLocalService.update(+id, updateDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.typeLocalService.remove(+id);
   }
 }

@@ -1,26 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Typelocal } from './entities/type_local.entity';
 import { CreateTypeLocalDto } from './dto/create-type_local.dto';
-import { UpdateTypeLocalDto } from './dto/update-type_local.dto';
-
 @Injectable()
 export class TypeLocalService {
-  create(createTypeLocalDto: CreateTypeLocalDto) {
-    return 'This action adds a new typeLocal';
+  constructor(
+    @InjectRepository(Typelocal)
+    private readonly typeLocalRepository: Repository<Typelocal>,
+  ) {}
+
+  async create(createTypeLocalDto: CreateTypeLocalDto): Promise<Typelocal> {
+    const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);
+    return await this.typeLocalRepository.save(typeLocal);
   }
 
-  findAll() {
-    return `This action returns all typeLocal`;
+  async findAll(): Promise<Typelocal[]> {
+    return await this.typeLocalRepository.find({ relations: ['locaux'] });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} typeLocal`;
+  async findOne(id: number): Promise<Typelocal> {
+    const typeLocal = await this.typeLocalRepository.findOne({
+      where: { id_type_local: id },
+      relations: ['locaux'],
+    });
+    if (!typeLocal) {
+      throw new NotFoundException(`TypeLocal with id ${id} not found`);
+    }
+    return typeLocal;
   }
 
-  update(id: number, updateTypeLocalDto: UpdateTypeLocalDto) {
-    return `This action updates a #${id} typeLocal`;
+  async update(id: number, updateDto: Partial<CreateTypeLocalDto>): Promise<Typelocal> {
+    const typeLocal = await this.findOne(id);
+    Object.assign(typeLocal, updateDto);
+    return await this.typeLocalRepository.save(typeLocal);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} typeLocal`;
+  async remove(id: number): Promise<void> {
+    const typeLocal = await this.findOne(id);
+    await this.typeLocalRepository.remove(typeLocal);
   }
 }

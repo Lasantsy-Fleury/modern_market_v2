@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { Zone } from './entities/zone.entity';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
@@ -10,13 +10,12 @@ export class ZoneService {
   constructor(
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
-  ) {}
+  ) { }
 
   // Créer une zone pour une municipalité spécifique
-  async create(municipalityId: number, createZoneDto: CreateZoneDto) {
+  async create(createZoneDto: CreateZoneDto) {
     const zone = this.zoneRepository.create({
       ...createZoneDto,
-      municipality_id: municipalityId,
     });
     return await this.zoneRepository.save(zone);
   }
@@ -29,16 +28,25 @@ export class ZoneService {
   }
 
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
-  async findOne(municipalityId: number, nom: string) {
+  async findOne(municipalityId: number, id_zone: string) {
     const zone = await this.zoneRepository.findOne({
-      where: { municipality_id: municipalityId, nom },
+      where: { municipality_id: municipalityId, id_zone },
     });
     if (!zone) {
       throw new NotFoundException(
-        `Zone with name '${nom}' not found in municipality ${municipalityId}`,
+        `Zone with id '${id_zone}' not found in municipality ${municipalityId}`,
       );
     }
     return zone;
+  }
+
+  async searchByName(municipalityId: number, keyword: string): Promise<Zone[]> {
+    return await this.zoneRepository.find({
+      where: {
+        municipality_id: municipalityId,
+        nom: ILike(`%${keyword}%`), // ILike = insensible à la casse
+      },
+    });
   }
 
   // Mettre à jour une zone via son nom et la municipalité

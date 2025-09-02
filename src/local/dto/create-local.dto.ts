@@ -5,7 +5,7 @@ export class CreateLocalDto {
     numero: string ;
 
     @ApiProperty({maxLength : 10})
-    zoneId: number ;
+    zoneId: string ;
 
     @ApiProperty({maxLength : 10 })
     typelocalId: number;
