@@ -6,8 +6,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
    app.setGlobalPrefix('serviceModernMarket');
   const config = new DocumentBuilder()
-  .setTitle('Recette local')
-  .setDescription('Documentation du Recette local ')
+  .setTitle(' Modern Market')
+  .setDescription('Documentation du Modern Market du recette local ')
   .setVersion('1.0')
   .addBearerAuth()
   .build();

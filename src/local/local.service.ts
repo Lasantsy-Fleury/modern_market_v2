@@ -19,12 +19,15 @@ export class LocalService {
   }
 
   async findAll() {
-    return await this.localRepository.find()
+    return await this.localRepository.find({
+      relations: ['zone', 'typelocal', 'locations'],
+    })
   }
 
   async findOne(id_local: string) {
     return await this.localRepository.findOne({
-      where: {id_local : id_local}
+      where: {id_local : id_local},
+      relations: ['zone', 'typelocal', 'locations'],
     })
   }
 
