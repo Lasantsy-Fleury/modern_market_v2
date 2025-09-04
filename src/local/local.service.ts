@@ -14,6 +14,12 @@ export class LocalService {
   ){}
   
   async create(createLocalDto: CreateLocalDto) {
+    const existingLocal = await this.localRepository.findOne({
+      where: { numero: createLocalDto.numero }
+    });
+    if (existingLocal) {
+      throw new NotFoundException(`Local with name ${createLocalDto.numero} already exists`);
+    }
     const local = this.localRepository.create(createLocalDto);
     return await this.localRepository.save(local)
   }
