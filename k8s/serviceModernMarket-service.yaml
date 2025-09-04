@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: serviceModernMarket-service
-  namespace: pnud-agvm
+  name: servicemodernmarket-service
+  namespace: ${NAMESPACE}
 spec:
   type: NodePort
   selector:
-    app: serviceModernMarket
+    app: servicemodernmarket
   ports:
     - protocol: TCP
       port: 5033
