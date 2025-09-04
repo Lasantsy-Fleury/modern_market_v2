@@ -11,6 +11,12 @@ export class TypeLocalService {
   ) {}
 
   async create(createTypeLocalDto: CreateTypeLocalDto): Promise<Typelocal> {
+    const existingTypeLocal = await this.typeLocalRepository.findOne({
+      where: { type: createTypeLocalDto.type },
+    });
+    if (existingTypeLocal) {
+      throw new NotFoundException(`TypeLocal with name ${createTypeLocalDto.type} already exists`);
+    }
     const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);
     return await this.typeLocalRepository.save(typeLocal);
   }
