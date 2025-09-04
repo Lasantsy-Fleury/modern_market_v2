@@ -19,7 +19,7 @@ export class ZoneService {
     });
     return await this.zoneRepository.save(zone);
   }
-
+8
   // Retourner toutes les zones d’une municipalité
   async findAll(municipalityId: number) {
     return await this.zoneRepository.find({
@@ -57,8 +57,8 @@ export class ZoneService {
   }
 
   // Supprimer une zone via son nom et la municipalité
-  async remove(municipalityId: number, nom: string) {
-    const zone = await this.findOne(municipalityId, nom);
+  async remove(municipalityId: number, id_zone: string) {
+    const zone = await this.findOne(municipalityId, id_zone);
     return await this.zoneRepository.remove(zone);
   }
 }

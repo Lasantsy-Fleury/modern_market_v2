@@ -7,7 +7,7 @@ export class Zone {
     @PrimaryGeneratedColumn('uuid')
     id_zone: string;
 
-    @Column({ length: 50 })
+    @Column({ length: 50 ,unique:true})
     nom: string;
 
     @Column({ type: 'boolean', default: false })
@@ -16,7 +16,7 @@ export class Zone {
     @Column({ type: 'int'})
     municipality_id: number;
 
-    @Column()
+    @Column({unique:true})
     zoneId: number;
 
     @OneToMany(() => Local, (local) => local.zone)

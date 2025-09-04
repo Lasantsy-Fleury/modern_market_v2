@@ -1,34 +1,29 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, NotFoundException, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { PaiementLocationService } from './paiement_location.service';
 import { CreatePaiementLocationDto } from './dto/create-paiement_location.dto';
-import { UpdatePaiementLocationDto } from './dto/update-paiement_location.dto';
-
+import { Paiementlocation } from './entities/paiement_location.entity';
 @Controller('paiement-location')
 export class PaiementLocationController {
   constructor(private readonly paiementLocationService: PaiementLocationService) {}
 
-  @Post()
-  create(@Body() createPaiementLocationDto: CreatePaiementLocationDto) {
-    return this.paiementLocationService.create(createPaiementLocationDto);
-  }
+  // @Post()
+  // @HttpCode(HttpStatus.CREATED)
+  // async create(@Body() createPaiementLocationDto: CreatePaiementLocationDto): Promise<Paiementlocation> {
+  //   return this.paiementLocationService.create(createPaiementLocationDto);
+  // }
 
   @Get()
-  findAll() {
+  async findAll(): Promise<Paiementlocation[]> {
     return this.paiementLocationService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.paiementLocationService.findOne(+id);
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Paiementlocation> {
+    return this.paiementLocationService.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePaiementLocationDto: UpdatePaiementLocationDto) {
-    return this.paiementLocationService.update(+id, updatePaiementLocationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.paiementLocationService.remove(+id);
-  }
+  //   @Delete(':id')
+  // remove(@Param('id') id: number) {
+  //   return this.paiementLocationService.remove(+id);
+  // }
 }

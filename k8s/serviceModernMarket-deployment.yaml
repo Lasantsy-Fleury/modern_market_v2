@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: servicemarche
-  namespace: ${NAMESPACE}
+  name: serviceModernMarket
+  namespace: pnud-agvm
   labels:
-    app: servicemarche
+    app: serviceModernMarket
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: servicemarche
+      app: serviceModernMarket
   template:
     metadata:
       labels:
-        app: servicemarche
+        app: serviceModernMarket
     spec:
       containers:
-        - name: servicemarche
+        - name: serviceModernMarket
           image: ${FULL_IMAGE_NAME}
           imagePullPolicy: Always
           ports:
-            - containerPort: 5028
+            - containerPort: 5033
               name: http
           envFrom:
             - secretRef:
-                name: servicemarche-secret
+                name: serviceModernMarket-secret
           resources:
             requests:
               cpu: "200m"
@@ -34,7 +34,7 @@ spec:
               memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /servicemarche
+              path: /serviceModernMarket
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -42,7 +42,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /servicemarche
+              path: /serviceModernMarket
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5

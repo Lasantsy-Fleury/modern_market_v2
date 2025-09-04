@@ -22,11 +22,6 @@ export class PaiementController {
     return this.paiementService.findOne(id);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updatePaiementDto: UpdatePaiementDto) {
-  //   return this.paiementService.update(id, updatePaiementDto);
-  // }
-
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.paiementService.remove(id);

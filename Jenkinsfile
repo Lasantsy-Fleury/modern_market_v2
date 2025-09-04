@@ -1,159 +1,89 @@
 pipeline {
     agent any
-
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
         HARBOR_PROJECT   = 'pnud-agvm'
-        IMAGE_NAME       = 'servicemarche'
+        IMAGE_NAME       = 'serviceModernMarket'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         NAMESPACE        = 'pnud-agvm'
         K8S_DIR          = 'k8s'
-        DEPLOYMENT_NAME  = 'servicemarche'
-        SERVICE_NAME     = 'servicemarche-service'
-        HPA_NAME         = 'servicemarche-hpa'
-        SECRET_NAME      = 'servicemarche-secret'
-        PORT             = '5028'
-        POSTGRES_DATABASE      = 'servicemarche'
+        DEPLOYMENT_NAME  = 'serviceModernMarket'
+        SERVICE_NAME     = 'serviceModernMarket-service'
+        HPA_NAME         = 'serviceModernMarket-hpa'
+        SECRET_NAME      = 'serviceModernMarket-secret'
+        PORT             = '5033'
+        NODE_PORT        = '30133'
     }
 
     stages {
         stage('Build & Push') {
             steps {
                 withCredentials([
-                    usernamePassword(
-                        credentialsId: 'harbor-credentials',
-                        usernameVariable: 'HARBOR_USER',
-                        passwordVariable: 'HARBOR_PASS'
-                    )
-                ]) {
-                    sh '''
-                        set -e
-                        docker logout ${REGISTRY} || true
-
-                        docker build \
-                          --build-arg PORT=${PORT} \
-                          -t ${FULL_IMAGE_NAME} .
-
-                        echo ${HARBOR_PASS} | \
-                          docker login -u ${HARBOR_USER} --password-stdin ${REGISTRY}
-
-                        docker push ${FULL_IMAGE_NAME}
-                        docker logout ${REGISTRY}
-                    '''
-                }
-            }
-        }
-
-        stage('Test Cluster Access') {
-            steps {
-                withCredentials([
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')
-                ]) {
-                    sh '''
-                        set -e
-                        export KUBECONFIG=${KUBECONFIG}
-                        kubectl get nodes
-                        kubectl get pods -n ${NAMESPACE} || true
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to K3s') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
+                    usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS'),
                     string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
                     string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
                     string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
                     string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL'),
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
-                    usernamePassword(
-                        credentialsId: 'harbor-credentials',
-                        usernameVariable: 'HARBOR_USER',
-                        passwordVariable: 'HARBOR_PASS'
-                    )
                 ]) {
-                    script {
-                        sh '''
-                            set -e
-                            export KUBECONFIG=${KUBECONFIG}
+                    sh '''
+                        set -e
+                        docker logout $REGISTRY || true
+                        docker build \
+                          --build-arg PORT=5033 \
+                          -t $FULL_IMAGE_NAME .
+                        echo $HARBOR_PASS | \
+                          docker login -u $HARBOR_USER --password-stdin $REGISTRY
+                        docker push $FULL_IMAGE_NAME
+                        docker logout $REGISTRY
+                    '''
+                }
+            }
+        }
 
-                            echo "=== Création du namespace ==="
-                            kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+        stage('Deploy') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                    usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS'),
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
+                ]) {
+                    sh '''
+                        set -e
+                        export KUBECONFIG=$KUBECONFIG
 
-                            echo "=== Création du secret registry Harbor ==="
-                            kubectl delete secret harbor-registry-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret docker-registry harbor-registry-secret \
-                              --docker-server=${REGISTRY} \
-                              --docker-username="${HARBOR_USER}" \
-                              --docker-password="${HARBOR_PASS}" \
-                              --namespace=${NAMESPACE}
+                        kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+                        kubectl delete secret harbor-registry-secret -n $NAMESPACE --ignore-not-found
+                        kubectl create secret docker-registry harbor-registry-secret \
+                          --docker-server=$REGISTRY \
+                          --docker-username="$HARBOR_USER" \
+                          --docker-password="$HARBOR_PASS" \
+                          --namespace=$NAMESPACE
 
-                            echo "=== Création du secret applicatif ==="
-                            kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic ${SECRET_NAME} \
-                              --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
-                              --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
-                              --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
-                              --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
-                              --from-literal=POSTGRES_DATABASE="${POSTGRES_DATABASE}" \
-                              --namespace=${NAMESPACE}
+                        kubectl delete secret $SECRET_NAME -n $NAMESPACE --ignore-not-found
+                        kubectl create secret generic $SECRET_NAME \
+                          --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
+                          --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
+                          --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
+                          --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+                          --from-literal=POSTGRES_DATABASE="serviceModernMarket" \
+                          --namespace=$NAMESPACE
 
-                            echo "=== Application des manifestes Kubernetes ==="
-                            export FULL_IMAGE_NAME="${FULL_IMAGE_NAME}"
-                            export DEPLOYMENT_NAME="${DEPLOYMENT_NAME}"
-                            export SERVICE_NAME="${SERVICE_NAME}"
-                            export HPA_NAME="${HPA_NAME}"
-                            export PORT="${PORT}"
-                            export NAMESPACE="${NAMESPACE}"
+                        for res in deployment service hpa; do
+                            envsubst < $K8S_DIR/serviceModernMarket-$res.yaml > /tmp/serviceModernMarket-$res.yaml
+                            kubectl apply -f /tmp/serviceModernMarket-$res.yaml
+                        done
 
-                            echo "Application de ${DEPLOYMENT_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml > /tmp/${DEPLOYMENT_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${DEPLOYMENT_NAME}-processed.yaml
-
-                            echo "Application de ${SERVICE_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${SERVICE_NAME}.yaml > /tmp/${SERVICE_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${SERVICE_NAME}-processed.yaml
-
-                            echo "Application de ${HPA_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${HPA_NAME}.yaml > /tmp/${HPA_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${HPA_NAME}-processed.yaml
-
-                            echo "=== Vérification du déploiement ==="
-                            kubectl rollout status deployment.apps/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=600s
-
-                            echo "=== Vérification de l'état des pods ==="
-                            if ! kubectl get pods -n ${NAMESPACE} -l app=${DEPLOYMENT_NAME} \
-                                -o jsonpath='{.items[*].status.phase}' | grep -q Running; then
-                                echo "❌ Les pods ne sont pas en état Running"
-                                kubectl describe pods -n ${NAMESPACE}
-                                exit 1
-                            fi
-
-                            echo "=== État des ressources ==="
-                            kubectl get pods -n ${NAMESPACE} -l app=${DEPLOYMENT_NAME}
-                            kubectl get services -n ${NAMESPACE}
-                            kubectl get hpa -n ${NAMESPACE}
-
-                            echo "=== Événements récents ==="
-                            kubectl get events -n ${NAMESPACE} --sort-by='.metadata.creationTimestamp' | tail -10
-                        '''
-                    }
+                        kubectl rollout status deployment/serviceModernMarket -n $NAMESPACE --timeout=120s
+                        kubectl get pods -n $NAMESPACE -l app=serviceModernMarket
+                    '''
                 }
             }
         }
     }
 
-    post {
-        always {
-            echo 'Cleaning workspace...'
-            cleanWs()
-        }
-    }
+    post { always { cleanWs() } }
 }

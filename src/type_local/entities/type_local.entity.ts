@@ -9,7 +9,7 @@ export class Typelocal {
     @Column({ length: 30 })
     type: string;
 
-    @Column({ length: 150 })
+    @Column({ length: 150,nullable:true })
     description: string;
 
     @OneToMany(() => Local, (local) => local.typelocal)
