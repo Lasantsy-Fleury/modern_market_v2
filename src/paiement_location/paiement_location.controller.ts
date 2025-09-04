@@ -2,6 +2,9 @@ import { Controller, Get, Post, Body, Param, Delete, NotFoundException, ParseInt
 import { PaiementLocationService } from './paiement_location.service';
 import { CreatePaiementLocationDto } from './dto/create-paiement_location.dto';
 import { Paiementlocation } from './entities/paiement_location.entity';
+import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+
+@ApiTags('Paiement-location')
 @Controller('paiement-location')
 export class PaiementLocationController {
   constructor(private readonly paiementLocationService: PaiementLocationService) {}
@@ -13,11 +16,13 @@ export class PaiementLocationController {
   // }
 
   @Get()
+  @ApiOperation({summary:'Récupérer tous les paiement de location'})
   async findAll(): Promise<Paiementlocation[]> {
     return this.paiementLocationService.findAll();
   }
 
   @Get(':id')
+  @ApiOperation({summary:'Récupérer un seul paiement de location par son id'})
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<Paiementlocation> {
     return this.paiementLocationService.findOne(id);
   }

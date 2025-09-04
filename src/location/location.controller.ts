@@ -3,44 +3,55 @@ import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
+import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+
+
+@ApiTags('Locations')
 @Controller('locations')
 export class LocationController {
   constructor(private readonly locationService: LocationService) { }
 
   @Post()
+  @ApiOperation({summary:'Créer un nouvelle location'})
   create(@Body() createLocationDto: CreateLocationDto) {
     return this.locationService.create(createLocationDto);
   }
 
   @Get()
+  @ApiOperation({summary:'Récupérer toutes les locations'})
   findAll() {
     return this.locationService.findAll();
   }
 
 
   @Get('en_cours')
+  @ApiOperation({summary:'Récupérer tous les locations en cours'})
   findAllInProgress() {
     return this.locationService.findAllInProgress();
   }
 
   // Toutes les locations d'un utilisateur
   @Get('userLocations/:id_user')
+  @ApiOperation({summary:'Récupérer toutes les locations d un user en cours ou pas'})
   findByUser(@Param('id_user') id_user: string) {
     return this.locationService.findByUser(id_user);
   }
 
   // Locations en cours d'un utilisateur
   @Get('userLocations/:id_user/en_cours')
+  @ApiOperation({summary:'Récupérer toutes les locations d un user en cours seulement'})
   findInProgressByUser(@Param('id_user') id_user: string) {
     return this.locationService.findInProgressByUser(id_user);
   }
 
   @Get(':id')
+  @ApiOperation({summary:'Récupérer une location par son id'})
   findOne(@Param('id') id: string) {
-    return this.locationService.findLocationWithPaymentDates(id);
+    return this.locationService.findOne(id);
   }
 
   @Get('locationQrCode/:id')
+  @ApiOperation({summary:'Récupérer le qr Code contenant les infos d une location par son id-location '})
   async findOneWithQrcode(@Param('id') id: string, @Res() res: Response) {
     const location = await this.locationService.findLocationWithPaymentDates(id);
     if (!location) {
@@ -75,6 +86,7 @@ export class LocationController {
   }
 
   @Patch(':id')
+  @ApiOperation({summary:'Modification d une location par son id'})
   update(@Param('id') id: string, @Body() updateDto: Partial<CreateLocationDto>) {
     return this.locationService.update(id, updateDto);
   }

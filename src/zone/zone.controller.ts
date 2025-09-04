@@ -2,12 +2,16 @@ import { Controller, Get, Post, Body, Patch, Delete, Param, } from '@nestjs/comm
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
+import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
 
+
+@ApiTags('Zones')
 @Controller('zones')
 export class ZoneController {
   constructor(private readonly zoneService: ZoneService) { }
 
   @Post()
+  @ApiOperation({summary:'Créer une zone dans une commune'})
   create(
     @Body() createZoneDto: CreateZoneDto
   ) {
@@ -16,11 +20,13 @@ export class ZoneController {
 
 
   @Get(':municipalityId')
+  @ApiOperation({summary:'Récupérer tous les  zones d une commune'})
   findAll(@Param('municipalityId') municipalityId: number) {
     return this.zoneService.findAll(+municipalityId);
   }
 
   @Get(':municipalityId/:id_zone')
+  @ApiOperation({summary:'Récupérer tune zone par son id'})
   findOne(
     @Param('municipalityId') municipalityId: number,
     @Param('id_zone') id_zone: string,
@@ -29,6 +35,7 @@ export class ZoneController {
   }
 
   @Get('search/:municipalityId/:mot')
+  @ApiOperation({summary:'Chercher une zone d une commune à partir de mot'})
   async search(
     @Param('municipalityId') municipalityId: number,
     @Param('mot') mot: string,
@@ -38,6 +45,7 @@ export class ZoneController {
 
 
   @Patch(':municipalityId/:id_zone')
+  @ApiOperation({summary:'Modifier une zone'})
   update(
     @Param('municipalityId') municipalityId: number,
     @Param('id_zone') id_zone: string,
