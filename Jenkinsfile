@@ -3,7 +3,7 @@ pipeline {
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
         HARBOR_PROJECT   = 'pnud-agvm'
-        IMAGE_NAME       = 'serviceModernMarket'
+        IMAGE_NAME       = 'servicemodernmarket'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         NAMESPACE        = 'pnud-agvm'
