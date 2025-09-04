@@ -37,6 +37,12 @@ export class LocalController {
     return this.localService.findOne(id);
   }
 
+  @Get('disponibleZone/all')
+  @ApiOperation({summary:'Récupere local disponible'})
+  findLocalDisponible() {
+    return this.localService.findZoneLocalDisponibleParPrix();
+  }
+
   @Patch(':id')
   @ApiOperation({summary:'RCréer un nouveau local'})
   update(@Param('id') id: string, @Body() updateLocalDto: UpdateLocalDto) {
