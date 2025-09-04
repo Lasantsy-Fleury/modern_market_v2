@@ -22,8 +22,8 @@ export class PaiementController {
     return this.paiementService.findOne(id);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.paiementService.remove(id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.paiementService.remove(id);
+  // }
 }
