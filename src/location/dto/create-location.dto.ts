@@ -31,11 +31,11 @@ export class CreateLocationDto {
 
 
 
-  @ApiProperty({ description: 'Date de début de la location (YYYY-MM-DD)' })
+  @ApiProperty({ description: 'Date de début de la location' })
   @IsDateString()
   date_debut_loc: Date;
 
-  @ApiProperty({ description: 'Date de fin de la location (YYYY-MM-DD)' })
+  @ApiProperty({ description: 'Date de fin de la location' })
   @IsDateString()
   date_fin_loc: Date;
 

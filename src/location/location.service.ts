@@ -1,16 +1,20 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan } from 'typeorm';
 import { Location } from './entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { Periodicite } from './entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
+import { Local } from 'src/local/entities/local.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class LocationService {
   constructor(
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
+    @InjectRepository(Local)
+    private readonly localRepository: Repository<Local>,
   ) { }
 
   async findAll() {
@@ -19,8 +23,6 @@ export class LocationService {
 
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
     const { date_debut_loc, date_fin_loc, periodicite, localId, id_user, nif } = createLocationDto;
-
-    console.log("le dto recu est ", createLocationDto);
 
     //Verifier si cet user a deja eu une location
     const existingUser = await this.locationRepository.findOne({
@@ -40,13 +42,14 @@ export class LocationService {
     const existingLocation = await this.locationRepository.findOne({
       where: {
         localId,
-        date_debut_loc: Between(new Date('1900-01-01'), today),
-        date_fin_loc: Between(today, new Date('9999-12-31')),
+        date_debut_loc: LessThanOrEqual(today),
+        date_fin_loc: MoreThanOrEqual(today),
       },
     });
 
+
     if (existingLocation) {
-      throw new Error(`Le local ${localId} est déjà en location en cours.`);
+      throw new BadRequestException(`Le local ${localId} est déjà en location en cours.`);
     }
 
     if (debut >= fin) {
@@ -63,6 +66,14 @@ export class LocationService {
           "Pour une location mensuelle, l'écart doit être d'au moins un mois."
         );
       }
+    }
+
+    const local = await this.localRepository.findOne({
+      where: { id_local: createLocationDto.localId }
+    });
+
+    if (!local || local.statut === 'LOUE' || local.statut === 'INDISPONIBLE') {
+      throw new NotFoundException(`Local with id ${localId} not found`);
     }
 
     // Calcul fréquence
@@ -89,7 +100,29 @@ export class LocationService {
       frequence,
     });
 
+    local.statut = 'LOUE'; // Mettre à jour le statut du local
+    await this.localRepository.save(local); // Sauvegarder les modifications du local    
+
     return await this.locationRepository.save(location);
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async updateExpiredLocations() {
+    const now = new Date();
+
+    const expiredLocations = await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .where('location.date_fin_loc < :now', { now })
+      .andWhere('local.statut = :statut', { statut: 'EN_COURS' })
+      .getMany();
+
+
+    for (const loc of expiredLocations) {
+      loc.local.statut = 'DISPONIBLE';
+      await this.locationRepository.save(loc);
+      console.log(`Location est maintenant disponible.`);
+    }
   }
 
 
