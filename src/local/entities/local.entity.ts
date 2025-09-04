@@ -11,6 +11,13 @@ export class Local {
     @Column({ length: 11 })
     numero: string;
 
+    @Column({type: 'enum', enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], default: 'DISPONIBLE'})
+    statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
+
+    @Column()
+    tarif: number;
+
+
     @Column()
     zoneId: string;   // ici tu stockes directement l’ID de la zone
 

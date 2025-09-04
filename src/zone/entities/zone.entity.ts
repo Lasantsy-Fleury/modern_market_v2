@@ -10,14 +10,14 @@ export class Zone {
     @Column({ length: 50 ,unique:true})
     nom: string;
 
-    @Column({ type: 'boolean', default: false })
+    @Column({ type: 'boolean', default: true })
     status: boolean;
 
     @Column({ type: 'int'})
     municipality_id: number;
 
-    @Column({unique:true})
-    zoneId: number;
+    // @Column({unique:true})
+    // zoneId: number;
 
     @OneToMany(() => Local, (local) => local.zone)
     locaux: Local[];
