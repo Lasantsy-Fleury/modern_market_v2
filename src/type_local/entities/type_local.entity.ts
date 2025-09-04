@@ -9,6 +9,9 @@ export class Typelocal {
     @Column({ length: 30 })
     type: string;
 
+    @Column()
+    tarif: number;
+
     @Column({ length: 150,nullable:true })
     description: string;
 

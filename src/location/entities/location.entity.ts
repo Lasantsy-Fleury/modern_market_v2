@@ -12,9 +12,6 @@ export class Location {
     @PrimaryGeneratedColumn('uuid')
     id_location: string;
 
-    @Column({ type: 'int' })
-    tarif: number;
-
     @Column({
         type: 'enum',
         enum: Periodicite,

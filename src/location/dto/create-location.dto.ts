@@ -17,10 +17,6 @@ export class CreateLocationDto {
   @IsString()
   nif: string;
 
-  @ApiProperty({ description: 'Tarif de la location' })
-  @IsNumber()
-  tarif: number;
-
   @ApiProperty({ description: 'ID du local associé (UUID)' })
   @IsUUID()
   localId: string;

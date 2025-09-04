@@ -6,6 +6,9 @@ export class CreateTypeLocalDto {
   @IsString()
   type: string;
 
+  @ApiProperty({ description: 'Tarif du type de local' })
+  tarif: number;
+
   @ApiProperty({ description: 'Description du type de local' })
   @IsString()
   description: string;
