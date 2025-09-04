@@ -25,11 +25,12 @@ export class Location {
     @Column({ length: 6 })
     nif: string;
 
-    @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
+    @Column({ type: 'date' })
     date_debut_loc: Date;
 
-    @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
+    @Column({ type: 'date' })
     date_fin_loc: Date;
+
 
     @Column({ type: 'int', nullable: true })
     frequence: number;

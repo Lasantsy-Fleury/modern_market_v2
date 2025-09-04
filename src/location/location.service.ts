@@ -20,6 +20,8 @@ export class LocationService {
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
     const { date_debut_loc, date_fin_loc, periodicite, localId, id_user, nif } = createLocationDto;
 
+    console.log("le dto recu est ", createLocationDto);
+
     //Verifier si cet user a deja eu une location
     const existingUser = await this.locationRepository.findOne({
       where: { id_user }

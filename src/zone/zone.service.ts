@@ -14,6 +14,17 @@ export class ZoneService {
 
   // Créer une zone pour une municipalité spécifique
   async create(createZoneDto: CreateZoneDto) {
+    const existingZone = await this.zoneRepository.findOne({
+      where: {
+        nom: createZoneDto.nom,
+        municipality_id: createZoneDto.municipality_id,
+      },
+    });
+    if (existingZone) {
+      throw new NotFoundException(
+        `Zone with id '${createZoneDto.nom}' already exists in municipality ${createZoneDto.municipality_id}`,
+      );
+    }
     const zone = this.zoneRepository.create({
       ...createZoneDto,
     });
