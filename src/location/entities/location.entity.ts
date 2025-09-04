@@ -34,11 +34,12 @@ export class Location {
     @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
     date_fin_loc: Date;
 
-    @Column({ type: 'int', nullable: true  })
+    @Column({ type: 'int', nullable: true })
     frequence: number;
 
 
     @OneToMany(() => Paiementlocation, (paiementLocation) => paiementLocation.location)
+//   @JoinColumn({ name: "PaiementLocationId" })
     paiement_locations: Paiementlocation[];
 
 
