@@ -11,10 +11,9 @@ import { PaiementModule } from './paiement/paiement.module';
 import { PaiementLocationModule } from './paiement_location/paiement_location.module';
 import { NotificationModule } from './notification/notification.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
-import { TypeLocalModule } from './type_local/type_locale.module';
 @Module({
   imports: [
-        ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
         POSTGRES_HOST: Joi.string().required(),
@@ -34,8 +33,9 @@ import { TypeLocalModule } from './type_local/type_locale.module';
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
