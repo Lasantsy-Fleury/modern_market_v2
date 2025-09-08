@@ -21,6 +21,8 @@ export class DistributionZoneService {
     return await this.distributionZoneRepository.find();
   }
 
+
+
   async findOne(id_distribution_zone: string) {
     const distributionZone = await this.distributionZoneRepository.findOne({
       where: { id_distribution_zone: id_distribution_zone },
@@ -41,4 +43,5 @@ export class DistributionZoneService {
     const distributionZone = await this.findOne(id);
     return await this.distributionZoneRepository.remove(distributionZone);
   }
+
 }

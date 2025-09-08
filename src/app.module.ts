@@ -12,9 +12,11 @@ import { PaiementLocationModule } from './paiement_location/paiement_location.mo
 import { NotificationModule } from './notification/notification.module';
 import { TypeLocalModule } from './type_local/type_local.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
+import { HttpModule } from '@nestjs/axios';
+
 @Module({
   imports: [
-        ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
         POSTGRES_HOST: Joi.string().required(),
@@ -34,9 +36,11 @@ import { DistributionZoneModule } from './distribution_zone/distribution_zone.mo
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
+    HttpModule.register({ timeout: 5000, maxRedirects: 5 }), // <-- important
+
 
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

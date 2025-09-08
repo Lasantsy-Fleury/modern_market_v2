@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Delete, Param, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, Param, Query,ParseIntPipe ,DefaultValuePipe} from '@nestjs/common';
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
-import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+import { ApiResponse,ApiTags,ApiOperation,ApiQuery } from '@nestjs/swagger';
 
 
 @ApiTags('Zones')
@@ -19,11 +19,19 @@ export class ZoneController {
   }
 
 
-  @Get(':municipalityId')
-  @ApiOperation({summary:'Récupérer tous les  zones d une commune'})
-  findAll(@Param('municipalityId') municipalityId: number) {
-    return this.zoneService.findAll(+municipalityId);
-  }
+@Get(':municipalityId')
+@ApiOperation({ summary: 'Récupérer tous les zones d’une commune' })
+@ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+@ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+
+findAll(
+  @Param('municipalityId', ParseIntPipe) municipalityId: number,
+ @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+) {
+  return this.zoneService.findAll(municipalityId, limit,page);
+}
+
 
   @Get(':municipalityId/:id_zone')
   @ApiOperation({summary:'Récupérer tune zone par son id'})
