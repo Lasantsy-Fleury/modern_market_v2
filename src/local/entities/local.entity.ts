@@ -14,8 +14,6 @@ export class Local {
     @Column({type: 'enum', enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], default: 'DISPONIBLE'})
     statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
 
-
-
     @Column()
     zoneId: string;   // ici tu stockes directement l’ID de la zone
 
