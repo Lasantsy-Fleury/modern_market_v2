@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm";
 import { Zone } from "src/zone/entities/zone.entity";
-import { Typelocal } from "src/type_local/entities/type_local.entity";
 import { Location } from "src/location/entities/location.entity";
+import { Typelocal } from "src/type_local/entities/type_locale.entity";
 
 @Entity('local')
 export class Local {
