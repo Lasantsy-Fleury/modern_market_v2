@@ -10,8 +10,8 @@ import { LocationModule } from './location/location.module';
 import { PaiementModule } from './paiement/paiement.module';
 import { PaiementLocationModule } from './paiement_location/paiement_location.module';
 import { NotificationModule } from './notification/notification.module';
-import { TypeLocalModule } from './type_local/type_local.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
+import { TypeLocalModule } from './type_local/type_locale.module';
 @Module({
   imports: [
         ConfigModule.forRoot({
@@ -34,7 +34,6 @@ import { DistributionZoneModule } from './distribution_zone/distribution_zone.mo
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
-
   ],
   controllers: [AppController],
   providers: [AppService],
