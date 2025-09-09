@@ -4,8 +4,7 @@ import { LocalController } from './local.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Local } from './entities/local.entity';
 import { Zone } from 'src/zone/entities/zone.entity';
-import { Typelocal } from 'src/type_local/entities/type_local.entity';
-
+import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 @Module({
   imports:[TypeOrmModule.forFeature([Local,Zone,Typelocal])],
   controllers: [LocalController],

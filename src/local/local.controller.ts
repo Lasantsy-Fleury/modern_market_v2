@@ -49,7 +49,7 @@ export class LocalController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   async findByZoneAndType(
     @Param('zoneId') zoneId: string,
-    @Param('typelocalId', ParseIntPipe) typelocalId: number,
+    @Param('typelocalId', ParseIntPipe) typelocalId: string,
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
@@ -63,7 +63,7 @@ export class LocalController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   async findByStatut(
     @Param('zoneId') zoneId: string,
-    @Param('typelocalId', ParseIntPipe) typelocalId: number,
+    @Param('typelocalId', ParseIntPipe) typelocalId: string,
     @Param('statut') statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
     @Query('page') page = 1,
     @Query('limit') limit = 10,

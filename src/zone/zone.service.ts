@@ -1,16 +1,16 @@
 import {
   Injectable, NotFoundException, BadRequestException,
   ConflictException,
-  ServiceUnavailableException,
+  ServiceUnavailableException, Query
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, } from 'typeorm';
 import { Zone } from './entities/zone.entity';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { AxiosResponse, AxiosError  } from 'axios';
+import { AxiosResponse, AxiosError } from 'axios';
 
 @Injectable()
 export class ZoneService {
@@ -97,22 +97,44 @@ export class ZoneService {
   }
 
   // Retourner toutes les zones d’une municipalité
-async findAll(municipalityId: number, limit: number, page: number) {
+async findAll(
+  municipalityId: number,
+  limit: number,
+  page: number,
+  filters: {   
+    keyword?: string;
+  },
+) {
   try {
+    // Vérifier si la municipalité existe via API externe
     const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
     const response = await firstValueFrom(
-      this.httpService.get(url, { headers: { accept: 'application/json' } })
+      this.httpService.get(url, { headers: { accept: 'application/json' } }),
     );
 
-    // response.data est sûr ici
-    const [result, total] = await this.zoneRepository.findAndCount({
-      where: { municipalityId },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    if (!response.data) {
+      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+    }
+
+    // Construire la requête avec QueryBuilder
+    const query = this.zoneRepository
+      .createQueryBuilder('zone')
+      .where('zone.municipalityId = :municipalityId', { municipalityId });
+
+   
+    if (filters.keyword) {
+      query.andWhere('LOWER(zone.nom) LIKE :keyword', {
+        keyword: `%${filters.keyword.toLowerCase()}%`,
+      });
+    }
+
+    // Pagination
+    query.skip((page - 1) * limit).take(limit);
+
+    const [result, total] = await query.getManyAndCount();
 
     return {
-      message: 'Liste de service',
+      message: 'Liste des zones filtrés',
       data: result,
       pagination: {
         page,
@@ -123,17 +145,16 @@ async findAll(municipalityId: number, limit: number, page: number) {
       status: 200,
     };
   } catch (error) {
-    // Vérifier si l'erreur vient de l'API (404)
     if (error instanceof AxiosError && error.response?.status === 404) {
       throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
     }
 
-    // Toute autre erreur
     throw new ServiceUnavailableException(
-      'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
+      'Impossible de récupérer les locaux pour le moment. Veuillez réessayer plus tard.',
     );
   }
 }
+
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
   async findOne(municipalityId: number, id_zone: string) {
     try {
@@ -142,7 +163,7 @@ async findAll(municipalityId: number, limit: number, page: number) {
         this.httpService.get(url, { headers: { accept: 'application/json' } })
       );
 
-    
+
       const zone = await this.zoneRepository.findOne({
         where: { municipalityId, id_zone },
       });
@@ -154,15 +175,15 @@ async findAll(municipalityId: number, limit: number, page: number) {
       }
       return zone;
     } catch (error) {
-       // Vérifier si l'erreur vient de l'API (404)
-    if (error instanceof AxiosError && error.response?.status === 404) {
-      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-    }
+      // Vérifier si l'erreur vient de l'API (404)
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      }
 
-    // Toute autre erreur
-    throw new ServiceUnavailableException(
-      'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
-    );
+      // Toute autre erreur
+      throw new ServiceUnavailableException(
+        'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
+      );
     }
   }
 
@@ -171,13 +192,13 @@ async findAll(municipalityId: number, limit: number, page: number) {
       throw new BadRequestException('Le mot-clé de recherche est requis');
     }
     const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: { accept: 'application/json' } })
-      );
+    const response = await firstValueFrom(
+      this.httpService.get(url, { headers: { accept: 'application/json' } })
+    );
 
-      if (!response.data) {
-        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-      }
+    if (!response.data) {
+      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+    }
 
     try {
 
@@ -188,15 +209,15 @@ async findAll(municipalityId: number, limit: number, page: number) {
         },
       });
     } catch (error) {
-       // Vérifier si l'erreur vient de l'API (404)
-    if (error instanceof AxiosError && error.response?.status === 404) {
-      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-    }
+      // Vérifier si l'erreur vient de l'API (404)
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      }
 
-    // Toute autre erreur
-    throw new ServiceUnavailableException(
-      'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
-    );
+      // Toute autre erreur
+      throw new ServiceUnavailableException(
+        'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
+      );
     }
   }
 
@@ -207,13 +228,13 @@ async findAll(municipalityId: number, limit: number, page: number) {
     updateZoneDto: UpdateZoneDto,
   ) {
     const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: { accept: 'application/json' } })
-      );
+    const response = await firstValueFrom(
+      this.httpService.get(url, { headers: { accept: 'application/json' } })
+    );
 
-      if (!response.data) {
-        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-      }
+    if (!response.data) {
+      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+    }
 
     try {
       const zone = await this.findOne(municipalityId, id_zone);
@@ -222,15 +243,15 @@ async findAll(municipalityId: number, limit: number, page: number) {
 
       return await this.zoneRepository.save(zone);
     } catch (error) {
-       // Vérifier si l'erreur vient de l'API (404)
-    if (error instanceof AxiosError && error.response?.status === 404) {
-      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-    }
+      // Vérifier si l'erreur vient de l'API (404)
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      }
 
-    // Toute autre erreur
-    throw new ServiceUnavailableException(
-      'Impossible de mettre a jour  les zones pour le moment. Veuillez réessayer plus tard.',
-    );
+      // Toute autre erreur
+      throw new ServiceUnavailableException(
+        'Impossible de mettre a jour  les zones pour le moment. Veuillez réessayer plus tard.',
+      );
     }
   }
   // Supprimer une zone via son nom et la municipalité

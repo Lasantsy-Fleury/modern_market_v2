@@ -17,6 +17,6 @@ export class CreateLocalDto {
     // statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
 
     @ApiProperty({ maxLength: 10 })
-    @IsInt()
-    typelocalId: number;
+    @IsUUID()
+    typelocalId: string;
 }

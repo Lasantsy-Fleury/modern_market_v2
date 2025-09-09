@@ -18,7 +18,7 @@ export class Local {
     zoneId: string;   // ici tu stockes directement l’ID de la zone
 
     @Column()
-    typelocalId: number;
+    typelocalId: string;
 
     @ManyToOne(() => Zone, (zone) => zone.locaux, { onDelete: 'CASCADE' })
     @JoinColumn({ name: "zoneId" })  // fait le lien entre zoneId et Zone

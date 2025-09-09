@@ -16,7 +16,7 @@ export class Zone {
     @Column({ type: 'int'})
     fokotany_id: number;
 
-    @Column()
+    @Column({nullable:true})
      municipalityId: number;
 
     @OneToMany(() => Local, (local) => local.zone)

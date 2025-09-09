@@ -5,8 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Local } from './entities/local.entity';
 import { Repository } from 'typeorm';
 import { Zone } from 'src/zone/entities/zone.entity';
-import { Typelocal } from 'src/type_local/entities/type_local.entity';
-
+import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 @Injectable()
 export class LocalService {
   constructor(
@@ -42,7 +41,7 @@ export class LocalService {
     }
   }
 
-  async existingType(typelocalId: number) {
+  async existingType(typelocalId: string) {
     const typeLocal = await this.typeLocalRepository.findOne({
       where: { id_type_local: typelocalId },
     });
@@ -80,7 +79,7 @@ export class LocalService {
 
   }
 
-  async findByZoneAndType(zoneId: string, typelocalId: number, limit: number, page: number) {
+  async findByZoneAndType(zoneId: string, typelocalId: string, limit: number, page: number) {
     await this.existingZoneTest(zoneId);
     await this.existingType(typelocalId);
     try {
@@ -120,7 +119,7 @@ export class LocalService {
     }
   }
 
-    async findByZoneAndTypeByStatut(zoneId: string, typelocalId: number,  statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
+    async findByZoneAndTypeByStatut(zoneId: string, typelocalId: string,  statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
  limit: number, page: number) {
     await this.existingZoneTest(zoneId);
     await this.existingType(typelocalId);
