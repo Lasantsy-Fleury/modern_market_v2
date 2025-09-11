@@ -12,21 +12,22 @@ export class TypeLocalController {
 
   @Post()
   @ApiOperation({summary:'Créer un type de local'})
-  @ApiConsumes('multipart/form-data')
+  // @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        municipalityId: { type: "number" },
-        typeLoc: { type: "string" },
-        tarif: { type: "number" },
-        description: { type: "string" },
-        type_contrat: { type: "string" }
-      },
-      required: ['typeLoc', 'tarif'] 
-    }
-  })
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+
+  //       municipalityId: { type: "number" },
+  //       typeLoc: { type: "string" },
+  //       tarif: { type: "number" },
+  //       description: { type: "string" },
+  //       type_contrat: { type: "string" }
+  //     },
+  //     required: ['typeLoc', 'tarif'] 
+  //   }
+  // })
   @ApiResponse({ status: 201, description: 'Type local created successfully', type: Typelocal })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   async create(

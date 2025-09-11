@@ -41,19 +41,11 @@ export class TypeLocalService {
       take: limit,
   });
 
-  const data = result.map(item => {
-    if (lang === 'fr') {
-      return {
-        ...item,
-        name: {
-          mg: item.name.mg,
-          fr: item.name.fr,
-        },
-        typeLoc: item.typeLoc,
-      };
-    }
-    return item;
-  });
+  const data = result.map(item => ({
+    ...item,
+    typeLoc: item.typeLoc?.[lang] ?? item.typeLoc,
+    description: item.description?.[lang] ?? item.description,
+}));
 
   return {
     message: 'Liste des types locaux',
