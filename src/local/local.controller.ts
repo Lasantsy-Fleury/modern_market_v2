@@ -54,11 +54,11 @@ export class LocalController {
 
 
 
-  @Get('disponibleZone/all')
-  @ApiOperation({summary:'Récupere local disponible'})
-  findLocalDisponible() {
-    return this.localService.findZoneLocalDisponibleParPrix();
-  }
+  // @Get('disponibleZone/all')
+  // @ApiOperation({summary:'Récupere local disponible'})
+  // findLocalDisponible() {
+  //   return this.localService.findZoneLocalDisponibleParPrix();
+  // }
 
   
 

@@ -20,7 +20,7 @@ export class Local {
     @Column()
     typelocalId: string;
 
-    @Column({nullable:true})
+    @Column()
     surface: number;
 
     @ManyToOne(() => Zone, (zone) => zone.locaux, { onDelete: 'CASCADE' })
