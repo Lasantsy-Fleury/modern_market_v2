@@ -6,7 +6,7 @@ export class DistributionZone {
     id_distribution_zone : string;
 
     @Column({ length: 20})
-    id_controlleur : string
+    id_user : string
 
     @Column({ length: 20})
     zoneId: string; 

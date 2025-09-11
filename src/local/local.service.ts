@@ -6,6 +6,7 @@ import { Local } from './entities/local.entity';
 import { Repository } from 'typeorm';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
+
 @Injectable()
 export class LocalService {
   constructor(

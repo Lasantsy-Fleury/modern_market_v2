@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, NotFoundException, Query } from '@nestjs/common';
 import { ApiResponse,ApiTags,ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { TypeEnum } from './enum/type.enum';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Typelocal } from './entities/type_locale.entity';
 import { TypeLocalService } from './type_locale.service';
@@ -19,7 +18,7 @@ export class TypeLocalController {
     schema: {
       type: 'object',
       properties: {
-        typeLoc: {type: "string" , enum: Object.values(TypeEnum) , default: TypeEnum.Marquage},
+        typeLoc: {type: "string"},
         tarif : {type : "number"},
         description : { type : "string"},
         type_contrat : { type : "string"}
@@ -58,7 +57,7 @@ export class TypeLocalController {
     schema: {
       type: 'object',
       properties: {
-        typeLoc: {type: "string" , enum: Object.values(TypeEnum) , default: TypeEnum.Marquage},
+        typeLoc: {type: "string"},
         tarif : {type : "number"},
         description : { type : "string"},
         type_contrat : { type : "string"}
@@ -84,4 +83,16 @@ export class TypeLocalController {
     }
     return type;
   }
+
 }
+
+// Traduction utilitaire
+function translateType(type: string, lang: 'mg' | 'fr'): string {
+  const translations = {
+    magasin: { mg: 'fivarotana', fr: 'magasin' },
+    restaurant: { mg: 'trano fisakafoanana', fr: 'restaurant' },
+    // Ajoutez d’autres types ici
+  };
+  return translations[type]?.[lang] || type;
+}
+

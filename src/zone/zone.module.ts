@@ -14,6 +14,6 @@ import { HttpService } from '@nestjs/axios';
 ],
   controllers: [ZoneController],
   providers: [ZoneService],
-
+  exports: [ZoneService],
 })
 export class ZoneModule {}

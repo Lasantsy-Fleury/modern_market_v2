@@ -3,13 +3,8 @@ import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { TypeEnum } from '../enum/type.enum';
 
 export class CreateTypeLocalDto {
-  @ApiProperty({ 
-    description: 'Nom du type de local',
-    enum : TypeEnum,
-    default : TypeEnum.Marquage
-  })
-  @IsEnum(TypeEnum)
-  typeLoc?: TypeEnum;
+  @ApiProperty({description: 'Nom du type de local'})
+  typeLoc: string;
 
   @ApiProperty({ description: 'Tarif du type de local' })
   @IsNumber()

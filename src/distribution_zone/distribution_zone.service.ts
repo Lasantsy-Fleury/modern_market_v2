@@ -4,15 +4,26 @@ import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DistributionZone } from './entities/distribution_zone.entity';
+import { ZoneService } from 'src/zone/zone.service';
 
 @Injectable()
 export class DistributionZoneService {
   constructor(
     @InjectRepository(DistributionZone)
     private readonly distributionZoneRepository: Repository<DistributionZone>,
+    private readonly zoneService: ZoneService,
   ) {}
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
+    // Vérification de l’existence de la zone
+    const zone = await this.zoneService.findOne(
+      createDistributionZoneDto.municipalityId,
+      createDistributionZoneDto.zoneId,
+    );
+    if (!zone) {
+      throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
+    }
+
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     return await this.distributionZoneRepository.save(distributionZone);
   }
@@ -20,8 +31,6 @@ export class DistributionZoneService {
   async findAll() {
     return await this.distributionZoneRepository.find();
   }
-
-
 
   async findOne(id_distribution_zone: string) {
     const distributionZone = await this.distributionZoneRepository.findOne({
@@ -43,5 +52,4 @@ export class DistributionZoneService {
     const distributionZone = await this.findOne(id);
     return await this.distributionZoneRepository.remove(distributionZone);
   }
-
 }

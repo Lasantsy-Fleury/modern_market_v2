@@ -1,6 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,OneToMany } from "typeorm";
 import { Local } from "src/local/entities/local.entity";
-import { TypeEnum } from "../enum/type.enum";
 
 @Entity('type_locale')
 export class Typelocal {
@@ -10,12 +9,8 @@ export class Typelocal {
     @PrimaryGeneratedColumn('uuid')
     id_type_local: string;
 
-    @Column({ 
-        type: 'enum',
-        enum : TypeEnum,
-        default : TypeEnum.Marquage,
-    })
-    typeLoc : TypeEnum;
+    @Column({ length: 50 })
+    typeLoc : string;
     
     @Column()
     tarif: number;
@@ -28,4 +23,5 @@ export class Typelocal {
     
     @OneToMany(() => Local, (local) => local.typelocal)
     locaux: Local[];
+  name: any;
 }
