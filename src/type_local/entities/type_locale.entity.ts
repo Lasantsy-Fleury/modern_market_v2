@@ -9,6 +9,9 @@ export class Typelocal {
     @PrimaryGeneratedColumn('uuid')
     id_type_local: string;
 
+    @Column()
+    municipalityId : number;
+
     @Column({ length: 50 })
     typeLoc : string;
     

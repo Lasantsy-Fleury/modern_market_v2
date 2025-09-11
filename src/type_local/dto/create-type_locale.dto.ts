@@ -1,8 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { TypeEnum } from '../enum/type.enum';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateTypeLocalDto {
+  @ApiProperty({description: 'Municipalité id'})
+  @IsNumber()
+  municipalityId: number;
+
   @ApiProperty({description: 'Nom du type de local'})
   typeLoc: string;
 

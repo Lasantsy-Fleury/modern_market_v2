@@ -4,7 +4,6 @@ import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan } from 
 import { Location } from './entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { Periodicite } from './entities/location.entity';
-import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { Local } from 'src/local/entities/local.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
