@@ -9,34 +9,36 @@ import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
 export class DistributionZoneController {
   constructor(private readonly distributionZoneService: DistributionZoneService) {}
 
-  @Post()
-@ApiOperation({summary:'creer une nouvelle distribution zone:affecter un controleur a une distribution zone'})
-@ApiResponse({status:201,description:'la distribution zone a été créé avec succès.'})
-@ApiResponse({status:400,description:'Requête invalide.'})
-  create(@Body() createDistributionZoneDto: CreateDistributionZoneDto) {
-    return this.distributionZoneService.create(createDistributionZoneDto);
+  @Post('assign')
+  @ApiOperation({summary:'Affecter un utilisateur à une zone de distribution'})
+  @ApiResponse({status:201,description:'L\'utilisateur a été affecté à la zone de distribution avec succès.'})
+  @ApiResponse({status:400,description:'Requête invalide.'})
+  async assignUserToZone(
+    @Body() dto: CreateDistributionZoneDto
+  ) {
+    return this.distributionZoneService.create(dto);
   }
 
   @Get()
-  @ApiOperation({summary:'Récupérer tous les distributions zones'})
+  @ApiOperation({summary:'Récupérer toutes les zones de distribution'})
   findAll() {
     return this.distributionZoneService.findAll();
   }
 
   @Get(':id')
-  @ApiOperation({summary:'Récupérer une distribution zone par son id'})
+  @ApiOperation({summary:'Récupérer une zone de distribution par son id'})
   findOne(@Param('id') id: string) {
     return this.distributionZoneService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({summary:'?odifier une distribution zone'})
+  @ApiOperation({summary:'Modifier une zone de distribution'})
   update(@Param('id') id: string, @Body() updateDistributionZoneDto: UpdateDistributionZoneDto) {
     return this.distributionZoneService.update(id, updateDistributionZoneDto);
   }
 
   @Delete(':id')
-  @ApiOperation({summary:'Supprimer une distribution zone'})
+  @ApiOperation({summary:'Supprimer une zone de distribution'})
   remove(@Param('id') id: string) {
     return this.distributionZoneService.remove(id);
   }

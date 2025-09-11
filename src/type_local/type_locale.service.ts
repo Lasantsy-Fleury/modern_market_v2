@@ -4,14 +4,6 @@ import { Repository } from 'typeorm';
 import { CreateTypeLocalDto } from './dto/create-type_locale.dto';
 import { Typelocal } from './entities/type_locale.entity';
 
-const typeLocalTraduction = {
-  BOIS: { mg: 'Trano hazo', fr: 'Maison en bois' },
-  DUR: { mg: 'Trano biriky', fr: 'Maison dur' },
-  TOL: { mg: 'Trano amina tol', fr: 'Maison en tol' },
-  MARQUAGE: { mg: 'Famantarana amin’ny tany', fr: 'Marquage au sol' },
-  AUTRE: { mg: 'Hafa', fr: 'Autre' },
-};
-
 @Injectable()
 export class TypeLocalService {
   repo: any;
@@ -42,20 +34,24 @@ export class TypeLocalService {
     status: number;
   }> {
     const [result, total] = await this.typeLocalRepository.findAndCount({
-    order: { id_type_local: 'DESC' }, // adapte au vrai nom de ta clé
+    order: { id_type_local: 'DESC' },
     skip: (page - 1) * limit,
     take: limit,
   });
 
-  const data = result.map((type) => ({
-  ...type,
-  name: {
-    mg: typeLocalTraduction[type.typeLoc]?.mg ?? type.typeLoc,
-    fr: typeLocalTraduction[type.typeLoc]?.fr ?? type.typeLoc,
-  },
-  typeLoc: typeLocalTraduction[type.typeLoc]?.[lang] ?? type.typeLoc,
-}));
-
+  const data = result.map(item => {
+    if (lang === 'fr') {
+      return {
+        ...item,
+        name: {
+          mg: item.name.mg,
+          fr: item.name.fr,
+        },
+        typeLoc: item.typeLoc,
+      };
+    }
+    return item;
+  });
 
   return {
     message: 'Liste des types locaux',
