@@ -7,14 +7,17 @@ async function bootstrap() {
    app.setGlobalPrefix('serviceModernMarket');
   const config = new DocumentBuilder()
   .setTitle(' Modern Market')
-  .setDescription('Documentation du Modern Market du recette local ')
+  .setDescription('Documentation microservice du Modern Market du recette local ')
   .setVersion('1.0')
   .addBearerAuth()
   .build();
   
   const document = SwaggerModule.createDocument(app, config);
   
-  SwaggerModule.setup('serviceModernMarket/docs', app, document);
+  SwaggerModule.setup('serviceModernMarket/docs', app, document ,{
+    swaggerOptions: { persistAuthorization: true },
+    customSiteTitle: 'Documentation API - Service Modern Market',
+  });
   await app.listen(process.env.PORT ?? 3000);
 }
 
