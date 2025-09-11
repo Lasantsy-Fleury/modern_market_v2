@@ -14,11 +14,14 @@ export class Local {
     @Column({type: 'enum', enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], default: 'DISPONIBLE'})
     statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
 
-    @Column()
+    @Column({type: 'uuid' })
     zoneId: string;   // ici tu stockes directement l’ID de la zone
 
     @Column()
     typelocalId: string;
+
+    @Column({nullable:true})
+    surface: number;
 
     @ManyToOne(() => Zone, (zone) => zone.locaux, { onDelete: 'CASCADE' })
     @JoinColumn({ name: "zoneId" })  // fait le lien entre zoneId et Zone

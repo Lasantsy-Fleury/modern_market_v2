@@ -6,6 +6,8 @@ import { Local } from './entities/local.entity';
 import { Repository } from 'typeorm';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
+import { validate as isUUID } from 'uuid';
+
 @Injectable()
 export class LocalService {
   constructor(
@@ -79,95 +81,116 @@ export class LocalService {
 
   }
 
-  async findByZoneAndType(zoneId: string, typelocalId: string, limit: number, page: number) {
-    await this.existingZoneTest(zoneId);
-    await this.existingType(typelocalId);
+
+  async getAll(
+    municipalityId: number,
+    page: number = 1,
+    limit: number = 10,
+    filters: {
+      zoneId?: string;
+      typelocalId?: string;
+      statut?: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
+      keyword?: string;
+      surface?: number;
+    },
+  ) {
     try {
-      if (!zoneId || !typelocalId) {
-        throw new BadRequestException('zoneId et typelocalId sont requis');
+      // Vérifier que la municipalité a au moins une zone
+      const zones = await this.zoneRepository.find({
+        where: { municipalityId },
+      });
+      console.log("1 terminer, ", zones);
+      if (!zones || zones.length === 0) {
+        console.log("1 terminer");
+        throw new NotFoundException(
+          `Aucune zone de marche trouvée pour la municipalité ${municipalityId}`,
+        );
+      }
+      const zoneIds = zones.map((z) => z.id_zone);
+      // Construire la requête dynamique
+      const query = this.localRepository
+        .createQueryBuilder('local')
+        .innerJoinAndSelect('local.zone', 'zone')
+        .leftJoinAndSelect('local.typelocal', 'typelocal')
+        .where('zone.municipalityId = :municipalityId', { municipalityId })
+        .skip((page - 1) * limit)
+        .take(limit);
+      console.log("3 terminer");
+      // Application des filtres
+      if (filters.zoneId) {
+        if (!isUUID(filters.zoneId)) {
+          throw new BadRequestException(`zoneId '${filters.zoneId}' n'est pas un UUID valide`);
+        }
+        await this.existingZoneTest(filters.zoneId);
+        query.andWhere('local.zoneId = :zoneId', { zoneId: filters.zoneId });
       }
 
-      const locaux = await this.localRepository.find({
-        where: { zoneId, typelocalId },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
+      if (filters.typelocalId) {
+        if (!isUUID(filters.typelocalId)) {
+          throw new BadRequestException(`typelocalId '${filters.typelocalId}' n'est pas un UUID valide`);
+        }
+        await this.existingType(filters.typelocalId);
+        query.andWhere('local.typelocalId = :typelocalId', { typelocalId: filters.typelocalId });
+      }
 
-      if (!locaux) {
+      if (filters.statut) {
+        query.andWhere('local.statut = :statut', { statut: filters.statut });
+      }
+
+      if (filters.keyword) {
+        query.andWhere('local.numero ILIKE :keyword', { keyword: `%${filters.keyword}%` });
+      }
+
+      if (filters.surface) {
+        query.andWhere('local.surface = :surface', { surface: filters.surface });
+      }
+
+      // Exécuter la requête avec pagination
+      const [result, total] = await query.getManyAndCount();
+
+      if (result.length === 0) {
         throw new NotFoundException(
-          `Aucun local trouvé pour la zone '${zoneId}' et le type local '${typelocalId}'`,
+          `Aucun local trouvé pour la municipalité ${municipalityId} avec les filtres donnés`,
         );
       }
 
       return {
         message: 'Liste des locaux trouvés',
-        data: locaux,
-         pagination: {
-        page,
-        limit,
-            },
-        count: locaux.length,
+        data: result,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
         status: 200,
       };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new ServiceUnavailableException(
-        'Impossible de récupérer les locaux pour le moment',
+        'Impossible de récupérer les locaux pour le moment.',
       );
     }
   }
 
-    async findByZoneAndTypeByStatut(zoneId: string, typelocalId: string,  statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
- limit: number, page: number) {
-    await this.existingZoneTest(zoneId);
-    await this.existingType(typelocalId);
-    try {
-      if (!zoneId || !typelocalId) {
-        throw new BadRequestException('zoneId et typelocalId sont requis');
-      }
 
-      const locaux = await this.localRepository.find({
-        where: { zoneId, typelocalId, statut},
-        skip: (page - 1) * limit,
-        take: limit,
-      });
-
-      if (!locaux) {
-        throw new NotFoundException(
-          `Aucun local trouvé pour la zone '${zoneId}' et le type local '${typelocalId}'`,
-        );
-      }
-
-      return {
-        message: 'Locaux avec statut ${statut}',
-        data: locaux,
-         pagination: {
-        page,
-        limit,
-            },
-        count: locaux.length,
-        status: 200,
-      };
-    } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new ServiceUnavailableException(
-        'Impossible de récupérer les locaux pour le moment',
-      );
-    }
-  }
-
-  async findAll() {
-    return await this.localRepository.find()
-  }
 
   async findOne(id_local: string) {
     return await this.localRepository.findOne({
       where: { id_local: id_local }
     })
+  }
+
+  async getAllLocauxByMunicipality(municipalityId: number): Promise<Local[]> {
+    return this.localRepository.createQueryBuilder('local')
+      .innerJoinAndSelect('local.zone', 'zone')
+      .where('zone.municipalityId = :municipalityId', { municipalityId })
+      .getMany();
   }
 
   async findZoneLocalDisponibleParPrix() {

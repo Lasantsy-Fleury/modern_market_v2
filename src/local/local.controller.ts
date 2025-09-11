@@ -1,85 +1,75 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete ,Query,ParseIntPipe} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
-import { ApiBody, ApiResponse,ApiTags,ApiOperation,ApiQuery, } from '@nestjs/swagger';
+import { firstValueFrom, } from 'rxjs';
+import { isUUID } from 'class-validator';
+import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiQuery, } from '@nestjs/swagger';
 
 @ApiTags('Local')
 @Controller('local')
 export class LocalController {
-  constructor(private readonly localService: LocalService) {}
+  constructor(private readonly localService: LocalService) { }
 
   @Post()
-  @ApiOperation({summary:'Créer un nouveau local'})
+  @ApiOperation({ summary: 'Créer un nouveau local' })
   create(@Body() createLocalDto: CreateLocalDto) {
     return this.localService.create(createLocalDto);
   }
-//   @ApiBody({
-//   schema: {
-//     type: 'object',
-//     properties: {
-//       numero: {type: "string"},
-//       zoneId: {type: "number"},
-//       typelocalId: {type: "number"},
-//     }
-//   }
-// })
 
-  // @Get()
-  // @ApiOperation({summary:'RCréer un nouveau local'})
-  // findAll() {
-  //   return this.localService.findAll();
-  // }
 
-  // @Get(':id')
-  // @ApiOperation({summary:'RCréer un nouveau local'})
-  // findOne(@Param('id') id: string) {
-  //   return this.localService.findOne(id);
-  // }
+  @Get(':id')
+  @ApiOperation({ summary: 'Recuperer un local par son id' })
+  findOne(@Param('id') id: string) {
+    return this.localService.findOne(id);
+  }
 
-  // @Get('disponibleZone/all')
-  // @ApiOperation({summary:'Récupere local disponible'})
-  // findLocalDisponible() {
-  //   return this.localService.findZoneLocalDisponibleParPrix();
-  // }
-
-   @Get('zone/:zoneId/type/:typelocalId')
-  @ApiOperation({ summary: 'Lister les locaux d’une zone et type, regroupés par statut' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  async findByZoneAndType(
-    @Param('zoneId') zoneId: string,
-    @Param('typelocalId', ParseIntPipe) typelocalId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
+  @Get('municipality/:municipalityId')
+  @ApiOperation({ summary: 'Récupérer les locaux d’une municipalité avec filtres' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  @ApiQuery({ name: 'zoneId', required: false, type: String, description: 'Filtrer par zone ID' })
+  @ApiQuery({ name: 'typelocalId', required: false, type: String, description: 'Filtrer par type de local' })
+  @ApiQuery({ name: 'statut', required: false, enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], description: 'Filtrer par statut' })
+  @ApiQuery({ name: 'keyword', required: false, type: String, description: 'Recherche par mot-clé sur le numéro du local' })
+  @ApiQuery({ name: 'surface', required: false, type: Number, description: 'Recherche de local ayant a surface inscrite' })
+  async getAll(
+    @Param('municipalityId', ParseIntPipe) municipalityId: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('zoneId') zoneId?: string, // ✅ Pas de ParseIntPipe pour les UUID
+    @Query('typelocalId') typelocalId?: string, // ✅ Pas de ParseIntPipe pour les UUID
+    @Query('statut') statut?: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
+    @Query('keyword') keyword?: string,
+    @Query('surface') surface?: number,
   ) {
-    return await this.localService.findByZoneAndType(zoneId, typelocalId, +limit, +page);
+    return this.localService.getAll(municipalityId, page, limit, {
+      zoneId,
+      typelocalId,
+      statut,
+      keyword,
+      surface
+    });
   }
 
 
-   @Get('zone/:zoneId/type/:typelocalId/statut/:statut')
-  @ApiOperation({ summary: 'Lister les locaux par statut dans une zone et type' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  async findByStatut(
-    @Param('zoneId') zoneId: string,
-    @Param('typelocalId', ParseIntPipe) typelocalId: string,
-    @Param('statut') statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    return await this.localService.findByZoneAndTypeByStatut(zoneId, typelocalId, statut, +limit, +page);
+
+  @Get('disponibleZone/all')
+  @ApiOperation({summary:'Récupere local disponible'})
+  findLocalDisponible() {
+    return this.localService.findZoneLocalDisponibleParPrix();
   }
 
+  
 
   @Patch(':id')
-  @ApiOperation({summary:'RCréer un nouveau local'})
+  @ApiOperation({ summary: 'Modification d un local' })
   update(@Param('id') id: string, @Body() updateLocalDto: UpdateLocalDto) {
     return this.localService.update(id, updateLocalDto);
   }
 
   @Delete(':id')
-  @ApiOperation({summary:'RCréer un nouveau local'})
+  @ApiOperation({ summary: 'Supprimer un local' })
   remove(@Param('id') id: string) {
     return this.localService.remove(id);
   }

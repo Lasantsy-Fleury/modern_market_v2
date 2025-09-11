@@ -1,22 +1,25 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsUUID, IsString, Length, IsInt } from "class-validator";
+import { IsUUID, IsString, Length, IsInt, IsNumber } from "class-validator";
 
 
 export class CreateLocalDto {
-    @ApiProperty({ maxLength: 11 })
+    @ApiProperty({ maxLength: 11 ,description:'Le numero du local ,ex:Pav1,Hang1'})
     @IsString()
     numero: string;
 
-    @ApiProperty({ maxLength: 10 })
+    @ApiProperty({ maxLength: 10,description:'L Id de la zone du local' })
     @IsUUID()
-
     zoneId: string;
 
 
     // @ApiProperty({enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], default: 'DISPONIBLE'})
     // statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
 
-    @ApiProperty({ maxLength: 10 })
+    @ApiProperty({description:'Surface de ce local en mettre carre' })
+    @IsNumber()
+    surface: number;
+
+    @ApiProperty({ maxLength: 10 ,description:'L Id du typtLocal du local' })
     @IsUUID()
     typelocalId: string;
 }

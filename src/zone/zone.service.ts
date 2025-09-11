@@ -3,7 +3,7 @@ import {
   ConflictException,
   ServiceUnavailableException, Query
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, } from '@nestjs/typeorm';
 import { Repository, ILike, } from 'typeorm';
 import { Zone } from './entities/zone.entity';
 import { CreateZoneDto } from './dto/create-zone.dto';
@@ -11,6 +11,7 @@ import { UpdateZoneDto } from './dto/update-zone.dto';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse, AxiosError } from 'axios';
+import * as _ from 'lodash';
 
 @Injectable()
 export class ZoneService {
@@ -101,7 +102,7 @@ async findAll(
   municipalityId: number,
   limit: number,
   page: number,
-  filters: {   
+  filters: {
     keyword?: string;
   },
 ) {
@@ -116,12 +117,12 @@ async findAll(
       throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
     }
 
-    // Construire la requête avec QueryBuilder
+    // Version simple avec calcul JavaScript (recommandée pour simplicité)
     const query = this.zoneRepository
       .createQueryBuilder('zone')
+      .leftJoinAndSelect('zone.locaux', 'locaux')
       .where('zone.municipalityId = :municipalityId', { municipalityId });
 
-   
     if (filters.keyword) {
       query.andWhere('LOWER(zone.nom) LIKE :keyword', {
         keyword: `%${filters.keyword.toLowerCase()}%`,
@@ -129,13 +130,27 @@ async findAll(
     }
 
     // Pagination
-    query.skip((page - 1) * limit).take(limit);
+    query
+      .orderBy('zone.nom', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
 
     const [result, total] = await query.getManyAndCount();
 
+    // Calculer seulement le total et les disponibles pour chaque zone
+    const zonesWithCounts = result.map(zone => ({
+      id_zone: zone.id_zone,
+      nom: zone.nom,
+      status: zone.status,
+      fokotany_id: zone.fokotany_id,
+      municipalityId: zone.municipalityId,
+      total_locaux: zone.locaux.length,
+      locaux_disponibles: zone.locaux.filter(local => local.statut === 'DISPONIBLE').length
+    }));
+
     return {
-      message: 'Liste des zones filtrés',
-      data: result,
+      message: 'Liste des zones filtrées',
+      data: zonesWithCounts,
       pagination: {
         page,
         limit,
@@ -149,12 +164,15 @@ async findAll(
       throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
     }
 
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+
     throw new ServiceUnavailableException(
-      'Impossible de récupérer les locaux pour le moment. Veuillez réessayer plus tard.',
+      'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
     );
   }
 }
-
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
   async findOne(municipalityId: number, id_zone: string) {
     try {
