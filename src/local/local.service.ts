@@ -180,71 +180,40 @@ export class LocalService {
 
 
 
-  async findOne(id_local: string) {
-    return await this.localRepository.findOne({
-      where: { id_local: id_local }
-    })
+// Trouver un local en vérifiant la municipalité
+async findOne(municipalityId: number, id_local: string) {
+  const local = await this.localRepository
+    .createQueryBuilder('local')
+    .leftJoinAndSelect('local.zone', 'zone')
+    .where('local.id_local = :id_local', { id_local })
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+    .getOne();
+
+  if (!local) {
+    throw new NotFoundException(
+      `Local with id '${id_local}' not found in municipality '${municipalityId}'`
+    );
   }
 
-  async getAllLocauxByMunicipality(municipalityId: number): Promise<Local[]> {
-    return this.localRepository.createQueryBuilder('local')
-      .innerJoinAndSelect('local.zone', 'zone')
-      .where('zone.municipalityId = :municipalityId', { municipalityId })
-      .getMany();
-  }
+  return local;
+}
 
-  async findZoneLocalDisponibleParPrix() {
-    const zones = await this.zoneRepository
-      .createQueryBuilder('zone')
-      .leftJoin('zone.locaux', 'local')
-      .leftJoin('local.typelocal', 'typelocal')
-      .where('local.statut = :statut', { statut: 'DISPONIBLE' })
-      .select('zone.nom', 'zone')
-      .addSelect('typelocal.tarif', 'prix')
-      .addSelect('COUNT(local.id_local)', 'nombre')
-      .groupBy('zone.nom')
-      .addGroupBy('typelocal.tarif')
-      .getRawMany();
+// Mettre à jour un local
+async update(
+  municipalityId: number,
+  id_local: string,
+  updateLocalDto: UpdateLocalDto
+) {
+  const local = await this.findOne(municipalityId, id_local);
 
-    if (zones.length === 0) {
-      throw new NotFoundException('Aucun local disponible trouvé.');
-    }
+  Object.assign(local, updateLocalDto);
+  return await this.localRepository.save(local);
+}
 
-    // transformer le résultat pour avoir le format souhaité
-    const result = zones.reduce((acc, cur) => {
-      const zoneExist = acc.find(z => z.zone === cur.zone);
-      const tarifInfo = { prix: Number(cur.prix), nombre: Number(cur.nombre) };
+// Supprimer un local
+async remove(municipalityId: number, id_local: string) {
+  const local = await this.findOne(municipalityId, id_local);
+  return await this.localRepository.remove(local);
+}
 
-      if (zoneExist) {
-        zoneExist.tarifs.push(tarifInfo);
-      } else {
-        acc.push({
-          zone: cur.zone,
-          tarifs: [tarifInfo],
-        });
-      }
-
-      return acc;
-    }, []);
-
-    return result;
-  }
-
-
-  async update(id_local: string, updateLocalDto: UpdateLocalDto) {
-    const local = await this.findOne(id_local);
-    if (!local) {
-      throw new NotFoundException();
-    }
-    Object.assign(local, updateLocalDto);
-    return await this.localRepository.save(local)
-  }
-
-  async remove(id_local: string) {
-    const local = await this.findOne(id_local);
-    if (!local) {
-      throw new NotFoundException();
-    }
-    return await this.localRepository.remove(local)
-  }
 }

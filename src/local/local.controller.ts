@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe,ParseUUIDPipe } from '@nestjs/common';
 import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
@@ -18,13 +18,8 @@ export class LocalController {
   }
 
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Recuperer un local par son id' })
-  findOne(@Param('id') id: string) {
-    return this.localService.findOne(id);
-  }
 
-  @Get('municipality/:municipalityId')
+  @Get('getAll/municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer les locaux d’une municipalité avec filtres' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
@@ -53,24 +48,30 @@ export class LocalController {
   }
 
 
-
-  // @Get('disponibleZone/all')
-  // @ApiOperation({summary:'Récupere local disponible'})
-  // findLocalDisponible() {
-  //   return this.localService.findZoneLocalDisponibleParPrix();
-  // }
-
-  
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Modification d un local' })
-  update(@Param('id') id: string, @Body() updateLocalDto: UpdateLocalDto) {
-    return this.localService.update(id, updateLocalDto);
+ @Get('municipality/:municipalityId/:id_local')
+  async findOne(
+    @Param('municipalityId') municipalityId: number,
+    @Param('id_local', ParseUUIDPipe) id_local: string,
+  ) {
+    return this.localService.findOne(municipalityId, id_local);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Supprimer un local' })
-  remove(@Param('id') id: string) {
-    return this.localService.remove(id);
+  // Mettre à jour un local
+  @Patch('municipality/:municipalityId/:id_local')
+  async update(
+    @Param('municipalityId') municipalityId: number,
+    @Param('id_local', ParseUUIDPipe) id_local: string,
+    @Body() updateLocalDto: UpdateLocalDto,
+  ) {
+    return this.localService.update(municipalityId, id_local, updateLocalDto);
+  }
+
+  // Supprimer un local
+  @Delete('municipality/:municipalityId/:id_local')
+  async remove(
+    @Param('municipalityId') municipalityId: number,
+    @Param('id_local', ParseUUIDPipe) id_local: string,
+  ) {
+    return this.localService.remove(municipalityId, id_local);
   }
 }

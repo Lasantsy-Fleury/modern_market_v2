@@ -1,55 +1,90 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Param, 
+  Query, 
+  Patch 
+} from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { number, string, StringSchema } from 'joi';
-import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
 
-
-@ApiTags('Notification')
-@Controller('notification')
+@Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
-  @Post()
-  @ApiOperation({summary:'Créer une nouvelle not'})
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationService.create(createNotificationDto);
+  // -----------------------
+  // Créer une notification de location
+  // -----------------------
+  @Post('location')
+  async createLocationNotification(
+    @Body('userId') userId: string,
+    @Body('type') type: 'CONFIRMED' | 'CANCELLED' | 'PENDING',
+    @Body('data') data: any,
+  ) {
+    return this.notificationService.createLocationNotification(userId, type, data);
   }
 
-  @Get()
-  @ApiOperation({summary:'Récupérer tous les notifications'})
-  findAll(
-    @Param('page') page: number,
-    @Param('limit') limit: number,
-    @Param('search') search?: string,)
-  {
-    return this.notificationService.findAll(
-    page ? Number(page) : undefined,   // défaut = 1
-    limit ? Number(limit) : undefined, // défaut = 10
-    search || undefined,
-    );
+  // -----------------------
+  // Créer une notification de paiement
+  // -----------------------
+  @Post('payment')
+  async createPaymentNotification(
+    @Body('userId') userId: string,
+    @Body('type') type: 'SUCCESS' | 'FAILED' | 'PENDING',
+    @Body('data') data: any,
+  ) {
+    return this.notificationService.createPaymentNotification(userId, type, data);
   }
 
-  @Get(':id')
-  @ApiOperation({summary:'Récupérer une notifcation par son id'})
-  findOne(@Param('id') id: string) {
-    return this.notificationService.findOne(id);
+  // -----------------------
+  // Créer une notification programmée
+  // -----------------------
+  @Post('reminder')
+  async scheduleReminderNotification(
+    @Body('userId') userId: string,
+    @Body('scheduledAt') scheduledAt: Date,
+    @Body('data') data: any,
+  ) {
+    return this.notificationService.scheduleReminderNotification(userId, scheduledAt, data);
   }
 
-  @Patch(':id')
-  @ApiOperation({summary:'Modifier une notifcation par son id'})
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
-    return this.notificationService.update(id, updateNotificationDto);
+  // -----------------------
+  // Marquer une notification comme lue
+  // -----------------------
+  @Patch(':id/read')
+  async markAsRead(
+    @Param('id') id: string,
+    @Body('userId') userId: string,
+  ) {
+    return this.notificationService.markAsRead(id, userId);
   }
 
-  @Delete(':id')
-  @ApiOperation({summary:'Supprimer une notification'})
-  remove(@Param('id') id: string) {
-    return this.notificationService.remove(id);
+  // -----------------------
+  // Nombre de non lues
+  // -----------------------
+  @Get('unread/count/:userId')
+  async getUnreadCount(@Param('userId') userId: string) {
+    return this.notificationService.getUnreadCount(userId);
+  }
+
+  // -----------------------
+  // Récupérer les notifications d'un user avec filtres
+  // -----------------------
+  @Get(':userId')
+  async getUserNotifications(
+    @Param('userId') userId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('category') category?: string,
+    @Query('isRead') isRead?: boolean,
+    @Query('priority') priority?: string,
+  ) {
+    return this.notificationService.getUserNotifications(userId, {
+      page: page ? +page : 1,
+      limit: limit ? +limit : 20,
+      isRead,
+      priority,
+    });
   }
 }
-function findOne(arg0: any, id: any, string: <TSchema = string>() => StringSchema<TSchema>) {
-  throw new Error('Function not implemented.');
-}
-

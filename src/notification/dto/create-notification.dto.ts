@@ -1,16 +1,57 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { IsUUID, IsString, IsEnum, IsBoolean, IsOptional, IsObject, IsDate, IsIn, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateNotificationDto {
-    @ApiProperty()
-    type : string ;
+  @IsUUID()
+  userId: string;
 
-    @ApiProperty()
-    date_paiement: Date;
+  @IsEnum([
+    'LOCATION CONFIRMEE',
+    'LOCATION ANNULEE',
+    'PAIEMENT REUSSIE',
+    'PAIEMENT NON REUSSIE',
+    'PAIEMENT EN ATTENTE',
+    'RAPPELLE DE PAIEMENT',
+    'RAPPELLE D EVENEMENT',
+    'STATUT MIS A JOUR',
+    'SYSTEM_MAINTENANCE',
+  ])
+  type: string;
 
-    @ApiProperty()
-    paiementId: number
-  // filePath: null;
-  body: "Si tu lis ce mail, c’est que ça marche 🚀";
-  subject: "Test NestJS";
-  to: "jaoninasissiethephanie@gmail.com";
+  @IsString()
+  @MaxLength(100)
+  title: string;
+
+  @IsString()
+  message: string;
+
+  @IsOptional()
+  @IsObject()
+  data?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  isRead?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isArchived?: boolean;
+
+  @IsOptional()
+  @IsIn(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+  priority?: string = 'MEDIUM';
+
+  @IsOptional()
+  @IsObject()
+  channels?: {
+    inApp: boolean;
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  scheduledAt?: Date;
 }
