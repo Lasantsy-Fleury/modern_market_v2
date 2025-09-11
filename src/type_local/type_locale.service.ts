@@ -62,7 +62,7 @@ export class TypeLocalService {
 
   async findOne(municipalityId: number, id_type_local: string): Promise<Typelocal> {
     const typeLocal = await this.typeLocalRepository.findOne({
-      where: { id_type_local: id_type_local },
+      where: { municipalityId ,id_type_local: id_type_local },
       relations: ['locaux'],
     });
     if (!typeLocal) {
