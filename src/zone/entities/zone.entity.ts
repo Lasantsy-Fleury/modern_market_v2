@@ -17,7 +17,7 @@ export class Zone {
     fokotany_id: number;
 
     @Column()
-     municipalityId: number;
+    municipalityId: number;
 
     @OneToMany(() => Local, (local) => local.zone)
     locaux: Local[];

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { CreateDistributionZoneDto } from './dto/create-distribution_zone.dto';
 import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,13 +16,13 @@ export class DistributionZoneService {
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
     // Vérification de l’existence de la zone
-    const zone = await this.zoneService.findOne(
-      createDistributionZoneDto.municipalityId,
-      createDistributionZoneDto.zoneId,
-    );
-    if (!zone) {
-      throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
-    }
+    // const zone = await this.zoneService.findOne(
+    //   createDistributionZoneDto.municipalityId,
+    //   createDistributionZoneDto.zoneId,
+    // );
+    // if (!zone) {
+    //   throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
+    // }
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     return await this.distributionZoneRepository.save(distributionZone);
@@ -51,5 +51,13 @@ export class DistributionZoneService {
   async remove(id: string) {
     const distributionZone = await this.findOne(id);
     return await this.distributionZoneRepository.remove(distributionZone);
+  }
+
+  async someAsyncMethod() {
+    try {
+      // Code qui peut échouer
+    } catch (error) {
+      throw new ServiceUnavailableException('Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.');
+    }
   }
 }

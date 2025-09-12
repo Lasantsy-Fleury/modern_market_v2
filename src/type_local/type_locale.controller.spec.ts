@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TypeLocaleController } from './type_locale.controller';
-import { TypeLocaleService } from './type_locale.service';
+import { TypeLocalController } from './type_locale.controller';
+import { TypeLocalService } from './type_locale.service';
 
 describe('TypeLocaleController', () => {
-  let controller: TypeLocaleController;
+  let controller: TypeLocalController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [TypeLocaleController],
-      providers: [TypeLocaleService],
+      controllers: [TypeLocalController],
+      providers: [TypeLocalService],
     }).compile();
 
-    controller = module.get<TypeLocaleController>(TypeLocaleController);
+    controller = module.get<TypeLocalController>(TypeLocalController);
   });
 
   it('should be defined', () => {

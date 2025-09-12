@@ -5,6 +5,9 @@ export class DistributionZone {
     @PrimaryGeneratedColumn('uuid')
     id_distribution_zone : string;
 
+    @Column()
+    municipalityId : number;
+
     @Column({ length: 20})
     id_user : string
 

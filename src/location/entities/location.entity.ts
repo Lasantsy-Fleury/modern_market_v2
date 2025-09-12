@@ -20,7 +20,7 @@ export class Location {
     })
     periodicite: Periodicite;
 
-    @Column({ type:'uuid'})
+    @Column({ type: 'uuid' })
     id_user: string;
 
     @Column({ length: 6 })
@@ -46,6 +46,6 @@ export class Location {
     @JoinColumn({ name: "localId" })
     local: Local;
 
-    @Column({})
+    @Column({ type: 'uuid' })
     localId: string;  // clé étrangère vers Local
 }

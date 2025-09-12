@@ -22,89 +22,96 @@ export class LocationService {
   }
 
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
-    const { date_debut_loc, date_fin_loc, periodicite, localId, id_user, nif } = createLocationDto;
+  let { date_debut_loc, periodicite, localId, id_user, nif } = createLocationDto;
+  let date_fin_loc: Date;
 
-    //Verifier si cet user a deja eu une location
-    const existingUser = await this.locationRepository.findOne({
-      where: { id_user }
-    });
+  // Récupérer le local et son type_local
+  const local = await this.localRepository.findOne({
+    where: { id_local: localId },
+    relations: ['typelocal'],
+  });
 
-    if (existingUser && existingUser.nif !== nif) {
-      throw new BadRequestException(`le nif de l'user ${id_user} est de  ${existingUser.nif} `)
-    }
-
-    const debut = new Date(date_debut_loc);
-    const fin = new Date(date_fin_loc);
-
-    const today = new Date();
-
-    // Vérifier si le local est déjà en location en cours
-    const existingLocation = await this.locationRepository.findOne({
-      where: {
-        localId,
-        date_debut_loc: LessThanOrEqual(today),
-        date_fin_loc: MoreThanOrEqual(today),
-      },
-    });
-
-
-    if (existingLocation) {
-      throw new BadRequestException(`Le local ${localId} est déjà en location en cours.`);
-    }
-
-    if (debut >= fin) {
-      throw new BadRequestException("La date de début doit être avant la date de fin.");
-    }
-
-    if (periodicite === Periodicite.MENSUEL) {
-      const diffMonths =
-        (fin.getFullYear() - debut.getFullYear()) * 12 +
-        (fin.getMonth() - debut.getMonth());
-
-      if (diffMonths < 1) {
-        throw new BadRequestException(
-          "Pour une location mensuelle, l'écart doit être d'au moins un mois."
-        );
-      }
-    }
-
-    const local = await this.localRepository.findOne({
-      where: { id_local: createLocationDto.localId }
-    });
-
-    if (!local || local.statut === 'LOUE' || local.statut === 'INDISPONIBLE') {
-      throw new NotFoundException(`Local with id ${localId} not found`);
-    }
-
-    // Calcul fréquence
-    let frequence = 0;
-    if (periodicite === Periodicite.JOURNALIER) {
-      const diffDays = Math.ceil((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24));
-      frequence = diffDays;
-    } else if (periodicite === Periodicite.MENSUEL) {
-      const diffMonths =
-        (fin.getFullYear() - debut.getFullYear()) * 12 +
-        (fin.getMonth() - debut.getMonth());
-
-      if (fin.getDate() >= debut.getDate()) {
-        frequence = diffMonths + 1;
-      } else {
-        frequence = diffMonths;
-      }
-
-    }
-
-    // Création de la location
-    const location = this.locationRepository.create({
-      ...createLocationDto,
-      frequence,
-    });
-
-    local.statut = 'LOUE'; // Mettre à jour le statut du local
-    await this.localRepository.save(local); // Sauvegarder les modifications du local    
-
-    return await this.locationRepository.save(location);
+  if (!local || local.statut === 'LOUE' || local.statut === 'INDISPONIBLE') {
+    throw new NotFoundException(`Local with id ${localId} not found`);
   }
+
+  // Conversion de la date de début
+  const debut = new Date(date_debut_loc);
+  debut.setHours(0, 0, 0, 0); // optionnel pour normaliser
+
+  // Si périodicité mensuelle et contrat d'un an, calcul automatique
+  if (periodicite === Periodicite.MENSUEL && local.typelocal?.type_contrat === 'AN') {
+  date_fin_loc = new Date(debut);
+  date_fin_loc.setFullYear(date_fin_loc.getFullYear() + 1);
+} else if (periodicite === Periodicite.JOURNALIER) {
+  date_fin_loc = new Date(debut);
+  date_fin_loc.setDate(date_fin_loc.getDate() + 1);
+} else {
+  // Sinon, on prend la date fin fournie
+  date_fin_loc = createLocationDto.date_fin_loc
+    ? new Date(createLocationDto.date_fin_loc)
+    : new Date(debut);
+}  date_fin_loc.setHours(0, 0, 0, 0); // normalisation
+
+  const fin = new Date(date_fin_loc);
+
+  const today = new Date();
+
+  // Vérifier si le local est déjà en location
+  const existingLocation = await this.locationRepository.findOne({
+    where: {
+      localId,
+      date_debut_loc: LessThanOrEqual(today),
+      date_fin_loc: MoreThanOrEqual(today),
+    },
+  });
+
+  if (existingLocation) {
+    throw new BadRequestException(`Le local ${localId} est déjà en location en cours.`);
+  }
+
+  if (debut >= fin) {
+    throw new BadRequestException("La date de début doit être avant la date de fin.");
+  }
+
+  // Validation mensuelle
+  if (periodicite === Periodicite.MENSUEL) {
+    const diffMonths =
+      (fin.getFullYear() - debut.getFullYear()) * 12 +
+      (fin.getMonth() - debut.getMonth());
+
+    if (diffMonths < 1) {
+      throw new BadRequestException(
+        "Pour une location mensuelle, l'écart doit être d'au moins un mois."
+      );
+    }
+  }
+
+  // Calcul de la fréquence
+  let frequence = 0;
+  if (periodicite === Periodicite.JOURNALIER) {
+    frequence = Math.ceil((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24));
+  } else if (periodicite === Periodicite.MENSUEL) {
+    const diffMonths =
+      (fin.getFullYear() - debut.getFullYear()) * 12 +
+      (fin.getMonth() - debut.getMonth());
+
+    frequence = fin.getDate() >= debut.getDate() ? diffMonths + 1 : diffMonths;
+  }
+
+  // Création de la location
+  const location = this.locationRepository.create({
+    ...createLocationDto,
+    date_fin_loc,
+    frequence,
+  });
+
+  local.statut = 'LOUE';
+  await this.localRepository.save(local);
+
+  return await this.locationRepository.save(location);
+}
+
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateExpiredLocations() {
@@ -200,7 +207,7 @@ export class LocationService {
     return {
       ...location, // Spread all properties of the location entity
       derniere_date_payer: lastPaymentDate, // Add the last payment date
-      paiement_locations: undefined // Explicitly remove the full payment location array
+      paiement_locations: undefined 
 
     }
   }

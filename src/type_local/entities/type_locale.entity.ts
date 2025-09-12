@@ -9,19 +9,21 @@ export class Typelocal {
     @PrimaryGeneratedColumn('uuid')
     id_type_local: string;
 
-    @Column({ length: 50 })
-    typeLoc : string;
+    @Column()
+    municipalityId : number;
+
+    @Column({ type: 'json', nullable: false })
+    typeLoc: { mg: string; fr: string };
     
     @Column()
     tarif: number;
 
-    @Column({ length: 150,nullable:true })
-    description: string;
+    @Column({ type: 'json', nullable: true })
+    description: { mg: string; fr: string };
 
     @Column({ nullable : true })
     type_contrat : string ;
     
     @OneToMany(() => Local, (local) => local.typelocal)
     locaux: Local[];
-  name: any;
 }
