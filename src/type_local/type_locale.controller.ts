@@ -60,14 +60,27 @@ export class TypeLocalController {
     schema: {
       type: 'object',
       properties: {
-        typeLoc: {type: "string"},
-        tarif : {type : "number"},
-        description : { type : "string"},
-        type_contrat : { type : "string"}
+        typeLoc: {
+          type: 'object',
+          properties: {
+            mg: { type: 'string' },
+            fr: { type: 'string' },
+          },
+        },
+        description: {
+          type: 'object',
+          properties: {
+            mg: { type: 'string' },
+            fr: { type: 'string' },
+          },
+        },
+        tarif: { type: 'number' },
+        type_contrat: { type: 'string' },
       },
-      required: ['typeLoc', 'tarif'] 
+      // You can remove the 'required' array because all fields are optional for a PATCH request
+      // required: ['typeLoc', 'tarif']
     }
-  })
+})
   @ApiResponse({ status: 201, description: 'Type local update successfully', type: Typelocal })
   @ApiResponse({ status: 404, description: 'Données non touver' })
   async update(
