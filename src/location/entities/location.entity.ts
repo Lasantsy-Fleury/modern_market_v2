@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Paiementlocation } from "src/paiement_location/entities/paiement_location.entity";
 import { Local } from "src/local/entities/local.entity";
+import { UUID } from "typeorm/driver/mongodb/bson.typings";
 
 export enum Periodicite {
     JOURNALIER = 'JOURNALIER',

@@ -10,20 +10,7 @@ export class Notification {
   userId: string;
 
   // Type de notification
-  @Column({ 
-    type: 'enum', 
-    enum: [
-      'LOCATION CONFIRMEE', 
-      'LOCATION ANNULEE',
-      'PAIEMENT REUSSIE', 
-      'PAIEMENT NON REUSSIE',
-      'PAIEMENT EN ATTENTE',
-      'RAPPELLE DE PAIEMENT',
-      'RAPPELLE D EVENEMENT',
-      'STATUT MIS A JOUR',
-      'SYSTEM_MAINTENANCE'
-    ]
-  })
+  @Column({})
   type: string;
 
   // Titre court
@@ -42,8 +29,8 @@ export class Notification {
     id_paiement_location?:string;
     localId?: string;
     montant?: number;
-    dueDate?: string;
-    [key: string]: any;
+
+   
   };
 
   // Statuts
@@ -74,7 +61,7 @@ export class Notification {
   @Column({ type: 'timestamp', nullable: true })
   scheduledAt: Date; // Pour les notifications programmées
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamp', nullable: true ,default: () => 'CURRENT_TIMESTAMP'})
   sentAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })

@@ -1,14 +1,23 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Query, 
-  Patch 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  Patch
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
+import {
+  CreateLocationNotificationDto,
+  CreatePaymentNotificationDto,
+  CreateReminderNotificationDto,
+  MarkAsReadDto,
+  GetUserNotificationsDto
+} from './dto/create-notification.dto';
+import { ApiTags, ApiOperation, ApiBody, ApiQuery } from '@nestjs/swagger';
 
+@ApiTags('notifications')
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
@@ -17,11 +26,12 @@ export class NotificationController {
   // Créer une notification de location
   // -----------------------
   @Post('location')
+  @ApiOperation({ summary: 'Créer une notification de location' })
+  @ApiBody({ type: CreateLocationNotificationDto })
   async createLocationNotification(
-    @Body('userId') userId: string,
-    @Body('type') type: 'CONFIRMED' | 'CANCELLED' | 'PENDING',
-    @Body('data') data: any,
+    @Body() dto: CreateLocationNotificationDto,
   ) {
+    const { userId, type, data } = dto;
     return this.notificationService.createLocationNotification(userId, type, data);
   }
 
@@ -29,11 +39,12 @@ export class NotificationController {
   // Créer une notification de paiement
   // -----------------------
   @Post('payment')
+  @ApiOperation({ summary: 'Créer une notification de paiement' })
+  @ApiBody({ type: CreatePaymentNotificationDto })
   async createPaymentNotification(
-    @Body('userId') userId: string,
-    @Body('type') type: 'SUCCESS' | 'FAILED' | 'PENDING',
-    @Body('data') data: any,
+    @Body() dto: CreatePaymentNotificationDto,
   ) {
+    const { userId, type, data } = dto;
     return this.notificationService.createPaymentNotification(userId, type, data);
   }
 
@@ -41,11 +52,12 @@ export class NotificationController {
   // Créer une notification programmée
   // -----------------------
   @Post('reminder')
+  @ApiOperation({ summary: 'Programmer une notification de rappel' })
+  @ApiBody({ type: CreateReminderNotificationDto })
   async scheduleReminderNotification(
-    @Body('userId') userId: string,
-    @Body('scheduledAt') scheduledAt: Date,
-    @Body('data') data: any,
+    @Body() dto: CreateReminderNotificationDto,
   ) {
+    const { userId, scheduledAt, data } = dto;
     return this.notificationService.scheduleReminderNotification(userId, scheduledAt, data);
   }
 
@@ -53,38 +65,39 @@ export class NotificationController {
   // Marquer une notification comme lue
   // -----------------------
   @Patch(':id/read')
+  @ApiOperation({ summary: 'Marquer une notification comme lue' })
+  @ApiBody({ type: MarkAsReadDto })
   async markAsRead(
     @Param('id') id: string,
-    @Body('userId') userId: string,
+    @Body() dto: MarkAsReadDto,
   ) {
-    return this.notificationService.markAsRead(id, userId);
+    return this.notificationService.markAsRead(id, dto.userId);
   }
 
   // -----------------------
-  // Nombre de non lues
+  // Nombre de notifications non lues
   // -----------------------
   @Get('unread/count/:userId')
+  @ApiOperation({ summary: 'Obtenir le nombre de notifications non lues' })
   async getUnreadCount(@Param('userId') userId: string) {
     return this.notificationService.getUnreadCount(userId);
   }
 
   // -----------------------
-  // Récupérer les notifications d'un user avec filtres
+  // Récupérer les notifications d'un utilisateur avec filtres
   // -----------------------
   @Get(':userId')
+  @ApiOperation({ summary: 'Lister les notifications d’un utilisateur avec pagination et filtres' })
   async getUserNotifications(
     @Param('userId') userId: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('category') category?: string,
-    @Query('isRead') isRead?: boolean,
-    @Query('priority') priority?: string,
+    @Query() query: GetUserNotificationsDto,
   ) {
     return this.notificationService.getUserNotifications(userId, {
-      page: page ? +page : 1,
-      limit: limit ? +limit : 20,
-      isRead,
-      priority,
+      page: query.page ? +query.page : 1,
+      limit: query.limit ? +query.limit : 20,
+      isRead: query.isRead,
+      priority: query.priority,
+      // category: query.category, // si tu veux l’ajouter plus tard
     });
   }
 }
