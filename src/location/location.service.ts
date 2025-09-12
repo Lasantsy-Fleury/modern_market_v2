@@ -86,7 +86,7 @@ export class LocationService {
         (fin.getFullYear() - debut.getFullYear()) * 12 +
         (fin.getMonth() - debut.getMonth());
 
-      if (date_fin_loc.getDate() >= date_debut_loc.getDate()) {
+      if (fin.getDate() >= debut.getDate()) {
         frequence = diffMonths + 1;
       } else {
         frequence = diffMonths;
