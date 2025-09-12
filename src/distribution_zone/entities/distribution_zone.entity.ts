@@ -8,9 +8,9 @@ export class DistributionZone {
     @Column()
     municipalityId : number;
 
-    @Column({ length: 20})
+    @Column({ type: 'uuid' })
     id_user : string
 
-    @Column({ length: 20})
+    @Column({ type: 'uuid' })
     zoneId: string; 
 }

@@ -16,20 +16,26 @@ export class DistributionZoneService {
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
     // Vérification de l’existence de la zone
-    // const zone = await this.zoneService.findOne(
-    //   createDistributionZoneDto.municipalityId,
-    //   createDistributionZoneDto.zoneId,
-    // );
-    // if (!zone) {
-    //   throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
-    // }
+    const zone = await this.zoneService.findOne(
+      createDistributionZoneDto.municipalityId,
+      createDistributionZoneDto.zoneId,
+    );
+    if (!zone) {
+      throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
+    }
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
-  async findAll() {
-    return await this.distributionZoneRepository.find();
+  async findAll(municipalityId:number , page: number=1 , limit: number = 10) {
+      const [result, total] = await this.distributionZoneRepository.findAndCount({
+        where: { municipalityId },
+        order: { id_distribution_zone: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      return { data: result, total };
   }
 
   async findOne(id_distribution_zone: string) {

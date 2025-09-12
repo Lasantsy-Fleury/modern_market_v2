@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, NotFoundException, Query } from '@nestjs/common';
-import { ApiResponse,ApiTags,ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, NotFoundException, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import { ApiResponse,ApiTags,ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Typelocal } from './entities/type_locale.entity';
 import { TypeLocalService } from './type_locale.service';
@@ -37,11 +37,14 @@ export class TypeLocalController {
 
   @Get('municipalityId/:municipalityId')
   @ApiOperation({summary:'Récupérer tous les type local existant'})
+  @ApiQuery({ name: 'lang', required: false, type: String, description: 'Langue de la réponse (par défaut mg)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
   async findAll(
     @Param('municipalityId') municipalityId : number,
     @Query('lang') lang: 'mg' | 'fr' = 'mg',
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Param('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Param('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     return this.typeLocalService.findAll(municipalityId, lang, Number(page), Number(limit));
   }

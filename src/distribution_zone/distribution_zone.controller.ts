@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { DistributionZoneService } from './distribution_zone.service';
 import { CreateDistributionZoneDto } from './dto/create-distribution_zone.dto';
 import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
-import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+import { ApiResponse,ApiTags,ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Distribution-zone')
 @Controller('distribution-zone')
@@ -19,10 +19,16 @@ export class DistributionZoneController {
     return this.distributionZoneService.create(dto);
   }
 
-  @Get()
-  @ApiOperation({summary:'Récupérer toutes les zones de distribution'})
-  findAll() {
-    return this.distributionZoneService.findAll();
+  @Get('municipalityId/:municipalityId')
+  @ApiOperation({summary:'Récupérer toutes les zones de distribution par son municipalityId'})
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  async findAll(
+    @Param('municipalityId') municipalityId: number,
+    @Param('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Param('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.distributionZoneService.findAll(municipalityId, page, limit);
   }
 
   @Get(':id')
