@@ -98,81 +98,90 @@ export class ZoneService {
   }
 
   // Retourner toutes les zones d’une municipalité
-async findAll(
-  municipalityId: number,
-  limit: number,
-  page: number,
-  filters: {
-    keyword?: string;
-  },
-) {
-  try {
-    // Vérifier si la municipalité existe via API externe
-    const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
-    const response = await firstValueFrom(
-      this.httpService.get(url, { headers: { accept: 'application/json' } }),
-    );
+  async findAll(
+    municipalityId: number,
+    limit: number,
+    page: number,
+    filters: {
+      keyword?: string;
+      latitude?: number;
+      longitude?: number;
+    },
+  ) {
+    try {
+      // Vérifier si la municipalité existe via API externe
+      const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
+      const response = await firstValueFrom(
+        this.httpService.get(url, { headers: { accept: 'application/json' } }),
+      );
 
-    if (!response.data) {
-      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      if (!response.data) {
+        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      }
+
+      // Version simple avec calcul JavaScript (recommandée pour simplicité)
+      const query = this.zoneRepository
+        .createQueryBuilder('zone')
+        .leftJoinAndSelect('zone.locaux', 'locaux')
+        .where('zone.municipalityId = :municipalityId', { municipalityId });
+
+      if (filters.keyword) {
+        query.andWhere('LOWER(zone.nom) LIKE :keyword', {
+          keyword: `%${filters.keyword.toLowerCase()}%`,
+        });
+      }
+
+      if (filters.latitude && filters.longitude) {
+        query.andWhere(
+          `ST_Contains(zone.delimitation, ST_SetSRID(ST_Point(:lng, :lat), 4326))`,
+          { lat: filters.latitude, lng: filters.longitude },
+        );
+      }
+      // Pagination
+      query
+        .orderBy('zone.nom', 'ASC')
+        .skip((page - 1) * limit)
+        .take(limit);
+
+      const [result, total] = await query.getManyAndCount();
+
+      // Calculer seulement le total et les disponibles pour chaque zone
+      const zonesWithCounts = result.map(zone => ({
+        id_zone: zone.id_zone,
+        nom: zone.nom,
+        status: zone.status,
+        geo_delimitation: zone.delimitation,
+        fokotany_id: zone.fokotany_id,
+        municipalityId: zone.municipalityId,
+        total_locaux: zone.locaux.length,
+        locaux_disponibles: zone.locaux.filter(local => local.statut === 'DISPONIBLE').length
+      }));
+
+      return {
+        message: 'Liste des zones filtrées',
+        data: zonesWithCounts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        status: 200,
+      };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      }
+
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      throw new ServiceUnavailableException(
+        'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
+      );
     }
-
-    // Version simple avec calcul JavaScript (recommandée pour simplicité)
-    const query = this.zoneRepository
-      .createQueryBuilder('zone')
-      .leftJoinAndSelect('zone.locaux', 'locaux')
-      .where('zone.municipalityId = :municipalityId', { municipalityId });
-
-    if (filters.keyword) {
-      query.andWhere('LOWER(zone.nom) LIKE :keyword', {
-        keyword: `%${filters.keyword.toLowerCase()}%`,
-      });
-    }
-
-    // Pagination
-    query
-      .orderBy('zone.nom', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [result, total] = await query.getManyAndCount();
-
-    // Calculer seulement le total et les disponibles pour chaque zone
-    const zonesWithCounts = result.map(zone => ({
-      id_zone: zone.id_zone,
-      nom: zone.nom,
-      status: zone.status,
-      fokotany_id: zone.fokotany_id,
-      municipalityId: zone.municipalityId,
-      total_locaux: zone.locaux.length,
-      locaux_disponibles: zone.locaux.filter(local => local.statut === 'DISPONIBLE').length
-    }));
-
-    return {
-      message: 'Liste des zones filtrées',
-      data: zonesWithCounts,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-      status: 200,
-    };
-  } catch (error) {
-    if (error instanceof AxiosError && error.response?.status === 404) {
-      throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-    }
-
-    if (error instanceof NotFoundException) {
-      throw error;
-    }
-
-    throw new ServiceUnavailableException(
-      'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
-    );
   }
-}
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
   async findOne(municipalityId: number, id_zone: string) {
     try {
