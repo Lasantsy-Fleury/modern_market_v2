@@ -3,13 +3,13 @@ import { Paiement } from "src/paiement/entities/paiement.entity";
 import { Location } from "src/location/entities/location.entity";
 @Entity('paiement_location')
 export class Paiementlocation {
-    @PrimaryGeneratedColumn()
-    id_paiement_location: number;
+    @PrimaryGeneratedColumn("uuid")
+    id_paiement_location: string;
 
     @Column()
     locationId: string;
 
-    @Column()
+    @Column({type:'uuid'})
     paiementId: string;
 
     @Column()

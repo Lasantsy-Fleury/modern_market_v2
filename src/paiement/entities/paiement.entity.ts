@@ -9,14 +9,17 @@ export class Paiement {
     @Column({ length: 255,unique:true })
     reference: string;
 
-    @Column({ length: 25 })
+    @Column({  type: 'enum', 
+    enum: ['success', 'failed',],
+    
+ })
     status: string;
 
     @Column({ length: 255 })
     raison: string;
 
-    @Column({unique:true })
-    paiementId: number;
+    @Column({type: 'uuid', unique:true })
+    paiementId: string;
 
     @OneToMany(() => Paiementlocation, (tu) => tu.location)
     paiement_locations: Paiementlocation[];

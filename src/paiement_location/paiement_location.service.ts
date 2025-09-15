@@ -4,6 +4,7 @@ import { Repository, QueryRunner } from 'typeorm';
 import { Paiementlocation } from './entities/paiement_location.entity';
 import { CreatePaiementLocationDto } from './dto/create-paiement_location.dto';
 import { Location, Periodicite } from 'src/location/entities/location.entity';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class PaiementLocationService {
@@ -14,36 +15,32 @@ export class PaiementLocationService {
     private readonly locationRepository: Repository<Location>,
   ) { }
 
-  async create(createPaiementLocationDto: CreatePaiementLocationDto, queryRunner?: QueryRunner): Promise<Paiementlocation> {
+  async create(
+    createPaiementLocationDto: CreatePaiementLocationDto,
+    queryRunner?: QueryRunner,
+  ): Promise<Paiementlocation> {
     const { locationId, nombre_paye, ...dtoRest } = createPaiementLocationDto;
 
-    // Utiliser le gestionnaire de la transaction si un queryRunner est fourni, sinon les dépôts injectés
+    // Utiliser le gestionnaire de transaction si fourni
     const manager = queryRunner ? queryRunner.manager : this.locationRepository.manager;
 
-    // 1. Trouver la location et sa périodicité en utilisant le manager de la transaction
+    // 1. Vérifier si la location existe
     const location = await manager.findOne(Location, { where: { id_location: locationId } });
     if (!location) {
       throw new NotFoundException(`Location with ID "${locationId}" not found.`);
     }
 
-    // 2. Trouver le dernier paiement pour cette location en utilisant le manager de la transaction
+    // 2. Trouver le dernier paiement pour cette location
     const lastPaiement = await manager.findOne(Paiementlocation, {
       where: { locationId },
       order: { date_fin: 'DESC' },
     });
 
-    let newDateDebut: Date;
-    let newDateFin: Date;
-    const now = new Date();
-
     // 3. Calculer les dates de début et de fin
-    if (lastPaiement) {
-      newDateDebut = new Date(lastPaiement.date_fin);
-    } else {
-      newDateDebut = new Date(location.date_debut_loc);
-    }
+    const now = new Date();
+    let newDateDebut: Date = lastPaiement ? new Date(lastPaiement.date_fin) : new Date(location.date_debut_loc);
+    let newDateFin: Date = new Date(newDateDebut);
 
-    newDateFin = new Date(newDateDebut);
     if (location.periodicite === Periodicite.MENSUEL) {
       newDateFin.setMonth(newDateFin.getMonth() + nombre_paye);
     } else if (location.periodicite === Periodicite.JOURNALIER) {
@@ -52,17 +49,18 @@ export class PaiementLocationService {
       throw new BadRequestException(`Invalid periodicity for location ID "${locationId}".`);
     }
 
+    // 4. Vérifier la fréquence restante
     if (location.frequence !== null && nombre_paye > location.frequence) {
       throw new BadRequestException(`Cannot pay for more than the remaining frequency (${location.frequence}).`);
     }
 
-    // 4. Mettre à jour la fréquence de la location en utilisant le manager de la transaction
+    // 5. Mettre à jour la fréquence
     if (location.frequence !== null) {
       location.frequence -= nombre_paye;
     }
     await manager.save(location);
 
-    // 5. Créer et sauvegarder le nouveau paiement en utilisant le manager de la transaction
+    // 6. Créer et sauvegarder le paiement
     const newPaiementLocation = manager.create(Paiementlocation, {
       ...dtoRest,
       locationId,
@@ -72,15 +70,29 @@ export class PaiementLocationService {
       date_paiement: now,
     });
 
-    return manager.save(newPaiementLocation);
+    const savedPaiementLocation = await manager.save(newPaiementLocation);
+
+    // 7. Retourner le paiement avec relations (paiement et location) pour QR code ou autre usage
+    const paiementWithRelations = await manager.findOne(Paiementlocation, {
+      where: { id_paiement_location: savedPaiementLocation.id_paiement_location },
+      relations: ['paiement', 'location'],
+    });
+
+    if (!paiementWithRelations) {
+      throw new NotFoundException(`Paiementlocation with ID "${savedPaiementLocation.id_paiement_location}" not found after save.`);
+    }
+
+    return paiementWithRelations;
   }
+
+
   async findAll(): Promise<Paiementlocation[]> {
     return this.paiementLocationRepository.find({
       relations: ['paiement', 'location'],
     });
   }
 
-  async findOne(id: number): Promise<Paiementlocation> {
+  async findOne(id: string): Promise<Paiementlocation> {
     const found = await this.paiementLocationRepository.findOne({
       where: { id_paiement_location: id },
       relations: ['paiement', 'location'],
@@ -90,6 +102,37 @@ export class PaiementLocationService {
     }
     return found;
   }
+
+
+
+async findOneWithQr(id: string): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
+  // Récupérer le paiement avec relations
+  const found = await this.paiementLocationRepository.findOne({
+    where: { id_paiement_location: id },
+    relations: ['paiement', 'location'],
+  });
+
+  if (!found) {
+    throw new NotFoundException(`Paiementlocation with ID "${id}" not found.`);
+  }
+
+  // Préparer les données à mettre dans le QR code
+  const qrData = {
+    id_paiement_location: found.id_paiement_location,
+    nombre_paye: found.nombre_paye,
+    date_debut: found.date_debut,
+    date_fin: found.date_fin,
+    date_paiement: found.date_paiement,
+    paiement: found.paiement,
+    location: found.location,
+  };
+
+  // Générer le QR code en Data URL
+  const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
+
+  return { paiementLocation: found, qrCode };
+}
+
 
   //  async remove(id_paiement_location: number): Promise<void> {
   //     const typeLocal = await this.findOne(id_paiement_location);

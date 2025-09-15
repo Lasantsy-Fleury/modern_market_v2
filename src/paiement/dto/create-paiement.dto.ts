@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { CreatePaiementLocationDto } from "src/paiement_location/dto/create-paiement_location.dto";
-import { IsString, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNumber, IsArray, ValidateNested, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 export class CreatePaiementDto {
     @ApiProperty({ maxLength: 25 })
@@ -13,11 +13,13 @@ export class CreatePaiementDto {
     raison: string;
 
     @ApiProperty()
-    paiementId: number;
+    @IsUUID()
+    paiementId: string;
     @ApiProperty({
         type: [CreatePaiementLocationDto],
         description: "Liste des locations concernées par ce paiement."
     })
+
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => CreatePaiementLocationDto)
