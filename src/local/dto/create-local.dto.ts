@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsUUID, IsString, Length, IsInt, IsNumber } from "class-validator";
+import { IsUUID, IsString, IsNumber } from "class-validator";
 
 
 export class CreateLocalDto {
@@ -22,4 +22,16 @@ export class CreateLocalDto {
     @ApiProperty({ maxLength: 10 ,description:'L Id du typtLocal du local' })
     @IsUUID()
     typelocalId: string;
+
+    @ApiProperty({ description: 'La latitude du local' ,
+        example: -18.879190 
+    })
+    @IsNumber()
+    latitude: number;
+
+    @ApiProperty({ description: 'La longitude du local' ,
+        example: 47.507905
+     })
+    @IsNumber()
+    longitude: number;
 }

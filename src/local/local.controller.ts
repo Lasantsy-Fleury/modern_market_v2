@@ -2,9 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe,
 import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
-import { firstValueFrom, } from 'rxjs';
-import { isUUID } from 'class-validator';
-import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiQuery, } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, } from '@nestjs/swagger';
 
 @ApiTags('Local')
 @Controller('local')
@@ -28,6 +26,8 @@ export class LocalController {
   @ApiQuery({ name: 'statut', required: false, enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], description: 'Filtrer par statut' })
   @ApiQuery({ name: 'keyword', required: false, type: String, description: 'Recherche par mot-clé sur le numéro du local' })
   @ApiQuery({ name: 'surface', required: false, type: Number, description: 'Recherche de local ayant a surface inscrite' })
+  // @ApiQuery({ name: 'latitude', required: true, type: Number, description: 'Latitude du local' })
+  // @ApiQuery({ name: 'longitude', required: true, type: Number, description: 'Longitude du local'})
   async getAll(
     @Param('municipalityId', ParseIntPipe) municipalityId: number,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -37,13 +37,17 @@ export class LocalController {
     @Query('statut') statut?: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
     @Query('keyword') keyword?: string,
     @Query('surface') surface?: number,
+    // @Query('latitude') latitude?: number,
+    // @Query('longitude') longitude?: number
   ) {
     return this.localService.getAll(municipalityId, page, limit, {
       zoneId,
       typelocalId,
       statut,
       keyword,
-      surface
+      surface,
+      // latitude,
+      // longitude
     });
   }
 
