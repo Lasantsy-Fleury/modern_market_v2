@@ -20,9 +20,6 @@ export class CreateTypeLocalDto {
   @IsObject()
   description: { mg: string; fr: string };
 
-  @ApiProperty({ description: 'Tarif du type de local' })
-  @IsNumber()
-  tarif: number;
 
   @ApiProperty({ description: 'Type du contrat ' })
   @IsOptional()

@@ -1,31 +1,77 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
 import { PaiementService } from './paiement.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
-import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 
 @ApiTags('Paiement')
 @Controller('paiement')
 export class PaiementController {
-  constructor(private readonly paiementService: PaiementService) {}
+  constructor(private readonly paiementService: PaiementService) { }
 
   @Post()
-  @ApiOperation({summary:'Enregistrer le paiement d un contribuable'})
+  @ApiOperation({ summary: 'Enregistrer le paiement d un contribuable' })
   create(@Body() createPaiementDto: CreatePaiementDto) {
     return this.paiementService.create(createPaiementDto);
   }
 
   @Get()
-  @ApiOperation({summary:'Récupérer tous les paiements enregistrés'})
-  findAll() {
-    return this.paiementService.findAll();
+  @ApiOperation({ summary: 'Récupérer tous les paiements filtrés par municipalité, zone, référence et status' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'zoneId', required: false, type: String, description: 'ID de la zone' })
+  @ApiQuery({ name: 'reference', required: false, type: String, description: 'Filtre sur la référence du paiement' })
+  @ApiQuery({ name: 'status', required: false, type: String, enum: ['success', 'failed'], description: 'Filtre sur le statut du paiement' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Date de début pour filtrer (format ISO, ex: 2025-09-01)'
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Date de fin pour filtrer (format ISO, ex: 2025-09-30)'
+  })
+  async findAll(
+    @Query('municipalityId', ParseIntPipe) municipalityId: number,
+    @Query('zoneId') zoneId?: string,
+    @Query('reference') reference?: string,
+    @Query('status') status?: 'success' | 'failed',
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    if (!municipalityId) {
+      throw new BadRequestException('Le municipalityId est obligatoire.');
+    }
+
+    return this.paiementService.findAll(
+      municipalityId,
+      { zoneId, reference, status,startDate, endDate},
+      page,
+      limit,
+    );
   }
 
+
   @Get(':id')
-  @ApiOperation({summary:'Récupérer un paiement par son id'})
-  findOne(@Param('id') id: string) {
-    return this.paiementService.findOne(id);
+  @ApiOperation({ summary: 'Récupérer un paiement par son id et municipalityId' })
+  @ApiQuery({
+    name: 'municipalityId',
+    required: true,
+    type: Number,
+    description: 'ID de la municipalité obligatoire pour filtrer les paiements'
+  })
+  async findOne(
+    @Param('id') id: string,
+    @Query('municipalityId', ParseIntPipe) municipalityId: number,
+  ) {
+    return this.paiementService.findOne(id, municipalityId);
   }
 
   // @Delete(':id')

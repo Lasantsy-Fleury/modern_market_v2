@@ -86,37 +86,96 @@ export class PaiementLocationService {
   }
 
 
-  async findAll(): Promise<Paiementlocation[]> {
-    return this.paiementLocationRepository.find({
-      relations: ['paiement', 'location'],
-    });
-  }
-
-  async findOne(id: string): Promise<Paiementlocation> {
-    const found = await this.paiementLocationRepository.findOne({
-      where: { id_paiement_location: id },
-      relations: ['paiement', 'location'],
-    });
-    if (!found) {
-      throw new NotFoundException(`Paiementlocation with ID "${id}" not found.`);
+  async findAll(
+    municipalityId: number,
+    filters?: {
+      locationId?: string;
+      paiementId?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+  ): Promise<Paiementlocation[]> {
+    if (!municipalityId) {
+      throw new BadRequestException('Le municipalityId est obligatoire.');
     }
-    return found;
+
+    const query = this.paiementLocationRepository
+      .createQueryBuilder('paiement_location')
+      .leftJoinAndSelect('paiement_location.paiement', 'paiement')
+      .leftJoinAndSelect('paiement_location.location', 'location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('zone.municipalityId = :municipalityId', { municipalityId }); // filtre obligatoire
+
+    // Filtre sur locationId
+    if (filters?.locationId) {
+      query.andWhere('paiement_location.locationId = :locationId', {
+        locationId: filters.locationId,
+      });
+    }
+
+    // Filtre sur paiementId
+    if (filters?.paiementId) {
+      query.andWhere('paiement_location.paiementId = :paiementId', {
+        paiementId: filters.paiementId,
+      });
+    }
+
+    // Filtre sur date de paiement
+    if (filters?.startDate) {
+      query.andWhere('paiement_location.date_paiement >= :startDate', {
+        startDate: filters.startDate,
+      });
+    }
+
+    if (filters?.endDate) {
+      query.andWhere('paiement_location.date_paiement <= :endDate', {
+        endDate: filters.endDate,
+      });
+    }
+
+    // Trier par date de paiement
+    query.orderBy('paiement_location.date_paiement', 'DESC');
+
+    return query.getMany();
   }
 
-
-
-async findOneWithQr(id: string): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
-  // Récupérer le paiement avec relations
-  const found = await this.paiementLocationRepository.findOne({
-    where: { id_paiement_location: id },
-    relations: ['paiement', 'location'],
-  });
+async findOne(id: string, municipalityId: number): Promise<Paiementlocation> {
+  const found = await this.paiementLocationRepository
+    .createQueryBuilder('paiement_location')
+    .leftJoinAndSelect('paiement_location.paiement', 'paiement')
+    .leftJoinAndSelect('paiement_location.location', 'location')
+    .leftJoinAndSelect('location.local', 'local')
+    .leftJoinAndSelect('local.zone', 'zone')
+    .where('paiement_location.id_paiement_location = :id', { id })
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+    .getOne();
 
   if (!found) {
-    throw new NotFoundException(`Paiementlocation with ID "${id}" not found.`);
+    throw new NotFoundException(`Paiementlocation with ID "${id}" not found in municipality "${municipalityId}".`);
   }
 
-  // Préparer les données à mettre dans le QR code
+  return found;
+}
+
+async findOneWithQr(
+  id: string,
+  municipalityId: number,
+): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
+  const found = await this.paiementLocationRepository
+    .createQueryBuilder('paiement_location')
+    .leftJoinAndSelect('paiement_location.paiement', 'paiement')
+    .leftJoinAndSelect('paiement_location.location', 'location')
+    .leftJoinAndSelect('location.local', 'local')
+    .leftJoinAndSelect('local.zone', 'zone')
+    .where('paiement_location.id_paiement_location = :id', { id })
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+    .getOne();
+
+  if (!found) {
+    throw new NotFoundException(`Paiementlocation with ID "${id}" not found in municipality "${municipalityId}".`);
+  }
+
   const qrData = {
     id_paiement_location: found.id_paiement_location,
     nombre_paye: found.nombre_paye,
@@ -127,7 +186,6 @@ async findOneWithQr(id: string): Promise<{ paiementLocation: Paiementlocation; q
     location: found.location,
   };
 
-  // Générer le QR code en Data URL
   const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
   return { paiementLocation: found, qrCode };

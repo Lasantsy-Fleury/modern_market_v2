@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, OneToMany } from "typeorm";
 import { Local } from "src/local/entities/local.entity";
+import { Tarif } from "src/tarif/entities/tarif.entity";
 
 
 @Entity('zone')
@@ -29,5 +30,6 @@ export class Zone {
     @OneToMany(() => Local, (local) => local.zone)
     locaux: Local[];
 
-
+    @OneToMany(() => Tarif, (tarif) => tarif.typelocal)
+    tarifs: Tarif[];
 }

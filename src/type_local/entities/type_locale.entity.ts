@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,OneToMany } from "typeorm";
 import { Local } from "src/local/entities/local.entity";
+import { Tarif } from "src/tarif/entities/tarif.entity";
 
 @Entity('type_locale')
 export class Typelocal {
@@ -15,8 +16,6 @@ export class Typelocal {
     @Column({ type: 'json', nullable: false })
     typeLoc: { mg: string; fr: string };
     
-    @Column()
-    tarif: number;
 
     @Column({ type: 'json', nullable: true })
     description: { mg: string; fr: string };
@@ -26,4 +25,7 @@ export class Typelocal {
     
     @OneToMany(() => Local, (local) => local.typelocal)
     locaux: Local[];
+
+    @OneToMany(() => Tarif, (tarif) => tarif.typelocal)
+    tarifs: Tarif[];
 }
