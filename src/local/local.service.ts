@@ -148,11 +148,11 @@ export class LocalService {
       // Exécuter la requête avec pagination
       const [result, total] = await query.getManyAndCount();
 
-      if (result.length === 0) {
-        throw new NotFoundException(
-          `Aucun local trouvé pour la municipalité ${municipalityId} avec les filtres donnés`,
-        );
-      }
+      // if (result.length === 0) {
+      //   throw new NotFoundException(
+      //     `Aucun local trouvé pour la municipalité ${municipalityId} avec les filtres donnés`,
+      //   );
+      // }
 
       return {
         message: 'Liste des locaux trouvés',
