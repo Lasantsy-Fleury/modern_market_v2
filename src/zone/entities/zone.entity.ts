@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, OneToMany } from "typeorm";
 import { Local } from "src/local/entities/local.entity";
 import { Tarif } from "src/tarif/entities/tarif.entity";
+import { DistributionZone } from "src/distribution_zone/entities/distribution_zone.entity";
 
 
 @Entity('zone')
@@ -32,4 +33,7 @@ export class Zone {
 
     @OneToMany(() => Tarif, (tarif) => tarif.typelocal)
     tarifs: Tarif[];
+
+    @OneToMany(() => DistributionZone, distributionZone => distributionZone.zone)
+    distributionZones: DistributionZone[];
 }

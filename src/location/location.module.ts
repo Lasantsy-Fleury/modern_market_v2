@@ -10,5 +10,6 @@ import { Local } from 'src/local/entities/local.entity';
   imports:[TypeOrmModule.forFeature([Location,Paiementlocation,Local])],
   controllers: [LocationController],
   providers: [LocationService],
+  exports:[LocationService]
 })
 export class LocationModule {}

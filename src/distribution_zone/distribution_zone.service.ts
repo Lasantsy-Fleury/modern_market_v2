@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DistributionZone } from './entities/distribution_zone.entity';
 import { ZoneService } from 'src/zone/zone.service';
+import { Zone } from 'src/zone/entities/zone.entity';
 
 @Injectable()
 export class DistributionZoneService {
@@ -15,11 +16,7 @@ export class DistributionZoneService {
   ) {}
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
-    // Vérification de l’existence de la zone
-    const zone = await this.zoneService.findOne(
-      createDistributionZoneDto.municipalityId,
-      createDistributionZoneDto.zoneId,
-    );
+    const zone = await this.zoneService.findOneById(createDistributionZoneDto.zoneId);
     if (!zone) {
       throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
     }
@@ -27,43 +24,44 @@ export class DistributionZoneService {
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     return await this.distributionZoneRepository.save(distributionZone);
   }
+  
+  async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: DistributionZone[], total: number }> {
+    const query = this.distributionZoneRepository
+      .createQueryBuilder('distributionZone')
+      .leftJoinAndSelect('distributionZone.zone', 'zone')
+      .where('zone.municipalityId = :municipalityId', { municipalityId })
+      .orderBy('distributionZone.id_distribution_zone', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
 
-  async findAll(municipalityId:number , page: number=1 , limit: number = 10) {
-      const [result, total] = await this.distributionZoneRepository.findAndCount({
-        where: { municipalityId },
-        order: { id_distribution_zone: 'DESC' },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
-      return { data: result, total };
+    const [result, total] = await query.getManyAndCount();
+
+    return { data: result, total };
   }
 
-  async findOne(id_distribution_zone: string) {
-    const distributionZone = await this.distributionZoneRepository.findOne({
-      where: { id_distribution_zone: id_distribution_zone },
-    });
+  async findOne(id_distribution_zone: string, municipalityId: number) {
+    const distributionZone = await this.distributionZoneRepository
+      .createQueryBuilder('distributionZone')
+      .leftJoinAndSelect('distributionZone.zone', 'zone')
+      .where('distributionZone.id_distribution_zone = :id_distribution_zone', { id_distribution_zone })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
+
     if (!distributionZone) {
-      throw new NotFoundException(`DistributionZone ${id_distribution_zone} introuvable`);
+      throw new NotFoundException(`DistributionZone ${id_distribution_zone} introuvable dans cette municipalité`);
     }
+
     return distributionZone;
   }
-
-  async update(id_distribution_zone: string, updateDistributionZoneDto: UpdateDistributionZoneDto) {
-    const distributionZone = await this.findOne(id_distribution_zone);
+  
+  async update(id_distribution_zone: string, municipalityId: number, updateDistributionZoneDto: UpdateDistributionZoneDto) {
+    const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
-  async remove(id: string) {
-    const distributionZone = await this.findOne(id);
+  async remove(id_distribution_zone: string, municipalityId: number) {
+    const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     return await this.distributionZoneRepository.remove(distributionZone);
-  }
-
-  async someAsyncMethod() {
-    try {
-      // Code qui peut échouer
-    } catch (error) {
-      throw new ServiceUnavailableException('Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.');
-    }
   }
 }

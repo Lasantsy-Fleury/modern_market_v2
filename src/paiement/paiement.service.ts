@@ -3,9 +3,8 @@ import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Paiement } from './entities/paiement.entity';
 import { Repository } from 'typeorm';
-import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
-import { Location, } from 'src/location/entities/location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
+import { LocationService } from 'src/location/location.service';
 @Injectable()
 export class PaiementService {
   constructor(
@@ -13,6 +12,7 @@ export class PaiementService {
     private readonly paieRepository:
       Repository<Paiement>,
     private readonly paiementlocationService: PaiementLocationService,
+    private readonly locationService: LocationService, 
 
   ) { }
 
@@ -24,28 +24,17 @@ export class PaiementService {
     try {
       const { paiement_locations, ...paiementData } = createPaiementDto;
 
-      // Vérification manuelle (optionnelle) avant sauvegarde
-      const existingRef = await this.paieRepository.findOne({
-        where: { reference: paiementData.reference },
-      });
-      if (existingRef) {
-        throw new BadRequestException(
-          `Un paiement avec la référence "${paiementData.reference}" existe déjà.`,
-        );
-      }
-
-      const existingPaiementId = await this.paieRepository.findOne({
-        where: { paiementId: paiementData.paiementId },
-      });
-      if (existingPaiementId) {
-        throw new BadRequestException(
-          `Un paiement avec l'ID "${paiementData.paiementId}" existe déjà.`,
-        );
-      }
-
       // Création du paiement
       const newPaiement = this.paieRepository.create(paiementData);
       const savedPaiement = await queryRunner.manager.save(newPaiement);
+
+      // Le `paiement_locations` devrait contenir l'ID de la location à associer.
+      // Nous prenons le premier élément pour récupérer l'ID de la location.
+      if (!paiement_locations || paiement_locations.length === 0) {
+        throw new BadRequestException('Au moins une location doit être associée au paiement.');
+      }
+
+      const locationId = paiement_locations[0].locationId;
 
       // Gestion des paiements_location associés
       if (savedPaiement.status == 'success' && paiement_locations && paiement_locations.length > 0) {
@@ -55,13 +44,19 @@ export class PaiementService {
         }
       }
 
+      // Mise à jour du statut du local si le paiement est un succès.
+      // Cette étape est déclenchée uniquement dans le cas de succès.
+      if (savedPaiement.status === 'success') {
+        await this.locationService.updateLocalStatusToRented(locationId);
+      }
+
       await queryRunner.commitTransaction();
       return savedPaiement;
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
-      // Gestion spécifique des erreurs de contrainte unique
+      // Gestion spécifique des erreurs de contrainte unique (par exemple, si la référence existe déjà)
       if (error.code === '23505') {
         if (error.detail.includes('reference')) {
           throw new BadRequestException(
@@ -82,7 +77,7 @@ export class PaiementService {
     } finally {
       await queryRunner.release();
     }
-  }
+}
 
 
 

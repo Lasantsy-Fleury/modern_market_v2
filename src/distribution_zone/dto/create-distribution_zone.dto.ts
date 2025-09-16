@@ -6,7 +6,4 @@ export class CreateDistributionZoneDto {
 
     @ApiProperty({ description: 'Identifiant unique de la zone' })
     zoneId: string;
-
-    @ApiProperty({ description: 'Identifiant de la municipalité', type: Number })
-    municipalityId: number;
 }

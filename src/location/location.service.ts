@@ -22,10 +22,22 @@ export class LocationService {
 //   return await this.locationRepository.save(location);
 // }
 
-  async findAll() {
-    return await this.locationRepository.find();
-  }
+  async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
+    const query = this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('zone.municipalityId = :municipalityId', { municipalityId });
 
+    const [result, total] = await query
+      .orderBy('location.id_location', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data: result, total };
+  }
+  
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
   let { date_debut_loc, periodicite, localId, id_user, nif } = createLocationDto;
   let date_fin_loc: Date;
@@ -151,16 +163,17 @@ export class LocationService {
 
 
 
-  async findAllInProgress(): Promise<Location[]> {
+  async findAllInProgress(municipalityId: number): Promise<Location[]> {
     const today = new Date();
 
-    return await this.locationRepository.find({
-      where: {
-        date_debut_loc: LessThanOrEqual(today),
-        date_fin_loc: MoreThanOrEqual(today),
-      },
-      relations: ['local', 'paiement_locations'],
-    });
+    return await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.date_debut_loc <= :today', { today })
+      .andWhere('location.date_fin_loc >= :today', { today })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getMany();
   }
 
 
@@ -185,23 +198,27 @@ export class LocationService {
     });
   }
 
-  async findOne(id: string): Promise<Location> {
-    const location = await this.locationRepository.findOne({
-      where: { id_location: id },
-      relations: ['local', 'paiement_locations'],
-    });
+  async findOne(id: string, municipalityId: number): Promise<Location> {
+    const location = await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.id_location = :id', { id })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
+
     if (!location) {
-      throw new NotFoundException(`Location with id ${id} not found`);
+      throw new NotFoundException(`Location with ID "${id}" not found in municipality "${municipalityId}".`);
     }
+
     return location;
   }
 
-
-  async findLocationWithPaymentDates(id_location: string): Promise<any> {
+  async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
     const location = await this.locationRepository
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
-      .where('location.id_location = :id', { id: id_location })
+      .where('AND location.municipalityId = :municipalityId AND location.id_location = :id', { id: id_location, municipalityId })
       .select([
         'location', // Select all columns from the location entity
         'paiement_locations.date_fin', // Select only the date_fin from the associated payments
@@ -228,14 +245,14 @@ export class LocationService {
 
     }
   }
-  async update(id: string, updateDto: Partial<CreateLocationDto>): Promise<Location> {
-    const location = await this.findOne(id);
+  async update(municipalityId: number, id: string, updateDto: Partial<CreateLocationDto>): Promise<Location> {
+    const location = await this.findOne(id,municipalityId);
     Object.assign(location, updateDto);
     return await this.locationRepository.save(location);
   }
 
-  async remove(id: string): Promise<void> {
-    const location = await this.findOne(id);
+  async remove(municipalityId: number, id: string): Promise<void> {
+    const location = await this.findOne(id, municipalityId);
     await this.locationRepository.remove(location);
   }
 }

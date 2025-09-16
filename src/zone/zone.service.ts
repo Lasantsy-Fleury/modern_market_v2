@@ -21,6 +21,10 @@ export class ZoneService {
     private readonly httpService: HttpService,
   ) { }
 
+  async findOneById(zoneId: string): Promise<Zone | null> {
+    return this.zoneRepository.findOne({ where: { id_zone: zoneId } });
+  }
+
   async existingFokontany(fokotanyId: number) {
     if (!fokotanyId) {
       throw new BadRequestException(`Fokontany Id manquant.`);

@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Res, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Res, NotFoundException, BadRequestException, Query, DefaultValuePipe, ParseIntPipe, Delete } from '@nestjs/common';
 import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
-import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
+import { ApiResponse,ApiTags,ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 
 @ApiTags('Locations')
@@ -11,36 +11,34 @@ import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
 export class LocationController {
   constructor(private readonly locationService: LocationService) { }
 
-  // @Post('createLocation')
-  // @ApiOperation({ summary: 'Créer une nouvelle location' })
-  // @ApiResponse({ status: 201, description: 'Location a été crée avec succès.' })
-  // async createLocation(@Body() createLocationDto: CreateLocationDto) {
-  //   // Cette méthode crée la location mais ne change pas le statut du local
-  //   return this.locationService.create(createLocationDto);
-  // }
-
-
   @Post('valider-la-location-apres-avoir-fait-le-paiement')
   @ApiOperation({ summary: 'Créer un nouvelle location et le valider' })
   @ApiResponse({ status: 201, description: 'L\'utilisateur a été affecté à la zone de distribution avec succès.' })
   async createAndValidate(@Body() createLocationDto: CreateLocationDto) {
-    const location = await this.locationService.create(createLocationDto);
-    // Après que le paiement a été validé, on met à jour le statut du local 
-    await this.locationService.updateLocalStatusToRented(createLocationDto.localId);
-    return location;
+    return this.locationService.create(createLocationDto);
   }
 
   @Get()
-  @ApiOperation({summary:'Récupérer toutes les locations'})
-  findAll() {
-    return this.locationService.findAll();
+  @ApiOperation({ summary: 'Récupérer toutes les locations, filtrées par municipalityId' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  async findAll(
+    @Query('municipalityId') municipalityId: number,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    if (!municipalityId) {
+      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+    }
+    return this.locationService.findAll(municipalityId, page, limit);
   }
 
 
-  @Get('en_cours')
+  @Get('municipality/:municipalityId/en_cours')
   @ApiOperation({summary:'Récupérer tous les locations en cours'})
-  findAllInProgress() {
-    return this.locationService.findAllInProgress();
+  findAllInProgress(@Param('municipalityId') municipalityId: number) {
+    return this.locationService.findAllInProgress(municipalityId);
   }
 
   // Toutes les locations d'un utilisateur
@@ -57,16 +55,23 @@ export class LocationController {
     return this.locationService.findInProgressByUser(id_user);
   }
 
-  @Get(':id')
-  @ApiOperation({summary:'Récupérer une location par son id'})
-  findOne(@Param('id') id: string) {
-    return this.locationService.findOne(id);
+  @Get('municipalityId/:municipalityId/location')
+  @ApiOperation({ summary: 'Récupérer une location par son ID et son municipalityId' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  async findOne(
+    @Param('id') id: string,
+    @Query('municipalityId') municipalityId: number,
+  ) {
+    if (!municipalityId) {
+      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+    }
+    return this.locationService.findOne(id, municipalityId);
   }
 
-  @Get('locationQrCode/:id')
+  @Get('locationQrCode/:id/municipality/:municipalityId')
   @ApiOperation({summary:'Récupérer le qr Code contenant les infos d une location par son id-location '})
-  async findOneWithQrcode(@Param('id') id: string, @Res() res: Response) {
-    const location = await this.locationService.findLocationWithPaymentDates(id);
+  async findOneWithQrcode(@Param('id') id: string, @Param('municipalityId') municipalityId: number, @Res() res: Response) {
+    const location = await this.locationService.findLocationWithPaymentDates(municipalityId, id);
     if (!location) {
       throw new NotFoundException('Location not found.');
     }
@@ -98,14 +103,33 @@ export class LocationController {
     }
   }
 
-  @Patch(':id')
-  @ApiOperation({summary:'Modification d une location par son id'})
-  update(@Param('id') id: string, @Body() updateDto: Partial<CreateLocationDto>) {
-    return this.locationService.update(id, updateDto);
+  @Patch('municipality/:municipalityId/location/:id')
+  @ApiOperation({ summary: 'Modifier une location par son ID et son municipalityId' })
+  @ApiResponse({ status: 200, description: 'La location a été mise à jour avec succès.' })
+  update(
+    @Param('id') id: string,
+    @Param('municipalityId') municipalityId: number,
+    @Body() updateDto:CreateLocationDto
+  ) {
+    if (!municipalityId) {
+      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+    }
+    return this.locationService.update(municipalityId, id, updateDto);
   }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.locationService.remove(id);
-  // }
+  @Delete('municipality/:municipalityId/location/:id')
+  @ApiOperation({ summary: 'Supprimer une location par son ID et son municipalityId' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiResponse({ status: 204, description: 'La location a été supprimée avec succès.' })
+  async remove(
+    @Query('municipalityId') municipalityId: number,
+    @Param('id') id: string,
+  ) {
+    if (!municipalityId) {
+      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+    }
+    await this.locationService.remove(municipalityId, id);
+    return { message: 'Location supprimée avec succès.' };
+  }
+
 }
