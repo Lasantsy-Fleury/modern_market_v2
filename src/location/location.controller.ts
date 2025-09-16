@@ -11,10 +11,23 @@ import { ApiResponse,ApiTags,ApiOperation } from '@nestjs/swagger';
 export class LocationController {
   constructor(private readonly locationService: LocationService) { }
 
-  @Post()
-  @ApiOperation({summary:'Créer un nouvelle location'})
-  create(@Body() createLocationDto: CreateLocationDto) {
-    return this.locationService.create(createLocationDto);
+  // @Post('createLocation')
+  // @ApiOperation({ summary: 'Créer une nouvelle location' })
+  // @ApiResponse({ status: 201, description: 'Location a été crée avec succès.' })
+  // async createLocation(@Body() createLocationDto: CreateLocationDto) {
+  //   // Cette méthode crée la location mais ne change pas le statut du local
+  //   return this.locationService.create(createLocationDto);
+  // }
+
+
+  @Post('valider-la-location-apres-avoir-fait-le-paiement')
+  @ApiOperation({ summary: 'Créer un nouvelle location et le valider' })
+  @ApiResponse({ status: 201, description: 'L\'utilisateur a été affecté à la zone de distribution avec succès.' })
+  async createAndValidate(@Body() createLocationDto: CreateLocationDto) {
+    const location = await this.locationService.create(createLocationDto);
+    // Après que le paiement a été validé, on met à jour le statut du local 
+    await this.locationService.updateLocalStatusToRented(createLocationDto.localId);
+    return location;
   }
 
   @Get()

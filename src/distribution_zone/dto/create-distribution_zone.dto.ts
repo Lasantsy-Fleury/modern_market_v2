@@ -1,12 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 
 export class CreateDistributionZoneDto {
-    @ApiProperty({ maxLength: 20 })
+    @ApiProperty({description: 'Identifiant unique d\'utilisateur'})
     id_user: string;
 
-    @ApiProperty({ maxLength: 20 })
+    @ApiProperty({ description: 'Identifiant unique de la zone' })
     zoneId: string;
 
-    @ApiProperty({ type: Number })
+    @ApiProperty({ description: 'Identifiant de la municipalité', type: Number })
     municipalityId: number;
 }

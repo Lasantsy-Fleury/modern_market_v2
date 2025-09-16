@@ -17,6 +17,11 @@ export class LocationService {
     private readonly localRepository: Repository<Local>,
   ) { }
 
+//   async createLocation(data: CreateLocationDto) {
+//   const location = this.locationRepository.create(data);
+//   return await this.locationRepository.save(location);
+// }
+
   async findAll() {
     return await this.locationRepository.find();
   }
@@ -40,7 +45,7 @@ export class LocationService {
   debut.setHours(0, 0, 0, 0); // optionnel pour normaliser
 
   // Si périodicité mensuelle et contrat d'un an, calcul automatique
-  if (periodicite === Periodicite.MENSUEL && local.typelocal?.type_contrat === 'AN') {
+  if (periodicite === Periodicite.MENSUEL ) {
   date_fin_loc = new Date(debut);
   date_fin_loc.setFullYear(date_fin_loc.getFullYear() + 1);
 } else if (periodicite === Periodicite.JOURNALIER) {
@@ -106,12 +111,24 @@ export class LocationService {
     frequence,
   });
 
-  local.statut = 'LOUE';
-  await this.localRepository.save(local);
+  // local.statut = 'LOUE';
+  // await this.localRepository.save(local);
 
   return await this.locationRepository.save(location);
 }
 
+  async updateLocalStatusToRented(localId: string): Promise<void> {
+    const local = await this.localRepository.findOne({
+      where: { id_local: localId },
+    });
+
+    if (!local) {
+      throw new NotFoundException(`Local with id ${localId} not found`);
+    }
+
+    local.statut = 'LOUE';
+    await this.localRepository.save(local);
+  }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateExpiredLocations() {
