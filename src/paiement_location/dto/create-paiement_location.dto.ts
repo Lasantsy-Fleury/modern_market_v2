@@ -1,4 +1,4 @@
-import { IsUUID, IsNumber } from 'class-validator';
+import { IsUUID, IsNumber, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePaiementLocationDto {
@@ -19,4 +19,8 @@ export class CreatePaiementLocationDto {
   })
   @IsNumber()
   nombre_paye: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  montant_paye: number; // Ajoutez cette ligne pour le montant payé
 }

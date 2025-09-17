@@ -19,24 +19,43 @@ export class PaiementLocationService {
     createPaiementLocationDto: CreatePaiementLocationDto,
     queryRunner?: QueryRunner,
   ): Promise<Paiementlocation> {
-    const { locationId, nombre_paye, ...dtoRest } = createPaiementLocationDto;
+    const { locationId, nombre_paye, montant_paye, ...dtoRest } = createPaiementLocationDto;
 
-    // Utiliser le gestionnaire de transaction si fourni
     const manager = queryRunner ? queryRunner.manager : this.locationRepository.manager;
 
-    // 1. Vérifier si la location existe
-    const location = await manager.findOne(Location, { where: { id_location: locationId } });
+    const location = await manager.findOne(Location, {
+      where: { id_location: locationId },
+      relations: ['local', 'local.typelocal'],
+    });
+
     if (!location) {
       throw new NotFoundException(`Location with ID "${locationId}" not found.`);
     }
-
-    // 2. Trouver le dernier paiement pour cette location
+    
+    // Vérification du premier paiement
     const lastPaiement = await manager.findOne(Paiementlocation, {
       where: { locationId },
       order: { date_fin: 'DESC' },
     });
 
-    // 3. Calculer les dates de début et de fin
+    if (!lastPaiement && nombre_paye < 1) {
+      throw new BadRequestException("Le premier paiement doit couvrir au moins une période.");
+    }
+    
+    // Vérification du montant payé par rapport au tarif du local
+    if (!location.local || !location.local.typelocal || !location.local.typelocal.type_contrat) {
+        throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
+    }
+    const tarif = parseFloat(location.local.typelocal.type_contrat);
+    const expectedAmount = tarif * nombre_paye;
+
+    if (montant_paye < expectedAmount) {
+      throw new BadRequestException(
+        `Le montant payé (${montant_paye}) ne correspond pas au tarif total (${expectedAmount}) pour ${nombre_paye} mois.`
+      );
+    }
+
+    // Calcul des dates
     const now = new Date();
     let newDateDebut: Date = lastPaiement ? new Date(lastPaiement.date_fin) : new Date(location.date_debut_loc);
     let newDateFin: Date = new Date(newDateDebut);
@@ -49,18 +68,15 @@ export class PaiementLocationService {
       throw new BadRequestException(`Invalid periodicity for location ID "${locationId}".`);
     }
 
-    // 4. Vérifier la fréquence restante
     if (location.frequence !== null && nombre_paye > location.frequence) {
       throw new BadRequestException(`Cannot pay for more than the remaining frequency (${location.frequence}).`);
     }
 
-    // 5. Mettre à jour la fréquence
     if (location.frequence !== null) {
       location.frequence -= nombre_paye;
     }
     await manager.save(location);
 
-    // 6. Créer et sauvegarder le paiement
     const newPaiementLocation = manager.create(Paiementlocation, {
       ...dtoRest,
       locationId,
@@ -72,7 +88,6 @@ export class PaiementLocationService {
 
     const savedPaiementLocation = await manager.save(newPaiementLocation);
 
-    // 7. Retourner le paiement avec relations (paiement et location) pour QR code ou autre usage
     const paiementWithRelations = await manager.findOne(Paiementlocation, {
       where: { id_paiement_location: savedPaiementLocation.id_paiement_location },
       relations: ['paiement', 'location'],
@@ -84,7 +99,6 @@ export class PaiementLocationService {
 
     return paiementWithRelations;
   }
-
 
   async findAll(
     municipalityId: number,

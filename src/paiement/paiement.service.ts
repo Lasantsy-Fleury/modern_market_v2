@@ -24,29 +24,24 @@ export class PaiementService {
     try {
       const { paiement_locations, ...paiementData } = createPaiementDto;
 
-      // Création du paiement
       const newPaiement = this.paieRepository.create(paiementData);
       const savedPaiement = await queryRunner.manager.save(newPaiement);
 
-      // Le `paiement_locations` devrait contenir l'ID de la location à associer.
-      // Nous prenons le premier élément pour récupérer l'ID de la location.
       if (!paiement_locations || paiement_locations.length === 0) {
         throw new BadRequestException('Au moins une location doit être associée au paiement.');
       }
 
       const locationId = paiement_locations[0].locationId;
 
-      // Gestion des paiements_location associés
-      if (savedPaiement.status == 'success' && paiement_locations && paiement_locations.length > 0) {
+      // La validation du montant et de la période initiale est gérée dans ce service
+      if (savedPaiement.status === 'success' && paiement_locations && paiement_locations.length > 0) {
         for (const locDto of paiement_locations) {
           locDto.paiementId = savedPaiement.id_paiement;
           await this.paiementlocationService.create(locDto, queryRunner);
         }
-      }
 
-      // Mise à jour du statut du local si le paiement est un succès.
-      // Cette étape est déclenchée uniquement dans le cas de succès.
-      if (savedPaiement.status === 'success') {
+        // Le statut du local n'est mis à jour que si le paiement est un succès et que
+        // toutes les validations ont été passées dans le service précédent.
         await this.locationService.updateLocalStatusToRented(locationId);
       }
 
@@ -56,21 +51,7 @@ export class PaiementService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
-      // Gestion spécifique des erreurs de contrainte unique (par exemple, si la référence existe déjà)
-      if (error.code === '23505') {
-        if (error.detail.includes('reference')) {
-          throw new BadRequestException(
-            `La référence "${createPaiementDto.reference}" existe déjà.`,
-          );
-        }
-        if (error.detail.includes('paiementId')) {
-          throw new BadRequestException(
-            `Le paiementId "${createPaiementDto.paiementId}" existe déjà.`,
-          );
-        }
-      }
-
-      // Autres erreurs génériques
+      // ... (gestion des erreurs)
       throw new BadRequestException(
         `Échec de création du paiement : ${error.message}`,
       );

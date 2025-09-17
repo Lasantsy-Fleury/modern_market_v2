@@ -129,15 +129,24 @@ export class LocationService {
   return await this.locationRepository.save(location);
 }
 
-  async updateLocalStatusToRented(localId: string): Promise<void> {
-    const local = await this.localRepository.findOne({
-      where: { id_local: localId },
+  async updateLocalStatusToRented(locationId: string): Promise<void> {
+    // 1. Trouver la Location en incluant la relation vers le Local
+    const location = await this.locationRepository.findOne({
+      where: { id_location: locationId },
+      relations: ['local'],
     });
 
-    if (!local) {
-      throw new NotFoundException(`Local with id ${localId} not found`);
+    if (!location) {
+      throw new NotFoundException(`Location with id ${locationId} not found`);
     }
 
+    // 2. Vérifier si un local est associé
+    if (!location.local) {
+      throw new NotFoundException(`Local not found for location id ${locationId}`);
+    }
+
+    // 3. Mettre à jour le statut du Local associé
+    const local = location.local;
     local.statut = 'LOUE';
     await this.localRepository.save(local);
   }
