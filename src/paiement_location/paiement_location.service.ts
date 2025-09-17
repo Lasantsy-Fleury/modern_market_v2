@@ -46,6 +46,7 @@ export class PaiementLocationService {
     if (!location.local || !location.local.typelocal || !location.local.typelocal.type_contrat) {
         throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
     }
+    
     const tarif = parseFloat(location.local.typelocal.type_contrat);
     const expectedAmount = tarif * nombre_paye;
 
