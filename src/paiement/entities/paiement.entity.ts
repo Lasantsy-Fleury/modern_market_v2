@@ -10,9 +10,8 @@ export class Paiement {
     reference: string;
 
     @Column({  type: 'enum', 
-    enum: ['success', 'failed',],
-    
- })
+        enum: ['success', 'failed',],
+    })
     status: string;
 
     @Column({ length: 255 })

@@ -6,15 +6,12 @@ export class CreatePaiementDto {
     @ApiProperty({ maxLength: 25 })
     reference: string;
 
-    @ApiProperty({ maxLength: 25 })
+    @ApiProperty({ maxLength: 25 ,example:"success ou failed", description: "status de paiement"})
     status: string;
 
     @ApiProperty({ maxLength: 25 })
     raison: string;
 
-    @ApiProperty()
-    @IsUUID()
-    paiementId: string;
     @ApiProperty({
         type: [CreatePaiementLocationDto],
         description: "Liste des locations concernées par ce paiement."
