@@ -78,7 +78,7 @@ export class TypeLocalController {
           },
         },
         tarif: { type: 'number' },
-        type_contrat: { type: 'string' },
+        type_contrat: { type: 'enum', enum: ['JOURNALIER', 'ANNUEL'], default: 'ANNUEL' },
       },
       // You can remove the 'required' array because all fields are optional for a PATCH request
       // required: ['typeLoc', 'tarif']

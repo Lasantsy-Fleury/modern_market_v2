@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, IsObject } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsObject, IsEnum } from 'class-validator';
 
 export class CreateTypeLocalDto {
   @ApiProperty({
@@ -23,6 +23,18 @@ export class CreateTypeLocalDto {
 
   @ApiProperty({ description: 'Type du contrat ' })
   @IsOptional()
-  @IsString()
-  type_contrat: string;
+  @IsEnum({enum : ['JOURNALIER', 'ANNUEL'] , default: 'ANNUEL', example: 'ANNUEL'})
+  type_contrat: 'JOURNALIER' | 'ANNUEL';
+
+  @ApiProperty({ description: 'Longueur du local' })
+  @IsNumber()
+  longueur: number;
+
+  @ApiProperty({ description: 'Largeur du local' })
+  @IsNumber()
+  largeur: number;
+
+  @ApiProperty({ description: 'Tarif du local' })
+  @IsNumber()
+  tarif: number;
 }

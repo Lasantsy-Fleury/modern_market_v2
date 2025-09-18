@@ -12,7 +12,7 @@ import { PaiementLocationModule } from './paiement_location/paiement_location.mo
 import { NotificationModule } from './notification/notification.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
 import { TypeLocalModule } from './type_local/type_locale.module';
-import { TarifModule } from './tarif/tarif.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,7 +35,6 @@ import { TarifModule } from './tarif/tarif.module';
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
-    TarifModule,
 
   ],
   controllers: [AppController],

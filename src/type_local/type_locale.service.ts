@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { CreateTypeLocalDto } from './dto/create-type_locale.dto';
 import { Typelocal } from './entities/type_locale.entity';
 
@@ -13,14 +13,16 @@ export class TypeLocalService {
   ) {}
 
   async create(createTypeLocalDto: CreateTypeLocalDto): Promise<Typelocal> {
-    if (!createTypeLocalDto) {
-      throw new BadRequestException('CreateTypeLocalDto is required');
-    }
+    // Vérifiez si un type_local avec le même typeLoc existe déjà pour le municipalityId donné
+    const existingTypeLocal = await this.typeLocalRepository.findOne({
+      where: {
+        municipalityId: createTypeLocalDto.municipalityId,
+        typeLoc: Raw(alias => `${alias} @> :query`, { query: createTypeLocalDto.typeLoc }),
+      },
+    });
 
-    console.log('Received DTO:', createTypeLocalDto);
-
-    if (!createTypeLocalDto.typeLoc) {
-      throw new BadRequestException('typeLoc is required');
+    if (existingTypeLocal) {
+      throw new BadRequestException('Ce type local existe déjà dans cette municipalité.');
     }
     
     const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);

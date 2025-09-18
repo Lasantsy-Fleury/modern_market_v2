@@ -20,9 +20,6 @@ export class Local {
     @Column()
     typelocalId: string;
 
-    @Column()
-    surface: number;
-
     @Column('decimal' , {precision:12 , scale: 6 })
     latitude: number;
 

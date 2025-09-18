@@ -1,31 +1,32 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,OneToMany } from "typeorm";
 import { Local } from "src/local/entities/local.entity";
-import { Tarif } from "src/tarif/entities/tarif.entity";
 
 @Entity('type_locale')
 export class Typelocal {
-    // @Column({ type: 'json', nullable: true })
-    // name: { mg: string; fr: string };
-    
     @PrimaryGeneratedColumn('uuid')
     id_type_local: string;
 
     @Column()
     municipalityId : number;
 
-    @Column({ type: 'json', nullable: false })
+    @Column({ type: 'jsonb', nullable: false })
     typeLoc: { mg: string; fr: string };
-    
 
-    @Column({ type: 'json', nullable: true })
+    @Column({ type: 'enum', enum: ['JOURNALIER', 'ANNUEL'], default:'ANNUEL'})
+    type_contrat : 'JOURNALIER' | 'ANNUEL' ;
+
+    @Column()
+    longueur: number;
+
+    @Column()
+    largeur: number;
+
+    @Column({ type: 'jsonb', nullable: true })
     description: { mg: string; fr: string };
 
-    @Column({ nullable : true })
-    type_contrat : string ;
+    @Column()
+    tarif : number;
     
     @OneToMany(() => Local, (local) => local.typelocal)
     locaux: Local[];
-
-    @OneToMany(() => Tarif, (tarif) => tarif.typelocal)
-    tarifs: Tarif[];
 }
