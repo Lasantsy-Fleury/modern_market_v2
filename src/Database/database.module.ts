@@ -17,7 +17,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         entities: [__dirname + '/../**/*.entity.{js,ts}'],
         synchronize: true,
         logger: 'advanced-console', // Utilisation d'un logger avancé
-        logging: ['query', 'error'], // Afficher les requêtes et erreurs SQL
+        logging: ['error'], // Afficher les requêtes et erreurs SQL
       }),
     }),
   ],
