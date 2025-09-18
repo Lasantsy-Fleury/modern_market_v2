@@ -21,6 +21,11 @@ export class CreateLocationDto {
   @IsUUID()
   localId: string;
 
+  @ApiProperty({ description: 'Usage de la location' })
+  @IsString()
+  usage: string;
+
+
   @ApiProperty({
     description: 'Périodicité de la location',
     enum: Periodicite,
