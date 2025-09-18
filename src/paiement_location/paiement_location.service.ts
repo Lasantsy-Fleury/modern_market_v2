@@ -47,12 +47,13 @@ export class PaiementLocationService {
         throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
     }
     
-    const tarif = parseFloat(location.local.typelocal.type_contrat);
+    // Utilisation de location.local.typelocal.tarif au lieu de .type_contrat
+    const tarif = location.local.typelocal.tarif;
     const expectedAmount = tarif * nombre_paye;
 
-    if (montant_paye < expectedAmount) {
+    if (montant_paye !== expectedAmount) {
       throw new BadRequestException(
-        `Le montant payé (${montant_paye}) ne correspond pas au tarif total (${expectedAmount}) pour ${nombre_paye} mois.`
+        `Le montant payé (${montant_paye}) doit correspondre exactement au tarif total (${expectedAmount}) pour ${nombre_paye} périodes.`
       );
     }
 
@@ -85,6 +86,7 @@ export class PaiementLocationService {
       date_debut: newDateDebut,
       date_fin: newDateFin,
       date_paiement: now,
+      montant_paye,
     });
 
     const savedPaiementLocation = await manager.save(newPaiementLocation);
@@ -199,6 +201,7 @@ async findOneWithQr(
     date_paiement: found.date_paiement,
     paiement: found.paiement,
     location: found.location,
+    montant_paye: found.montant_paye
   };
 
   const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));

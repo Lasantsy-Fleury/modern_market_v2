@@ -20,7 +20,10 @@ export class CreatePaiementLocationDto {
   @IsNumber()
   nombre_paye: number;
 
-  @IsNotEmpty()
+  @ApiProperty({
+    description: "Le montant exact payé pour le nombre de périodes spécifié.",
+    example: 10000,
+  })
   @IsNumber()
-  montant_paye: number; // Ajoutez cette ligne pour le montant payé
+  montant_paye: number;  // Ajoutez cette ligne pour le montant payé
 }

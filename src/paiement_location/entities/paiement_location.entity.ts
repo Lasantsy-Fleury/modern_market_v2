@@ -34,6 +34,6 @@ export class Paiementlocation {
     @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP', })
     date_paiement: Date;
 
-
-
+    @Column() 
+    montant_paye: number;
 }

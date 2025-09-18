@@ -11,14 +11,6 @@ export class CreateLocalDto {
     @IsUUID()
     zoneId: string;
 
-
-    // @ApiProperty({enum: ['DISPONIBLE', 'LOUE', 'INDISPONIBLE'], default: 'DISPONIBLE'})
-    // statut: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE';
-
-    @ApiProperty({description:'Surface de ce local en mettre carre' })
-    @IsNumber()
-    surface: number;
-
     @ApiProperty({ maxLength: 10 ,description:'L Id du typtLocal du local' })
     @IsUUID()
     typelocalId: string;
