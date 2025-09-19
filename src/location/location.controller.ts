@@ -68,23 +68,17 @@ export class LocationController {
     return this.locationService.findOne(id, municipalityId);
   }
 
-  // Dans location.controller.ts - Méthode corrigée
-
-@Get('qr-code/:id/municipality/:municipalityId')
-@ApiOperation({summary:'Récupérer le QR Code contenant les infos d\'une location par son id-location'})
-async findOneWithQrcode(
-  @Param('id') id: string,
-  @Param('municipalityId') municipalityId: string, // Changé en string pour validation
-  @Res() res: Response
-) {
+  @Get('locationQrCode/:id/municipality/:municipalityId')
+  @ApiOperation({summary:'Récupérer le QR Code contenant les infos d\'une location par son id-location'})
+  async findOneWithQrcode(
+    @Param('id') id: string,
+    @Param('municipalityId') municipalityId: string,
+    @Res() res: Response
+  ) {
   try {
-    // 1. Validation des paramètres
+    // Validation des paramètres
     if (!id || !id.trim()) {
       throw new BadRequestException('Le paramètre "id" est requis.');
-    }
-
-    if (!municipalityId || !municipalityId.trim()) {
-      throw new BadRequestException('Le paramètre "municipalityId" est requis.');
     }
 
     const municipalityIdNumber = parseInt(municipalityId, 10);
@@ -92,9 +86,7 @@ async findOneWithQrcode(
       throw new BadRequestException('Le paramètre "municipalityId" doit être un nombre valide.');
     }
 
-    console.log(`Génération QR code pour location: ${id}, municipality: ${municipalityIdNumber}`);
-
-    // 2. Récupérer les données de location
+    // Récupérer les données de location
     const locationData = await this.locationService.findLocationWithPaymentDates(
       municipalityIdNumber, 
       id
@@ -104,61 +96,122 @@ async findOneWithQrcode(
       throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
     }
 
-    console.log('Données de location récupérées:', locationData);
-
-    // 3. Préparer les données pour le QR code (structure simplifiée)
-    const qrData = {
-      id_location: locationData.id_location,
-      periodicite: locationData.periodicite,
-      date_debut: locationData.date_debut_loc,
-      date_fin: locationData.date_fin_loc,
-      tarif: locationData.tarif,
-      derniere_date_paiement: locationData.derniere_date_payer
+    // Fonction pour formater les dates
+    const formatDate = (date: string | Date) => {
+      if (!date) return 'Non définie';
+      const d = new Date(date);
+      return d.toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
     };
 
-    // 4. Convertir en JSON string
-    const jsonString = JSON.stringify(qrData, null, 2);
-    console.log('JSON pour QR code:', jsonString);
+    // Fonction pour formater la périodicité
+    const formatPeriodicite = (periodicite: string) => {
+      switch(periodicite) {
+        case 'MENSUEL': return 'Mensuelle';
+        case 'JOURNALIER': return 'Journalière';
+        case 'HEBDOMADAIRE': return 'Hebdomadaire';
+        default: return periodicite;
+      }
+    };
 
-    // 5. Générer le QR code avec options optimisées
-    const qrCodeBuffer = await QRCode.toBuffer(jsonString, { 
+    // Fonction pour formater le montant
+    const formatAmount = (amount: number) => {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'MGA', // ou 'EUR' selon votre devise
+        minimumFractionDigits: 0
+      }).format(amount);
+    };
+
+    // === OPTION 1: Format texte structuré et lisible ===
+    const readableText = `
+        CONTRAT DE LOCATION
+
+NIF :
+${locationData.nif  }
+
+ID Location:
+${locationData.id_location}
+
+Période de Location:
+• Début: ${formatDate(locationData.date_debut_loc)}
+• Fin: ${formatDate(locationData.date_fin_loc)}
+
+Informations du place:
+• Tarif: ${formatAmount(locationData.tarif)}
+• Périodicité: ${formatPeriodicite(locationData.periodicite)}
+
+Dernier Paiement:
+${locationData.derniere_date_payer ? formatDate(locationData.derniere_date_payer) : 'Aucun paiement'}
+
+Référence Locale:
+${locationData.local_id || 'Non spécifié'}
+
+Contrat valide jusqu'au
+${formatDate(locationData.date_fin_loc)}
+`.trim();
+    const structuredData = {
+      "CONTRAT_DE_LOCATION": {
+        "NIF": locationData.nif,
+        "ID_Location": locationData.id_location,
+        "Periode": {
+          "Debut": formatDate(locationData.date_debut_loc),
+          "Fin": formatDate(locationData.date_fin_loc),
+          "Type": formatPeriodicite(locationData.periodicite)
+        },
+        "Finances": {
+          "Tarif": formatAmount(locationData.tarif),
+          "Dernier_Paiement": locationData.derniere_date_payer ? formatDate(locationData.derniere_date_payer) : 'Aucun'
+        },
+        "Reference_Locale": locationData.local_id || 'Non spécifié',
+        "Statut": "Actif"
+      }
+    };
+    const qrContent = readableText;
+
+    // Générer le QR code
+    const qrCodeBuffer = await QRCode.toBuffer(qrContent, { 
       type: 'png',
-      width: 300,
-      margin: 2,
+      width: 400, // Taille plus grande pour la lisibilité
+      margin: 4,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
       },
-      errorCorrectionLevel: 'M'
+      errorCorrectionLevel: 'H' // Haute correction d'erreur
     });
 
-    // 6. Envoyer la réponse
+    // Envoyer la réponse
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `inline; filename="qr-location-${id}.png"`);
+    res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
     res.send(qrCodeBuffer);
 
   } catch (error) {
     console.error('Erreur lors de la génération du QR code:', error);
     
-    // Gestion d'erreur détaillée
     if (error instanceof NotFoundException) {
       return res.status(404).json({
-        error: 'Location non trouvée',
-        message: error.message
+        message: error.message,
+        error: 'Not Found',
+        statusCode: 404
       });
     }
     
     if (error instanceof BadRequestException) {
       return res.status(400).json({
-        error: 'Paramètres invalides',
-        message: error.message
+        message: error.message,
+        error: 'Bad Request',
+        statusCode: 400
       });
     }
     
-    // Erreur générique avec plus de détails
     return res.status(500).json({
-      error: 'Erreur lors de la génération du QR code',
-      message: error.message || 'Erreur interne du serveur'
+      message: 'Erreur lors de la génération du QR code',
+      error: 'Internal Server Error',
+      statusCode: 500
     });
   }
 }

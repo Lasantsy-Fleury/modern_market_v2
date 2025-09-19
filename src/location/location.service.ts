@@ -122,9 +122,6 @@ export class LocationService {
     frequence,
   });
 
-  // local.statut = 'LOUE';
-  // await this.localRepository.save(local);
-
   return await this.locationRepository.save(location);
 }
 
@@ -225,72 +222,70 @@ export class LocationService {
   // Version sécurisée sans propriétés potentiellement inexistantes
 
 async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
-  try {
-    console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
-    
-    // 1. Requête avec gestion d'erreur améliorée
-    const location = await this.locationRepository
-      .createQueryBuilder('location')
-      .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
-      .leftJoinAndSelect('location.local', 'local')
-      .leftJoinAndSelect('local.typelocal', 'typelocal')
-      .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_location = :id', { id: id_location })
-      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-      .orderBy('paiement_locations.date_fin', 'DESC')
-      .getOne();
+    try {
+      console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
+      
+      const location = await this.locationRepository
+        .createQueryBuilder('location')
+        .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
+        .leftJoinAndSelect('location.local', 'local')
+        .leftJoinAndSelect('local.typelocal', 'typelocal')
+        .leftJoinAndSelect('local.zone', 'zone')
+        .where('location.id_location = :id', { id: id_location })
+        .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+        .orderBy('paiement_locations.date_fin', 'DESC')
+        .getOne();
 
-    if (!location) {
-      console.log(`Aucune location trouvée pour ID: ${id_location}, Municipality: ${municipalityId}`);
-      throw new NotFoundException(`Location avec l'ID "${id_location}" non trouvée dans la municipalité "${municipalityId}".`);
+      if (!location) {
+        console.log(`Aucune location trouvée pour ID: ${id_location}, Municipality: ${municipalityId}`);
+        throw new NotFoundException(`Location avec l'ID "${id_location}" non trouvée dans la municipalité "${municipalityId}".`);
+      }
+
+      console.log('Location trouvée:', {
+        id: location.id_location,
+        localId: location.local?.id_local,
+        zoneId: location.local?.zone?.id_zone,
+        municipalityId: location.local?.zone?.municipalityId
+      });
+
+      const lastPaymentDate = location.paiement_locations && location.paiement_locations.length > 0
+        ? location.paiement_locations[0].date_fin
+        : null;
+
+      const tarif = location.local?.typelocal?.tarif;
+      if (tarif === undefined || tarif === null) {
+        console.warn(`Tarif manquant pour la location ${id_location}`);
+      }
+
+      const result = {
+        id_location: location.id_location,
+        periodicite: location.periodicite,
+        date_debut_loc: location.date_debut_loc,
+        date_fin_loc: location.date_fin_loc,
+        frequence: location.frequence,
+        tarif: tarif || 0,
+        derniere_date_payer: lastPaymentDate,
+        local_id: location.local?.id_local,
+        zone_id: location.local?.zone?.id_zone,
+        zone_nom: location.local?.zone?.nom,
+        id_user: location.id_user,
+        nif: location.nif,
+        statut: new Date() <= new Date(location.date_fin_loc) ? 'ACTIF' : 'EXPIRÉ'
+      };
+
+      console.log('Données retournées:', result);
+      return result;
+
+    } catch (error) {
+      console.error('Erreur dans findLocationWithPaymentDates:', error);
+      
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      
+      throw new BadRequestException(`Erreur lors de la récupération de la location: ${error.message}`);
     }
-
-    console.log('Location trouvée:', {
-      id: location.id_location,
-      localId: location.local?.id_local,
-      zoneId: location.local?.zone?.id_zone,
-      municipalityId: location.local?.zone?.municipalityId
-    });
-
-    // 2. Extraire la dernière date de paiement
-    const lastPaymentDate = location.paiement_locations && location.paiement_locations.length > 0
-      ? location.paiement_locations[0].date_fin
-      : null;
-
-    // 3. Vérifier que le local et le type sont présents
-    const tarif = location.local?.typelocal?.tarif;
-    if (tarif === undefined || tarif === null) {
-      console.warn(`Tarif manquant pour la location ${id_location}`);
-    }
-
-    // 4. Retourner les données de base (sans propriétés qui peuvent ne pas exister)
-    const result = {
-      id_location: location.id_location,
-      periodicite: location.periodicite,
-      date_debut_loc: location.date_debut_loc,
-      date_fin_loc: location.date_fin_loc,
-      frequence: location.frequence,
-      tarif: tarif || 0,
-      derniere_date_payer: lastPaymentDate,
-      // Informations sûres
-      local_id: location.local?.id_local,
-      zone_id: location.local?.zone?.id_zone,
-      zone_nom: location.local?.zone?.nom // Utilise 'nom' qui existe dans votre entité Zone
-    };
-
-    console.log('Données retournées:', result);
-    return result;
-
-  } catch (error) {
-    console.error('Erreur dans findLocationWithPaymentDates:', error);
-    
-    if (error instanceof NotFoundException) {
-      throw error;
-    }
-    
-    throw new BadRequestException(`Erreur lors de la récupération de la location: ${error.message}`);
   }
-}
 
   async getRemainingAmount(id_location: string): Promise<{ Montant_total: number; total_payer: number; Reste_a_payer: number }> {
     const location = await this.locationRepository.findOne({
