@@ -209,7 +209,15 @@ async findOneWithQr(
   return { paiementLocation: found, qrCode };
 }
 
+  async getTotalPaidAmount(locationId: string): Promise<number> {
+  const result = await this.paiementLocationRepository
+    .createQueryBuilder('paiement_location')
+    .select('SUM(paiement_location.montant_paye)', 'total')
+    .where('paiement_location.locationId = :locationId', { locationId })
+    .getRawOne();
 
+  return parseFloat(result.total) || 0;
+}
   //  async remove(id_paiement_location: number): Promise<void> {
   //     const typeLocal = await this.findOne(id_paiement_location);
   //     await this.paiementLocationRepository.remove(typeLocal);

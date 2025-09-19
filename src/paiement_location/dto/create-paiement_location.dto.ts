@@ -9,9 +9,6 @@ export class CreatePaiementLocationDto {
   @IsUUID()
   locationId: string;
 
-
-  
-
   @ApiProperty({
     description: "Le nombre de loyers payés pour cette location.",
     example: 1,

@@ -7,6 +7,7 @@ import { Periodicite } from './entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { Local } from 'src/local/entities/local.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 
 @Injectable()
 export class LocationService {
@@ -15,12 +16,10 @@ export class LocationService {
     private readonly locationRepository: Repository<Location>,
     @InjectRepository(Local)
     private readonly localRepository: Repository<Local>,
+    private readonly paiementLocationService: PaiementLocationService,
+    @InjectRepository(Paiementlocation)
+    private readonly paiementLocationRepository: Repository<Paiementlocation>,
   ) { }
-
-//   async createLocation(data: CreateLocationDto) {
-//   const location = this.locationRepository.create(data);
-//   return await this.locationRepository.save(location);
-// }
 
   async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
     const query = this.locationRepository
@@ -223,37 +222,149 @@ export class LocationService {
     return location;
   }
 
-  async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
+  // Version sécurisée sans propriétés potentiellement inexistantes
+
+async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
+  try {
+    console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
+    
+    // 1. Requête avec gestion d'erreur améliorée
     const location = await this.locationRepository
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
-      .where('AND location.municipalityId = :municipalityId AND location.id_location = :id', { id: id_location, municipalityId })
-      .select([
-        'location', // Select all columns from the location entity
-        'paiement_locations.date_fin', // Select only the date_fin from the associated payments
-      ])
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.typelocal', 'typelocal')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.id_location = :id', { id: id_location })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .orderBy('paiement_locations.date_fin', 'DESC')
       .getOne();
 
     if (!location) {
-      throw new NotFoundException('Location not found.');
+      console.log(`Aucune location trouvée pour ID: ${id_location}, Municipality: ${municipalityId}`);
+      throw new NotFoundException(`Location avec l'ID "${id_location}" non trouvée dans la municipalité "${municipalityId}".`);
     }
 
-    const lastPayment = location.paiement_locations && location.paiement_locations.length > 0
-      ? location.paiement_locations[0]
-      : null;
+    console.log('Location trouvée:', {
+      id: location.id_location,
+      localId: location.local?.id_local,
+      zoneId: location.local?.zone?.id_zone,
+      municipalityId: location.local?.zone?.municipalityId
+    });
 
-    const lastPaymentDate = location.paiement_locations.length > 0
+    // 2. Extraire la dernière date de paiement
+    const lastPaymentDate = location.paiement_locations && location.paiement_locations.length > 0
       ? location.paiement_locations[0].date_fin
       : null;
 
-    console.log("les datas ", lastPayment, "et 0,", location);
-    return {
-      ...location, // Spread all properties of the location entity
-      derniere_date_payer: lastPaymentDate, // Add the last payment date
-      paiement_locations: undefined 
-
+    // 3. Vérifier que le local et le type sont présents
+    const tarif = location.local?.typelocal?.tarif;
+    if (tarif === undefined || tarif === null) {
+      console.warn(`Tarif manquant pour la location ${id_location}`);
     }
+
+    // 4. Retourner les données de base (sans propriétés qui peuvent ne pas exister)
+    const result = {
+      id_location: location.id_location,
+      periodicite: location.periodicite,
+      date_debut_loc: location.date_debut_loc,
+      date_fin_loc: location.date_fin_loc,
+      frequence: location.frequence,
+      tarif: tarif || 0,
+      derniere_date_payer: lastPaymentDate,
+      // Informations sûres
+      local_id: location.local?.id_local,
+      zone_id: location.local?.zone?.id_zone,
+      zone_nom: location.local?.zone?.nom // Utilise 'nom' qui existe dans votre entité Zone
+    };
+
+    console.log('Données retournées:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Erreur dans findLocationWithPaymentDates:', error);
+    
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+    
+    throw new BadRequestException(`Erreur lors de la récupération de la location: ${error.message}`);
   }
+}
+
+  async getRemainingAmount(id_location: string): Promise<{ Montant_total: number; total_payer: number; Reste_a_payer: number }> {
+    const location = await this.locationRepository.findOne({
+      where: { id_location },
+      relations: ['local', 'local.typelocal'],
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location with ID "${id_location}" not found.`);
+    }
+
+    if (!location.local || !location.local.typelocal) {
+      throw new NotFoundException(`Local or TypeLocal not found for location ID "${id_location}".`);
+    }
+
+    const { periodicite, frequence } = location;
+    const tarif = location.local.typelocal.tarif;
+    let Montant_total = 0;
+
+    if (periodicite === 'MENSUEL' || periodicite === 'JOURNALIER') {
+      Montant_total = tarif * frequence;
+    } else {
+      throw new BadRequestException(`Unsupported periodicity: ${periodicite}`);
+    }
+
+    // You need to inject and use the PaiementLocationService
+    const total_payer = await this.paiementLocationService.getTotalPaidAmount(id_location);
+
+    const Reste_a_payer = Montant_total - total_payer;
+
+    return { Montant_total, total_payer, Reste_a_payer };
+}
+
+  async getPaymentSchedule(id_location: string): Promise<any[]> {
+    const location = await this.locationRepository.findOne({
+        where: { id_location },
+        relations: ['local', 'local.typelocal'],
+    });
+
+    if (!location || location.periodicite !== 'MENSUEL') {
+        throw new BadRequestException('Payment schedule is only available for monthly locations.');
+    }
+
+    const tarif = location.local.typelocal.tarif;
+    const paidPeriods = await this.paiementLocationRepository.find({
+        where: { locationId: id_location },
+        order: { date_fin: 'ASC' },
+    });
+
+    // Déclarez explicitement le type du tableau pour éviter les erreurs de typage
+    const schedule: any[] = [];
+    let currentDate = new Date(location.date_debut_loc);
+    let paidUntilDate = new Date(location.date_debut_loc);
+
+    if (paidPeriods.length > 0) {
+        paidUntilDate = new Date(paidPeriods[paidPeriods.length - 1].date_fin);
+    }
+
+    for (let i = 0; i < location.frequence; i++) {
+        const paymentDate = new Date(location.date_debut_loc);
+        paymentDate.setMonth(paymentDate.getMonth() + i);
+        
+        const isPaid = paidUntilDate >= paymentDate;
+        
+        schedule.push({
+            dueDate: paymentDate.toISOString().split('T')[0],
+            amount: tarif,
+            status: isPaid ? 'PAID' : (paymentDate < new Date() ? 'OVERDUE' : 'DUE'),
+        });
+    }
+
+    return schedule;
+  }
+
   async update(municipalityId: number, id: string, updateDto: Partial<CreateLocationDto>): Promise<Location> {
     const location = await this.findOne(id,municipalityId);
     Object.assign(location, updateDto);

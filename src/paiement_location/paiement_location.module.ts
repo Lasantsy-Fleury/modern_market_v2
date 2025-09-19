@@ -8,5 +8,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   imports: [TypeOrmModule.forFeature([Paiementlocation,Location])],
   controllers: [PaiementLocationController],
   providers: [PaiementLocationService],
+  exports: [PaiementLocationService]
 })
 export class PaiementLocationModule {}
