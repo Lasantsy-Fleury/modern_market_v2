@@ -175,10 +175,9 @@ export class PaiementService {
       .createQueryBuilder('paiement')
       .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
       .leftJoinAndSelect('paiement_location.location', 'location')
-      .leftJoinAndSelect('location.user', 'user')
       .leftJoinAndSelect('location.local', 'local')
       .leftJoinAndSelect('local.zone', 'zone')
-      .where('user.id_user = :userId', { id_user }) // Filtre par l'ID de l'utilisateur
+      .where('location.id_user = :id_user', { id_user }) // Filtre par l'ID de l'utilisateur
       .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // Filtre par l'ID de la municipalité
       .orderBy('paiement.date_creation', 'DESC')
       .skip((page - 1) * limit)
