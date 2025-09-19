@@ -17,10 +17,7 @@ export class Paiement {
     @Column({ length: 255 })
     raison: string;
 
-    @Column({type: 'uuid', unique:true })
-    paiementId: string;
-
-    @OneToMany(() => Paiementlocation, (pl) => pl.paiement)
+    @OneToMany(() => Paiementlocation, (pl) => pl.paiement, { cascade: true })
     paiement_locations: Paiementlocation[];
 
     @CreateDateColumn({ type: "timestamp", default: () => 'CURRENT_TIMESTAMP' })

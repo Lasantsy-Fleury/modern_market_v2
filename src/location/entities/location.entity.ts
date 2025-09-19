@@ -36,7 +36,7 @@ export class Location {
     @Column({ type: 'int', nullable: true })
     frequence: number;
 
-    @Column()
+    @Column({nullable: true})
     usage: string;
 
 

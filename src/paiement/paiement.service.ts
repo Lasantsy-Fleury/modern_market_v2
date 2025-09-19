@@ -3,18 +3,16 @@ import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Paiement } from './entities/paiement.entity';
 import { Repository } from 'typeorm';
-import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { LocationService } from 'src/location/location.service';
+import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
+
 @Injectable()
 export class PaiementService {
   constructor(
     @InjectRepository(Paiement)
-    private readonly paieRepository:
-      Repository<Paiement>,
-    private readonly paiementlocationService: PaiementLocationService,
-    private readonly locationService: LocationService, 
-
-  ) { }
+    private readonly paieRepository: Repository<Paiement>,
+    private readonly locationService: LocationService,
+  ) {}
 
   async create(createPaiementDto: CreatePaiementDto): Promise<Paiement> {
     const queryRunner = this.paieRepository.manager.connection.createQueryRunner();
@@ -24,43 +22,37 @@ export class PaiementService {
     try {
       const { paiement_locations, ...paiementData } = createPaiementDto;
 
-      const newPaiement = this.paieRepository.create(paiementData);
-      const savedPaiement = await queryRunner.manager.save(newPaiement);
-
       if (!paiement_locations || paiement_locations.length === 0) {
         throw new BadRequestException('Au moins une location doit être associée au paiement.');
       }
 
-      const locationId = paiement_locations[0].locationId;
+      const newPaiement = this.paieRepository.create({
+        ...paiementData,
+        paiement_locations: paiement_locations.map(locDto => {
+          const pl = new Paiementlocation();
+          pl.locationId = locDto.locationId;
+          pl.nombre_paye = locDto.nombre_paye;
+          pl.montant_paye = locDto.montant_paye;
+          return pl;
+        }),
+      });
 
-      // La validation du montant et de la période initiale est gérée dans ce service
-      if (savedPaiement.status === 'success' && paiement_locations && paiement_locations.length > 0) {
-        for (const locDto of paiement_locations) {
-          locDto.paiementId = savedPaiement.id_paiement;
-          await this.paiementlocationService.create(locDto, queryRunner);
-        }
+      const savedPaiement = await queryRunner.manager.save(newPaiement);
 
-        // Le statut du local n'est mis à jour que si le paiement est un succès et que
-        // toutes les validations ont été passées dans le service précédent.
+      if (savedPaiement.status === 'success') {
+        const locationId = paiement_locations[0].locationId;
         await this.locationService.updateLocalStatusToRented(locationId);
       }
 
       await queryRunner.commitTransaction();
       return savedPaiement;
-
     } catch (error) {
       await queryRunner.rollbackTransaction();
-
-      // ... (gestion des erreurs)
-      throw new BadRequestException(
-        `Échec de création du paiement : ${error.message}`,
-      );
+      throw new BadRequestException(`Échec de création du paiement : ${error.message}`);
     } finally {
       await queryRunner.release();
     }
-}
-
-
+  }
 
   async findAll(
     municipalityId: number,
@@ -155,7 +147,4 @@ export class PaiementService {
 
     return paiement;
   }
-
-
-
 }
