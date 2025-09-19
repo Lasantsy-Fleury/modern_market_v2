@@ -18,7 +18,7 @@ export class PaiementLocationService {
   async create(
     createPaiementLocationDto: CreatePaiementLocationDto,
     queryRunner?: QueryRunner,
-  ): Promise<Paiementlocation> {
+  ): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> { // <= MODIFICATION ici : le type de retour est mis à jour
     const { locationId, nombre_paye, montant_paye, ...dtoRest } = createPaiementLocationDto;
 
     const manager = queryRunner ? queryRunner.manager : this.locationRepository.manager;
@@ -47,7 +47,6 @@ export class PaiementLocationService {
         throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
     }
     
-    // Utilisation de location.local.typelocal.tarif au lieu de .type_contrat
     const tarif = location.local.typelocal.tarif;
     const expectedAmount = tarif * nombre_paye;
 
@@ -91,16 +90,17 @@ export class PaiementLocationService {
 
     const savedPaiementLocation = await manager.save(newPaiementLocation);
 
-    const paiementWithRelations = await manager.findOne(Paiementlocation, {
-      where: { id_paiement_location: savedPaiementLocation.id_paiement_location },
-      relations: ['paiement', 'location'],
-    });
+    // <= NOUVEAU CODE ici pour générer le QR code après la sauvegarde
+    const qrData = {
+      id_paiement_location: savedPaiementLocation.id_paiement_location,
+      montant_paye: savedPaiementLocation.montant_paye,
+      date_paiement: savedPaiementLocation.date_paiement,
+    };
 
-    if (!paiementWithRelations) {
-      throw new NotFoundException(`Paiementlocation with ID "${savedPaiementLocation.id_paiement_location}" not found after save.`);
-    }
+    const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
-    return paiementWithRelations;
+    // <= MODIFICATION ici : retourne l'entité sauvegardée et le code QR généré
+    return { paiementLocation: savedPaiementLocation, qrCode };
   }
 
   async findAll(
@@ -124,21 +124,18 @@ export class PaiementLocationService {
       .leftJoinAndSelect('local.zone', 'zone')
       .where('zone.municipalityId = :municipalityId', { municipalityId }); // filtre obligatoire
 
-    // Filtre sur locationId
     if (filters?.locationId) {
       query.andWhere('paiement_location.locationId = :locationId', {
         locationId: filters.locationId,
       });
     }
 
-    // Filtre sur paiementId
     if (filters?.paiementId) {
       query.andWhere('paiement_location.paiementId = :paiementId', {
         paiementId: filters.paiementId,
       });
     }
 
-    // Filtre sur date de paiement
     if (filters?.startDate) {
       query.andWhere('paiement_location.date_paiement >= :startDate', {
         startDate: filters.startDate,
@@ -151,7 +148,6 @@ export class PaiementLocationService {
       });
     }
 
-    // Trier par date de paiement
     query.orderBy('paiement_location.date_paiement', 'DESC');
 
     return query.getMany();
@@ -165,7 +161,7 @@ async findOne(id: string, municipalityId: number): Promise<Paiementlocation> {
     .leftJoinAndSelect('location.local', 'local')
     .leftJoinAndSelect('local.zone', 'zone')
     .where('paiement_location.id_paiement_location = :id', { id })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
     .getOne();
 
   if (!found) {
@@ -186,7 +182,7 @@ async findOneWithQr(
     .leftJoinAndSelect('location.local', 'local')
     .leftJoinAndSelect('local.zone', 'zone')
     .where('paiement_location.id_paiement_location = :id', { id })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
     .getOne();
 
   if (!found) {
@@ -194,7 +190,6 @@ async findOneWithQr(
   }
 
   const qrData = {
-    id_paiement_location: found.id_paiement_location,
     nombre_paye: found.nombre_paye,
     date_debut: found.date_debut,
     date_fin: found.date_fin,

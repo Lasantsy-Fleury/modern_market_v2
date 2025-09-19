@@ -1,8 +1,10 @@
+// src/paiement/paiement.controller.ts
+
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
 import { PaiementService } from './paiement.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
-import { ApiResponse, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 
 
 @ApiTags('Paiement')
@@ -38,6 +40,7 @@ export class PaiementController {
   })
   async findAll(
     @Query('municipalityId', ParseIntPipe) municipalityId: number,
+    // @Query('userId') userId?: string,
     @Query('zoneId') zoneId?: string,
     @Query('reference') reference?: string,
     @Query('status') status?: 'success' | 'failed',
@@ -52,7 +55,7 @@ export class PaiementController {
 
     return this.paiementService.findAll(
       municipalityId,
-      { zoneId, reference, status,startDate, endDate},
+      { zoneId, reference, status, startDate, endDate },
       page,
       limit,
     );
@@ -74,8 +77,18 @@ export class PaiementController {
     return this.paiementService.findOne(id, municipalityId);
   }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.paiementService.remove(id);
-  // }
+  @Get('user/:id_user/history')
+  @ApiOperation({ summary: 'Récupérer l\'historique des paiements d\'un utilisateur' })
+  @ApiQuery({ name: 'id_user', type: String, description: 'ID de l\'utilisateur' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre d\'éléments par page (par défaut 10)' })
+  async findHistoryForUser(
+    @Query('id_user') id_user: string,
+    @Query('municipalityId', ParseIntPipe) municipalityId: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
+  ) {
+    return this.paiementService.findHistoryByUser(id_user, municipalityId, page, limit);
+  }
 }

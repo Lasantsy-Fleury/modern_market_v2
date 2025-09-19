@@ -10,8 +10,6 @@ import { ApiResponse, ApiTags, ApiOperation , ApiParam, ApiQuery} from '@nestjs/
 export class PaiementLocationController {
   constructor(private readonly paiementLocationService: PaiementLocationService) { }
 
-
-
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer les paiements de location pour une municipalité avec filtres' })
   @ApiParam({ name: 'municipalityId', type: Number, description: 'ID de la municipalité' })
