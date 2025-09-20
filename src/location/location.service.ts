@@ -50,6 +50,10 @@ export class LocationService {
   if (!local || local.statut === 'LOUE' || local.statut === 'INDISPONIBLE') {
     throw new NotFoundException(`Local with id ${localId} not found`);
   }
+  const countCurrentLocationUser = await this.countCurrentLocationsByUser(id_user);
+  if (countCurrentLocationUser > 2) {
+    throw new BadRequestException(`L'utilisateur avec l'ID ${id_user} a déjà 3 locations en cours.`);
+  }
 
   // Conversion de la date de début
   const debut = new Date(date_debut_loc);
@@ -369,5 +373,29 @@ async findLocationWithPaymentDates(municipalityId: number, id_location: string):
   async remove(municipalityId: number, id: string): Promise<void> {
     const location = await this.findOne(id, municipalityId);
     await this.locationRepository.remove(location);
+  }
+
+  async countCurrentLocationsByUser(id_user: string): Promise<number> {
+    const today = new Date();
+    return await this.locationRepository.count({
+      where: {
+        id_user,
+        date_debut_loc: LessThanOrEqual(today),
+        date_fin_loc: MoreThanOrEqual(today),
+      },
+    });
+  }
+
+  async getNifByUserId(userId: string): Promise<string> { 
+    const location = await this.locationRepository.findOne({
+      where: { id_user: userId },
+      order: { id_location: 'DESC' },
+    });
+
+    if (!location) {
+      throw new NotFoundException(`No location found for user ID "${userId}".`);
+    }
+
+    return location.nif;
   }
 }

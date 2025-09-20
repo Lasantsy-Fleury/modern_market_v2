@@ -255,4 +255,16 @@ ${formatDate(locationData.date_fin_loc)}
     return { message: 'Location supprimée avec succès.' };
   }
 
+  @Get('nif-user/:userId')
+  @ApiOperation({summary:'Récupérer le nif d\'un user par son id-user'})
+  async getNifByUserId(@Param('userId') userId: string) {
+    return this.locationService.getNifByUserId(userId);
+  }
+
+  @Get('count-current/locations/user/:id_user')
+  @ApiOperation({summary:'Récupérer le nombre de locations en cours d\'un user'})
+  async countCurrentLocationsByUser(@Param('id_user') id_user: string) {
+    return this.locationService.countCurrentLocationsByUser(id_user);
+  }
+
 }
