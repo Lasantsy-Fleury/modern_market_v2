@@ -1,22 +1,25 @@
+// src/paiement/paiement.service.ts
+
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Paiement } from './entities/paiement.entity';
 import { Repository } from 'typeorm';
-import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { LocationService } from 'src/location/location.service';
+import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
+import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
+import { EventsGateway } from 'src/events/events.gateway';
 @Injectable()
 export class PaiementService {
   constructor(
     @InjectRepository(Paiement)
-    private readonly paieRepository:
-      Repository<Paiement>,
-    private readonly paiementlocationService: PaiementLocationService,
-    private readonly locationService: LocationService, 
-
+    private readonly paieRepository: Repository<Paiement>,
+    private readonly locationService: LocationService,
+    private readonly paiementLocationService: PaiementLocationService,
+    private readonly eventsGateway: EventsGateway
   ) { }
 
-  async create(createPaiementDto: CreatePaiementDto): Promise<Paiement> {
+  async create(createPaiementDto: CreatePaiementDto): Promise<any> { // <= MODIFICATION ici : le type de retour est `any`
     const queryRunner = this.paieRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -24,47 +27,63 @@ export class PaiementService {
     try {
       const { paiement_locations, ...paiementData } = createPaiementDto;
 
-      const newPaiement = this.paieRepository.create(paiementData);
-      const savedPaiement = await queryRunner.manager.save(newPaiement);
-
       if (!paiement_locations || paiement_locations.length === 0) {
         throw new BadRequestException('Au moins une location doit être associée au paiement.');
       }
 
-      const locationId = paiement_locations[0].locationId;
+      const newPaiement = this.paieRepository.create({
+        ...paiementData,
+      });
 
-      // La validation du montant et de la période initiale est gérée dans ce service
-      if (savedPaiement.status === 'success' && paiement_locations && paiement_locations.length > 0) {
-        for (const locDto of paiement_locations) {
-          locDto.paiementId = savedPaiement.id_paiement;
-          await this.paiementlocationService.create(locDto, queryRunner);
-        }
+      const savedPaiement = await queryRunner.manager.save(newPaiement);
 
-        // Le statut du local n'est mis à jour que si le paiement est un succès et que
-        // toutes les validations ont été passées dans le service précédent.
+      if (savedPaiement){
+      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+      console.log("envoie");
+    }
+
+      const qrCodes: { id_paiement_location: string; qrCode: string }[] = []; // <= NOUVEAU CODE ici : Création du tableau de codes QR
+      const createdPaiementLocations: Paiementlocation[] = []; // <= NOUVEAU CODE ici : Création du tableau pour les entités Paiementlocation
+
+      if (savedPaiement.status === 'success') {
+        const locationId = paiement_locations[0].locationId;
         await this.locationService.updateLocalStatusToRented(locationId);
+
+        // <= NOUVEAU CODE ici : Boucle pour créer chaque paiement de location et récupérer le QR code
+        for (const locDto of paiement_locations) {
+          const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
+          qrCodes.push({ id_paiement_location: paiementLocation.id_paiement_location, qrCode });
+          createdPaiementLocations.push(paiementLocation);
+        }
       }
 
+      // <= NOUVEAU CODE ici : Associer les paiements de location au paiement principal
+      savedPaiement.paiement_locations = createdPaiementLocations;
+      await queryRunner.manager.save(savedPaiement);
+
       await queryRunner.commitTransaction();
-      return savedPaiement;
+
+
+      // <= MODIFICATION ici : La réponse contient maintenant le paiement et les codes QR
+      return {
+        message: 'Paiement créé avec succès.',
+        paiement: savedPaiement,
+        qrCodes: qrCodes,
+      };
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
-
-      // ... (gestion des erreurs)
-      throw new BadRequestException(
-        `Échec de création du paiement : ${error.message}`,
-      );
+      throw new BadRequestException(`Échec de création du paiement : ${error.message}`);
     } finally {
       await queryRunner.release();
     }
-}
-
+  }
 
 
   async findAll(
     municipalityId: number,
     filters: {
+      // userId?: string;
       reference?: string;
       status?: 'success' | 'failed';
       zoneId?: string;
@@ -86,24 +105,20 @@ export class PaiementService {
       .leftJoinAndSelect('local.zone', 'zone')
       .where('zone.municipalityId = :municipalityId', { municipalityId }); // Filtre obligatoire
 
-    // Filtre sur la référence
     if (filters.reference) {
       query.andWhere('paiement.reference ILIKE :reference', {
         reference: `%${filters.reference}%`,
       });
     }
 
-    // Filtre sur le status
     if (filters.status) {
       query.andWhere('paiement.status = :status', { status: filters.status });
     }
 
-    // Filtre sur zoneId
     if (filters.zoneId) {
       query.andWhere('zone.id_zone = :zoneId', { zoneId: filters.zoneId });
     }
 
-    // Filtre sur date de création
     if (filters.startDate) {
       query.andWhere('paiement.date_creation >= :startDate', {
         startDate: filters.startDate,
@@ -116,7 +131,6 @@ export class PaiementService {
       });
     }
 
-    // Pagination et ordre
     query.skip((page - 1) * limit).take(limit).orderBy('paiement.date_creation', 'DESC');
 
     const [data, total] = await query.getManyAndCount();
@@ -156,6 +170,45 @@ export class PaiementService {
     return paiement;
   }
 
+  async findHistoryByUser(id_user: string, municipalityId?: number, page: number = 1, limit: number = 10) {
+    if (!id_user) {
+      throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
+    }
 
+    const query = this.paieRepository
+      .createQueryBuilder('paiement')
+      .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
+      .leftJoinAndSelect('paiement_location.location', 'location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.id_user = :id_user', { id_user }); // Filtre par l'ID de l'utilisateur
 
+    // Ajouter le filtre municipalityId seulement s'il est fourni
+    if (municipalityId !== undefined) {
+      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+    }
+
+    query
+      .orderBy('paiement.date_creation', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    const message = municipalityId
+      ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
+      : `Historique des paiements pour l'utilisateur ${id_user}`;
+
+    return {
+      message,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      status: 200,
+    };
+  }
 }

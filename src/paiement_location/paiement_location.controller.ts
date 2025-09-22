@@ -11,8 +11,6 @@ import { Response } from 'express';
 export class PaiementLocationController {
   constructor(private readonly paiementLocationService: PaiementLocationService) { }
 
-
-
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer les paiements de location pour une municipalité avec filtres' })
   @ApiParam({ name: 'municipalityId', type: Number, description: 'ID de la municipalité' })
@@ -53,54 +51,17 @@ export class PaiementLocationController {
     return this.paiementLocationService.findOne(id, municipalityId);
   }
 
-
-  @Get(':id/qr/png')
-  @ApiOperation({ summary: 'Récupérer le QR code en image PNG' })
-  @ApiQuery({
-    name: 'municipalityId',
-    required: true,
-    type: Number,
-    description: 'ID de la municipalité',
-  })
-  async getQrPng(
+  @Get(':id/qr')
+  @ApiOperation({ summary: 'Récupérer un paiement de location avec QR code par son ID et municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  async findOneWithQr(
     @Param('id') id: string,
     @Query('municipalityId') municipalityId: number,
-    @Res() res: Response,
-  ) {
+  ): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
     }
-    const paiementLoc = await this.paiementLocationService.findOneWithQr(id, municipalityId);
-    if (!paiementLoc) {
-      throw new NotFoundException('PaiementLocation not found.');
-
-    }
-    const paieLocData = {
-      id_paiement_location: paiementLoc.id_paiement_location,
-      nombre_paye: paiementLoc.nombre_paye,
-      date_debut: paiementLoc.date_debut,
-      date_fin: paiementLoc.date_fin,
-      date_paiement: paiementLoc.date_paiement,
-      montant_paye: paiementLoc.montant_paye,
-      paiement: paiementLoc.paiement,
-      location: paiementLoc.location,
-    }
-
-    const jsonString = JSON.stringify(paieLocData);
-
-    try {
-      // Generate the QR code as a PNG image buffer.
-      const qrCodeBuffer = await QRCode.toBuffer(jsonString, { type: 'png' });
-
-      // Set headers to tell the browser it's an image.
-      res.setHeader('Content-Type', 'image/png');
-
-      // Send the image buffer.
-      res.send(qrCodeBuffer);
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Error generating QR code.');
-    }
+    return this.paiementLocationService.findOneWithQr(id, municipalityId);
   }
 
 

@@ -1,3 +1,4 @@
+import { Optional } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNumber, IsUUID, IsDateString, IsEnum,  } from 'class-validator';
 
@@ -20,6 +21,12 @@ export class CreateLocationDto {
   @ApiProperty({ description: 'ID du local associé (UUID)' })
   @IsUUID()
   localId: string;
+
+  @ApiProperty({ description: 'Usage de la location' })
+  @IsString()
+  @Optional()
+  usage: string;
+
 
   @ApiProperty({
     description: 'Périodicité de la location',

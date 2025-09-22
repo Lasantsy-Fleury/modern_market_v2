@@ -7,9 +7,10 @@ import { Location } from 'src/location/entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { LocationModule } from 'src/location/location.module';
-
+import { EventsGateway } from 'src/events/events.gateway';
+import { EventsModule } from 'src/events/events.module';
 @Module({
-  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule],
+  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,EventsModule],
   controllers: [PaiementController],
   providers: [PaiementService,PaiementLocationService],
 })

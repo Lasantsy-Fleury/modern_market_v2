@@ -9,9 +9,6 @@ export class Paiementlocation {
     @Column()
     locationId: string;
 
-    @Column({type:'uuid'})
-    paiementId: string;
-
     @Column()
     nombre_paye: number;
 

@@ -36,6 +36,9 @@ export class Location {
     @Column({ type: 'int', nullable: true })
     frequence: number;
 
+    @Column({nullable: true})
+    usage: string;
+
 
     @OneToMany(() => Paiementlocation, (paiementLocation) => paiementLocation.location)
 //   @JoinColumn({ name: "PaiementLocationId" })

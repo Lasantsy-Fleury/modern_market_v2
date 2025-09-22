@@ -3,7 +3,7 @@ import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
-import { ApiResponse,ApiTags,ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 
 @ApiTags('Locations')
@@ -36,21 +36,21 @@ export class LocationController {
 
 
   @Get('municipality/:municipalityId/en_cours')
-  @ApiOperation({summary:'Récupérer tous les locations en cours'})
+  @ApiOperation({ summary: 'Récupérer tous les locations en cours' })
   findAllInProgress(@Param('municipalityId') municipalityId: number) {
     return this.locationService.findAllInProgress(municipalityId);
   }
 
   // Toutes les locations d'un utilisateur
   @Get('userLocations/:id_user')
-  @ApiOperation({summary:'Récupérer toutes les locations d un user en cours ou pas'})
+  @ApiOperation({ summary: 'Récupérer toutes les locations d un user en cours ou pas' })
   findByUser(@Param('id_user') id_user: string) {
     return this.locationService.findByUser(id_user);
   }
 
   // Locations en cours d'un utilisateur
   @Get('userLocations/:id_user/en_cours')
-  @ApiOperation({summary:'Récupérer toutes les locations d un user en cours seulement'})
+  @ApiOperation({ summary: 'Récupérer toutes les locations d un user en cours seulement' })
   findInProgressByUser(@Param('id_user') id_user: string) {
     return this.locationService.findInProgressByUser(id_user);
   }
@@ -69,38 +69,161 @@ export class LocationController {
   }
 
   @Get('locationQrCode/:id/municipality/:municipalityId')
-  @ApiOperation({summary:'Récupérer le qr Code contenant les infos d une location par son id-location '})
-  async findOneWithQrcode(@Param('id') id: string, @Param('municipalityId') municipalityId: number, @Res() res: Response) {
-    const location = await this.locationService.findLocationWithPaymentDates(municipalityId, id);
-    if (!location) {
-      throw new NotFoundException('Location not found.');
-    }
-
-    // Convert the data into a JSON string for encoding.
-    // We'll only include relevant fields to keep the QR code simple.
-    const locationData = {
-      id: location.id_location,
-      tarif: location.tarif,
-      periodicite: location.periodicite,
-      date_debut: location.date_debut_loc,
-      date_fin: location.date_fin_loc,
-      frequence: location.frequence,
-    };
-    const jsonString = JSON.stringify(locationData);
-
+  @ApiOperation({ summary: 'Récupérer le QR Code contenant les infos d\'une location par son id-location' })
+  async findOneWithQrcode(
+    @Param('id') id: string,
+    @Param('municipalityId') municipalityId: string,
+    @Res() res: Response
+  ) {
     try {
-      // Generate the QR code as a PNG image buffer.
-      const qrCodeBuffer = await QRCode.toBuffer(jsonString, { type: 'png' });
+      // Validation des paramètres
+      if (!id || !id.trim()) {
+        throw new BadRequestException('Le paramètre "id" est requis.');
+      }
 
-      // Set headers to tell the browser it's an image.
+      const municipalityIdNumber = parseInt(municipalityId, 10);
+      if (isNaN(municipalityIdNumber)) {
+        throw new BadRequestException('Le paramètre "municipalityId" doit être un nombre valide.');
+      }
+
+      // Récupérer les données de location
+      const locationData = await this.locationService.findLocationWithPaymentDates(
+        municipalityIdNumber,
+        id
+      );
+
+      if (!locationData) {
+        throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
+      }
+
+      // Fonction pour formater les dates
+      const formatDate = (date: string | Date) => {
+        if (!date) return 'Non définie';
+        const d = new Date(date);
+        return d.toLocaleDateString('fr-FR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      // Fonction pour formater la périodicité
+      const formatPeriodicite = (periodicite: string) => {
+        switch (periodicite) {
+          case 'MENSUEL': return 'Mensuelle';
+          case 'JOURNALIER': return 'Journalière';
+          case 'HEBDOMADAIRE': return 'Hebdomadaire';
+          default: return periodicite;
+        }
+      };
+
+      // Fonction pour formater le montant
+      const formatAmount = (amount: number) => {
+        return new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency: 'MGA', // ou 'EUR' selon votre devise
+          minimumFractionDigits: 0
+        }).format(amount);
+      };
+
+      // === OPTION 1: Format texte structuré et lisible ===
+      const readableText = `
+        CONTRAT DE LOCATION
+
+NIF :
+${locationData.nif}
+
+ID Location:
+${locationData.id_location}
+
+Période de Location:
+• Début: ${formatDate(locationData.date_debut_loc)}
+• Fin: ${formatDate(locationData.date_fin_loc)}
+
+Informations du place:
+• Tarif: ${formatAmount(locationData.tarif)}
+• Périodicité: ${formatPeriodicite(locationData.periodicite)}
+
+Dernier Paiement:
+${locationData.derniere_date_payer ? formatDate(locationData.derniere_date_payer) : 'Aucun paiement'}
+
+Référence Locale:
+${locationData.local_id || 'Non spécifié'}
+
+Contrat valide jusqu'au
+${formatDate(locationData.date_fin_loc)}
+`.trim();
+      const structuredData = {
+        "CONTRAT_DE_LOCATION": {
+          "NIF": locationData.nif,
+          "ID_Location": locationData.id_location,
+          "Periode": {
+            "Debut": formatDate(locationData.date_debut_loc),
+            "Fin": formatDate(locationData.date_fin_loc),
+            "Type": formatPeriodicite(locationData.periodicite)
+          },
+          "Finances": {
+            "Tarif": formatAmount(locationData.tarif),
+            "Dernier_Paiement": locationData.derniere_date_payer ? formatDate(locationData.derniere_date_payer) : 'Aucun'
+          },
+          "Reference_Locale": locationData.local_id || 'Non spécifié',
+          "Statut": "Actif"
+        }
+      };
+      const qrContent = readableText;
+
+      // Générer le QR code
+      const qrCodeBuffer = await QRCode.toBuffer(qrContent, {
+        type: 'png',
+        width: 400, // Taille plus grande pour la lisibilité
+        margin: 4,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H' // Haute correction d'erreur
+      });
+
+      // Envoyer la réponse
       res.setHeader('Content-Type', 'image/png');
-
-      // Send the image buffer.
+      res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
       res.send(qrCodeBuffer);
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Error generating QR code.');
+
+    } catch (error) {
+      console.error('Erreur lors de la génération du QR code:', error);
+
+      if (error instanceof NotFoundException) {
+        return res.status(404).json({
+          message: error.message,
+          error: 'Not Found',
+          statusCode: 404
+        });
+      }
+
+      if (error instanceof BadRequestException) {
+        return res.status(400).json({
+          message: error.message,
+          error: 'Bad Request',
+          statusCode: 400
+        });
+      }
+
+      return res.status(500).json({
+        message: 'Erreur lors de la génération du QR code',
+        error: 'Internal Server Error',
+        statusCode: 500
+      });
     }
+  }
+
+  @Get(':id/reste-a-payer')
+  async getRemainingAmount(@Param('id') id: string) {
+    return this.locationService.getRemainingAmount(id);
+  }
+
+  @Get(':id/calendrier-paiement')
+  async getPaymentSchedule(@Param('id') id: string) {
+    return this.locationService.getPaymentSchedule(id);
   }
 
   @Patch('municipality/:municipalityId/location/:id')
@@ -109,7 +232,7 @@ export class LocationController {
   update(
     @Param('id') id: string,
     @Param('municipalityId') municipalityId: number,
-    @Body() updateDto:CreateLocationDto
+    @Body() updateDto: CreateLocationDto
   ) {
     if (!municipalityId) {
       throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
@@ -130,6 +253,18 @@ export class LocationController {
     }
     await this.locationService.remove(municipalityId, id);
     return { message: 'Location supprimée avec succès.' };
+  }
+
+  @Get('nif-user/:userId')
+  @ApiOperation({ summary: 'Récupérer le nif d\'un user par son id-user' })
+  async getNifByUserId(@Param('userId') userId: string) {
+    return this.locationService.getNifByUserId(userId);
+  }
+
+  @Get('count-current/locations/user/:id_user')
+  @ApiOperation({ summary: 'Récupérer le nombre de locations en cours d\'un user' })
+  async countCurrentLocationsByUser(@Param('id_user') id_user: string) {
+    return this.locationService.countCurrentLocationsByUser(id_user);
   }
 
 }
