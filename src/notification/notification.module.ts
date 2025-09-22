@@ -12,5 +12,6 @@ import { Local } from 'src/local/entities/local.entity';
   imports: [TypeOrmModule.forFeature([Notification,Location,Paiementlocation,Local]),HttpModule],
   controllers: [NotificationController],
   providers: [NotificationService],
+  exports: [NotificationService],
 })
 export class NotificationModule {}

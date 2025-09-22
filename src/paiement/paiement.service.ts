@@ -1,5 +1,3 @@
-// src/paiement/paiement.service.ts
-
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,6 +7,7 @@ import { LocationService } from 'src/location/location.service';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { EventsGateway } from 'src/events/events.gateway';
+import { NotificationService } from 'src/notification/notification.service';
 @Injectable()
 export class PaiementService {
   constructor(
@@ -16,10 +15,11 @@ export class PaiementService {
     private readonly paieRepository: Repository<Paiement>,
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
-    private readonly eventsGateway: EventsGateway
+    private readonly eventsGateway: EventsGateway,
+    private readonly notificationService: NotificationService
   ) { }
 
-  async create(createPaiementDto: CreatePaiementDto): Promise<any> { // <= MODIFICATION ici : le type de retour est `any`
+  async create(createPaiementDto: CreatePaiementDto): Promise<any> {
     const queryRunner = this.paieRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -31,6 +31,13 @@ export class PaiementService {
         throw new BadRequestException('Au moins une location doit être associée au paiement.');
       }
 
+      const locationId = paiement_locations[0].locationId;
+      const location = await this.locationService.findOne(locationId, null);
+
+      if (!location || !location.local) {
+        throw new NotFoundException(`Location with ID "${locationId}" not found or has no associated local.`);
+      }
+
       const newPaiement = this.paieRepository.create({
         ...paiementData,
       });
@@ -38,33 +45,62 @@ export class PaiementService {
       const savedPaiement = await queryRunner.manager.save(newPaiement);
 
       if (savedPaiement){
-      this.eventsGateway.server.emit('create paiement', savedPaiement);
+      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
       console.log("envoie");
     }
 
-      const qrCodes: { id_paiement_location: string; qrCode: string }[] = []; // <= NOUVEAU CODE ici : Création du tableau de codes QR
-      const createdPaiementLocations: Paiementlocation[] = []; // <= NOUVEAU CODE ici : Création du tableau pour les entités Paiementlocation
+      const qrCodes: { id_paiement_location: string; qrCode: string }[] = [];
+      const createdPaiementLocations: Paiementlocation[] = [];
 
       if (savedPaiement.status === 'success') {
-        const locationId = paiement_locations[0].locationId;
-        await this.locationService.updateLocalStatusToRented(locationId);
+        const montant_total_paye = paiement_locations.reduce((total, loc) => total + loc.montant_paye, 0);
 
-        // <= NOUVEAU CODE ici : Boucle pour créer chaque paiement de location et récupérer le QR code
+        // Validation du montant payé
+        if (montant_total_paye !== location.local.typelocal.tarif) {
+          throw new BadRequestException(
+            `Le montant total payé (${montant_total_paye}€) ne correspond pas au prix du local (${location.local.typelocal.tarif}).`
+          );
+        }
+
+        // Création des paiements de location
         for (const locDto of paiement_locations) {
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
           qrCodes.push({ id_paiement_location: paiementLocation.id_paiement_location, qrCode });
           createdPaiementLocations.push(paiementLocation);
         }
+
+        // Mise à jour du statut du local uniquement après la validation
+        await this.locationService.updateLocalStatusToRented(locationId);
+
+        // Création de la notification de succès
+        const userId = location.id_user;
+        await this.notificationService.createPaymentNotification(
+          userId,
+          'SUCCESS',
+          {
+            montant: montant_total_paye,
+            reference: savedPaiement.reference,
+          }
+        );
+
+      } else {
+        const userId = location.id_user;
+        const montant_total_paye = paiement_locations.reduce((total, loc) => total + loc.montant_paye, 0);
+        await this.notificationService.createPaymentNotification(
+          userId,
+          'FAILED',
+          {
+            montant: montant_total_paye,
+            reference: savedPaiement.reference,
+          }
+        );
       }
 
-      // <= NOUVEAU CODE ici : Associer les paiements de location au paiement principal
       savedPaiement.paiement_locations = createdPaiementLocations;
       await queryRunner.manager.save(savedPaiement);
 
       await queryRunner.commitTransaction();
 
-
-      // <= MODIFICATION ici : La réponse contient maintenant le paiement et les codes QR
       return {
         message: 'Paiement créé avec succès.',
         paiement: savedPaiement,
@@ -73,7 +109,7 @@ export class PaiementService {
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new BadRequestException(`Échec de création du paiement : ${error.message}`);
+      throw new BadRequestException(`Échec de la transaction de paiement : ${error.message}`);
     } finally {
       await queryRunner.release();
     }
