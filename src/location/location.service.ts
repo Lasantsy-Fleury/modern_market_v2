@@ -9,6 +9,7 @@ import { Local } from 'src/local/entities/local.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { EventsGateway } from 'src/events/events.gateway';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class LocationService {
@@ -20,8 +21,8 @@ export class LocationService {
     private readonly paiementLocationService: PaiementLocationService,
     @InjectRepository(Paiementlocation)
     private readonly paiementLocationRepository: Repository<Paiementlocation>,
-
-     private readonly eventsGateway: EventsGateway
+    private readonly notificationService: NotificationService,
+    private readonly eventsGateway: EventsGateway
   ) { }
 
   async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
@@ -403,16 +404,82 @@ export class LocationService {
     return location.nif;
   }
 
-  async getLocationEndDate(id_location: string): Promise<Date> {
-    const location = await this.locationRepository.findOne({
-      where: { id_location },
-      select: ['date_fin_loc'],
-    });
+  // async getLocationEndDate(id_location: string): Promise<Date> {
+  //   const location = await this.locationRepository.findOne({
+  //     where: { id_location },
+  //     select: ['date_fin_loc'],
+  //   });
 
-    if (!location) {
-      throw new NotFoundException(`Location with ID "${id_location}" not found.`);
-    }
+  //   if (!location) {
+  //     throw new NotFoundException(`Location with ID "${id_location}" not found.`);
+  //   }
 
-    return location.date_fin_loc;
+  //   return location.date_fin_loc;
+  // }
+
+async checkAndSendReminders(location: Location) {
+  const today = new Date();
+  const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Récupérer la dernière paiement_location (par date_fin max)
+  const lastPaiement = await this.paiementLocationRepository
+    .createQueryBuilder('pl')
+    .where('pl.locationId = :locId', { locId: location.id_location })
+    .orderBy('pl.date_fin', 'DESC')
+    .getOne();
+
+  if (!lastPaiement) {
+    throw new NotFoundException(`Pas de paiement trouvé pour la location ${location.id_location}`);
   }
+
+  // Calculer la prochaine échéance (date_fin du dernier paiement + 1 mois)
+  const nextDueDate = new Date(lastPaiement.date_fin);
+  nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+  const nextDueDateOnly = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth(), nextDueDate.getDate());
+
+  // Différence en jours entre aujourd'hui et la prochaine échéance
+  const diffDays = Math.floor(
+    (nextDueDateOnly.getTime() - todayDateOnly.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  // Préparer les données pour la notification
+  const reminderData = {
+    montant: lastPaiement.montant_paye,
+    locationId: location.id_location,
+  };
+
+  // J-5 ou J-2 avant la prochaine échéance
+  if (diffDays === 5 || diffDays === 2) {
+    await this.notificationService.scheduleReminderNotification(
+      location.id_user,
+      reminderData,
+      nextDueDateOnly.getDate()
+    );
+  }
+
+  // Après échéance, tous les jours si pas encore payé
+  if (diffDays < 0) {
+    await this.notificationService.scheduleReminderNotification(
+      location.id_user,
+      reminderData,
+      nextDueDateOnly.getDate()
+    );
+  }
+}
+
+
+  // 📌 Job CRON qui vérifie tous les jours à 8h
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  async handleDailyReminders() {
+    const allLocations = await this.locationRepository.find();
+
+    for (const loc of allLocations) {
+      await this.checkAndSendReminders(loc);
+    }
+  }
+
+
+
+
+
 }
