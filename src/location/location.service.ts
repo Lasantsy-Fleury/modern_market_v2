@@ -398,4 +398,17 @@ async findLocationWithPaymentDates(municipalityId: number, id_location: string):
 
     return location.nif;
   }
+
+  async getLocationEndDate(id_location: string): Promise<Date> {
+    const location = await this.locationRepository.findOne({
+      where: { id_location },
+      select: ['date_fin_loc'],
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location with ID "${id_location}" not found.`);
+    }
+
+    return location.date_fin_loc;
+  }
 }

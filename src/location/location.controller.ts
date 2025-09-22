@@ -216,13 +216,13 @@ ${formatDate(locationData.date_fin_loc)}
   }
 }
 
-  @Get(':id/reste-a-payer')
-  async getRemainingAmount(@Param('id') id: string) {
+  @Get('/:id_location/reste-a-payer')
+  async getRemainingAmount(@Param('id_location') id: string) {
     return this.locationService.getRemainingAmount(id);
   }
 
-  @Get(':id/calendrier-paiement')
-  async getPaymentSchedule(@Param('id') id: string) {
+  @Get('/:id_location/calendrier-paiement')
+  async getPaymentSchedule(@Param('id_location') id: string) {
     return this.locationService.getPaymentSchedule(id);
  }
 
@@ -230,7 +230,7 @@ ${formatDate(locationData.date_fin_loc)}
   @ApiOperation({ summary: 'Modifier une location par son ID et son municipalityId' })
   @ApiResponse({ status: 200, description: 'La location a été mise à jour avec succès.' })
   update(
-    @Param('id') id: string,
+    @Param('id_location') id: string,
     @Param('municipalityId') municipalityId: number,
     @Body() updateDto:CreateLocationDto
   ) {
@@ -246,7 +246,7 @@ ${formatDate(locationData.date_fin_loc)}
   @ApiResponse({ status: 204, description: 'La location a été supprimée avec succès.' })
   async remove(
     @Query('municipalityId') municipalityId: number,
-    @Param('id') id: string,
+    @Param('id_location') id: string,
   ) {
     if (!municipalityId) {
       throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
@@ -267,4 +267,11 @@ ${formatDate(locationData.date_fin_loc)}
     return this.locationService.countCurrentLocationsByUser(id_user);
   }
 
+  @Get('/:id_location/end-date')
+  @ApiOperation({summary:'Récupérer la date de fin d\'une location par son ID'})
+  @ApiResponse({ status: 200, description: 'Date de fin de la location trouvée avec succès.'})
+  @ApiResponse({ status: 404, description: 'Location non trouvée.'})
+  async getLocationEndDate(@Param('id_location') id: string) {
+    return this.locationService.getLocationEndDate(id);
+  }
 }
