@@ -218,4 +218,8 @@ export class NotificationService {
       },
     };
   }
+
+  async findAll(){
+    
+  }
 }
