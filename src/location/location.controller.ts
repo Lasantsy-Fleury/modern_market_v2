@@ -3,7 +3,7 @@ import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
-import { ApiResponse,ApiTags,ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiResponse,ApiTags,ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 
 
 @ApiTags('Locations')
@@ -55,12 +55,12 @@ export class LocationController {
     return this.locationService.findInProgressByUser(id_user);
   }
 
-  @Get('municipalityId/:municipalityId/location')
+  @Get(':id_location/:municipalityId/location')
   @ApiOperation({ summary: 'Récupérer une location par son ID et son municipalityId' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiParam({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité' })
   async findOne(
-    @Param('id') id: string,
-    @Query('municipalityId') municipalityId: number,
+    @Param('id_location') id: string,
+    @Param('municipalityId') municipalityId: number,
   ) {
     if (!municipalityId) {
       throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
