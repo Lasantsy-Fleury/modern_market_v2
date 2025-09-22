@@ -31,7 +31,7 @@ export class PaiementLocationService {
     if (!location) {
       throw new NotFoundException(`Location with ID "${locationId}" not found.`);
     }
-    
+
     // Vérification du premier paiement
     const lastPaiement = await manager.findOne(Paiementlocation, {
       where: { locationId },
@@ -41,12 +41,12 @@ export class PaiementLocationService {
     if (!lastPaiement && nombre_paye < 1) {
       throw new BadRequestException("Le premier paiement doit couvrir au moins une période.");
     }
-    
+
     // Vérification du montant payé par rapport au tarif du local
     if (!location.local || !location.local.typelocal || !location.local.typelocal.type_contrat) {
-        throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
+      throw new NotFoundException("Impossible de trouver le tarif pour ce local.");
     }
-    
+
     // Utilisation de location.local.typelocal.tarif au lieu de .type_contrat
     const tarif = location.local.typelocal.tarif;
     const expectedAmount = tarif * nombre_paye;
@@ -157,57 +157,56 @@ export class PaiementLocationService {
     return query.getMany();
   }
 
-async findOne(id: string, municipalityId: number): Promise<Paiementlocation> {
-  const found = await this.paiementLocationRepository
-    .createQueryBuilder('paiement_location')
-    .leftJoinAndSelect('paiement_location.paiement', 'paiement')
-    .leftJoinAndSelect('paiement_location.location', 'location')
-    .leftJoinAndSelect('location.local', 'local')
-    .leftJoinAndSelect('local.zone', 'zone')
-    .where('paiement_location.id_paiement_location = :id', { id })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
-    .getOne();
+  async findOne(id: string, municipalityId: number): Promise<Paiementlocation> {
+    const found = await this.paiementLocationRepository
+      .createQueryBuilder('paiement_location')
+      .leftJoinAndSelect('paiement_location.paiement', 'paiement')
+      .leftJoinAndSelect('paiement_location.location', 'location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('paiement_location.id_paiement_location = :id', { id })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+      .getOne();
 
-  if (!found) {
-    throw new NotFoundException(`Paiementlocation with ID "${id}" not found in municipality "${municipalityId}".`);
+    if (!found) {
+      throw new NotFoundException(`Paiementlocation with ID "${id}" not found in municipality "${municipalityId}".`);
+    }
+
+    return found;
   }
 
-  return found;
-}
 
 async findOneWithQr(
   id: string,
   municipalityId: number,
-): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
+): Promise<Paiementlocation> { // retourne directement l'objet trouvé
+  if (!municipalityId) {
+    throw new BadRequestException('Le municipalityId est obligatoire.');
+  }
+
   const found = await this.paiementLocationRepository
     .createQueryBuilder('paiement_location')
     .leftJoinAndSelect('paiement_location.paiement', 'paiement')
     .leftJoinAndSelect('paiement_location.location', 'location')
     .leftJoinAndSelect('location.local', 'local')
     .leftJoinAndSelect('local.zone', 'zone')
-    .where('paiement_location.id_paiement_location = :id', { id })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // filtre obligatoire
+    .where(
+      'paiement_location.id_paiement_location = :id AND zone.municipalityId = :municipalityId',
+      { id, municipalityId },
+    )
     .getOne();
 
   if (!found) {
-    throw new NotFoundException(`Paiementlocation with ID "${id}" not found in municipality "${municipalityId}".`);
+    throw new NotFoundException(
+      `Paiementlocation avec l'ID "${id}" introuvable dans la municipalité "${municipalityId}".`,
+    );
   }
 
-  const qrData = {
-    id_paiement_location: found.id_paiement_location,
-    nombre_paye: found.nombre_paye,
-    date_debut: found.date_debut,
-    date_fin: found.date_fin,
-    date_paiement: found.date_paiement,
-    paiement: found.paiement,
-    location: found.location,
-    montant_paye: found.montant_paye
-  };
-
-  const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
-
-  return { paiementLocation: found, qrCode };
+  return found; // renvoie tout l'objet JSON trouvé
 }
+
+
+
 
 
   //  async remove(id_paiement_location: number): Promise<void> {
