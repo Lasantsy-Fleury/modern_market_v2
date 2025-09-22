@@ -9,9 +9,11 @@ import { PaiementLocationService } from 'src/paiement_location/paiement_location
 import { LocationModule } from 'src/location/location.module';
 import { EventsGateway } from 'src/events/events.gateway';
 import { EventsModule } from 'src/events/events.module';
+import { NotificationModule } from 'src/notification/notification.module';
 @Module({
-  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,EventsModule],
+  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,EventsModule,NotificationModule],
   controllers: [PaiementController],
   providers: [PaiementService,PaiementLocationService],
+  exports: [PaiementService],
 })
 export class PaiementModule {}

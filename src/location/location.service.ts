@@ -207,17 +207,23 @@ export class LocationService {
     });
   }
 
-  async findOne(id: string, municipalityId: number): Promise<Location> {
-    const location = await this.locationRepository
+  async findOne(id: string, municipalityId?: number | null | undefined): Promise<Location> {
+    const query = this.locationRepository
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.typelocal', 'typelocal') 
       .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_location = :id', { id })
-      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-      .getOne();
+      .where('location.id_location = :id', { id });
+
+    // Ajoutez cette condition pour vérifier si municipalityId est fourni et n'est pas null
+    if (municipalityId !== undefined && municipalityId !== null) {
+      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+    }
+
+    const location = await query.getOne();
 
     if (!location) {
-      throw new NotFoundException(`Location with ID "${id}" not found in municipality "${municipalityId}".`);
+      throw new NotFoundException(`Location with ID "${id}" not found.`);
     }
 
     return location;
