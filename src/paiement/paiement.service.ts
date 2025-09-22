@@ -38,7 +38,7 @@ export class PaiementService {
       const savedPaiement = await queryRunner.manager.save(newPaiement);
 
       if (savedPaiement){
-      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+      this.eventsGateway.server.emit('create paiement', savedPaiement);
       console.log("envoie");
     }
 

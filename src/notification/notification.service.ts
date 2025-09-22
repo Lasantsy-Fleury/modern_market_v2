@@ -145,16 +145,15 @@ export class NotificationService {
 
   async scheduleReminderNotification(
     userId: string,
-    scheduledAt: Date,
     reminderData: any,
+    dateNormalPaie:number
   ) {
     const notification = this.notifRepository.create({
       userId,
       type: 'RAPPELLE DE PAIEMENT',
       title: 'Rappel de paiement',
-      message: `N'oubliez pas votre paiement d'ici le ${reminderData.dueDate}`,
+      message: `N'oubliez pas votre paiement de votre location d' une montant de ${reminderData.montant} d'ici le ${dateNormalPaie} du mois.`,
       data: reminderData,
-      scheduledAt,
       priority: 'MEDIUM',
     });
 

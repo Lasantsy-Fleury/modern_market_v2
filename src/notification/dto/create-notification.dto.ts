@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, Min, Max } from 'class-validator';
 
 // --------------------
 // ENUMS
@@ -61,7 +62,7 @@ export class CreateLocationNotificationDto {
   @IsNotEmpty()
   userId: string;
 
-  
+
   @ApiProperty({
     description: "Type de notification de location : CONFIRMED | CANCELLED | PENDING",
     enum: LocationNotificationType,
@@ -72,7 +73,7 @@ export class CreateLocationNotificationDto {
 
   @ApiProperty({
     description: "Données contextuelles liées à la location",
-    example: { id_location: "00b70203-4c6d-4c92-bce0-de7f2df4e0df",localId:"00b70203-4c6d-4c92-bce0-de7f2df4e0df"},
+    example: { id_location: "00b70203-4c6d-4c92-bce0-de7f2df4e0df", localId: "00b70203-4c6d-4c92-bce0-de7f2df4e0df" },
   })
   @IsNotEmpty()
   @IsObject()
@@ -129,15 +130,18 @@ export class CreateReminderNotificationDto {
   userId: string;
 
   @ApiProperty({
-    description: "Date et heure programmée de l'envoi de la notification",
-    example: '2025-09-20T10:00:00.000Z',
+    description: "Jour du mois où le contribuable doit payer (1 à 31)",
+    example: 20,
   })
-  @IsDateString()
-  scheduledAt: Date;
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  @IsNotEmpty()
+  dateNormalPaie: number;
 
   @ApiProperty({
     description: "Données contextuelles liées au rappel",
-    example: { id_event: "E123", description: "Rappel de paiement" },
+    example: { id_location: "", montant: "", description: "Rappel de paiement" },
   })
   @IsNotEmpty()
   @IsObject()
