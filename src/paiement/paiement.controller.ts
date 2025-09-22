@@ -77,18 +77,27 @@ export class PaiementController {
     return this.paiementService.findOne(id, municipalityId);
   }
 
-  @Get('user/:id_user/history')
+ @Get('user/:user_id/history')
   @ApiOperation({ summary: 'Récupérer l\'historique des paiements d\'un utilisateur' })
-  @ApiQuery({ name: 'id_user', type: String, description: 'ID de l\'utilisateur' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité (optionnel)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre d\'éléments par page (par défaut 10)' })
   async findHistoryForUser(
-    @Query('id_user') id_user: string,
-    @Query('municipalityId', ParseIntPipe) municipalityId: number,
+    @Param('user_id') id_user: string,
+    @Query('municipalityId') municipalityId?: string, // Retiré ParseIntPipe pour gérer l'optionnel
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
   ) {
-    return this.paiementService.findHistoryByUser(id_user, municipalityId, page, limit);
+    // Conversion manuelle du municipalityId si présent
+    let parsedMunicipalityId: number | undefined = undefined;
+    
+    if (municipalityId) {
+      parsedMunicipalityId = parseInt(municipalityId, 10);
+      if (isNaN(parsedMunicipalityId)) {
+        throw new BadRequestException('municipalityId doit être un nombre valide');
+      }
+    }
+    
+    return this.paiementService.findHistoryByUser(id_user, parsedMunicipalityId, page, limit);
   }
 }

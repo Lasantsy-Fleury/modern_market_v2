@@ -163,12 +163,9 @@ export class PaiementService {
     return paiement;
   }
 
-  async findHistoryByUser(id_user: string, municipalityId: number, page: number = 1, limit: number = 10) {
+  async findHistoryByUser(id_user: string, municipalityId?: number, page: number = 1, limit: number = 10) {
     if (!id_user) {
-        throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
-    }
-    if (!municipalityId) {
-        throw new BadRequestException('Le municipalityId est obligatoire.');
+      throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
     }
 
     const query = this.paieRepository
@@ -177,16 +174,26 @@ export class PaiementService {
       .leftJoinAndSelect('paiement_location.location', 'location')
       .leftJoinAndSelect('location.local', 'local')
       .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_user = :id_user', { id_user }) // Filtre par l'ID de l'utilisateur
-      .andWhere('zone.municipalityId = :municipalityId', { municipalityId }) // Filtre par l'ID de la municipalité
+      .where('location.id_user = :id_user', { id_user }); // Filtre par l'ID de l'utilisateur
+
+    // Ajouter le filtre municipalityId seulement s'il est fourni
+    if (municipalityId !== undefined) {
+      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+    }
+
+    query
       .orderBy('paiement.date_creation', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
     const [data, total] = await query.getManyAndCount();
 
+    const message = municipalityId 
+      ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
+      : `Historique des paiements pour l'utilisateur ${id_user}`;
+
     return {
-      message: `Historique des paiements pour l'utilisateur ${id_user}`,
+      message,
       data,
       pagination: {
         page,
