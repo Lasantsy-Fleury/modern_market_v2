@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-   app.setGlobalPrefix('serviceModernMarket');
+   app.setGlobalPrefix('servicemodernmarket');
   const config = new DocumentBuilder()
   .setTitle(' Modern Market')
   .setDescription('Documentation microservice du Modern Market du recette local ')
@@ -14,7 +14,7 @@ async function bootstrap() {
   
   const document = SwaggerModule.createDocument(app, config);
   
-  SwaggerModule.setup('serviceModernMarket/docs', app, document ,{
+  SwaggerModule.setup('servicemodernmarket/docs', app, document ,{
     swaggerOptions: { persistAuthorization: true },
     customSiteTitle: 'Documentation API - Service Modern Market',
   });
