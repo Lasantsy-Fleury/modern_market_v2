@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Raw, Repository } from 'typeorm';
 import { CreateTypeLocalDto } from './dto/create-type_locale.dto';
 import { Typelocal } from './entities/type_locale.entity';
+import { EventsGateway } from 'src/events/events.gateway';
 
 @Injectable()
 export class TypeLocalService {
@@ -10,6 +11,7 @@ export class TypeLocalService {
   constructor(
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
+    private readonly eventsGateway: EventsGateway
   ) {}
 
   async create(createTypeLocalDto: CreateTypeLocalDto): Promise<Typelocal> {
@@ -26,6 +28,7 @@ export class TypeLocalService {
     }
     
     const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);
+    this.eventsGateway.server.emit('create typeLocal', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 
@@ -81,6 +84,7 @@ export class TypeLocalService {
       throw new NotFoundException(`TypeLocal with id ${id_type_local} in municipality ${municipalityId} not found`);
     }
     Object.assign(typeLocal, updateDto);
+    this.eventsGateway.server.emit('update typeLocal', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 

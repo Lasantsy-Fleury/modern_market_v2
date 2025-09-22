@@ -57,8 +57,8 @@ export class NotificationController {
   async scheduleReminderNotification(
     @Body() dto: CreateReminderNotificationDto,
   ) {
-    const { userId, scheduledAt, data } = dto;
-    return this.notificationService.scheduleReminderNotification(userId, scheduledAt, data);
+    const { userId, data,dateNormalPaie } = dto;
+    return this.notificationService.scheduleReminderNotification(userId,  data,dateNormalPaie);
   }
 
   // -----------------------

@@ -44,10 +44,10 @@ export class PaiementService {
 
       const savedPaiement = await queryRunner.manager.save(newPaiement);
 
-      if (savedPaiement) {
-        this.eventsGateway.server.emit('paiement effectue', savedPaiement);
-        console.log("envoie");
-      }
+      if (savedPaiement){
+      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+      console.log("envoie");
+    }
 
       const qrCodes: { id_paiement_location: string; qrCode: string }[] = [];
       const createdPaiementLocations: Paiementlocation[] = [];

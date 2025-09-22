@@ -5,11 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DistributionZone } from './entities/distribution_zone.entity';
 import { ZoneModule } from 'src/zone/zone.module';
 import { Zone } from 'luxon';
+import { EventsModule } from 'src/events/events.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([DistributionZone , Zone]),
     ZoneModule,
+    EventsModule
   ],
   controllers: [DistributionZoneController],
   providers: [DistributionZoneService],

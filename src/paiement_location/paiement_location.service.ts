@@ -103,6 +103,8 @@ export class PaiementLocationService {
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
     this.eventsGateway.server.emit('userCreated', newPaiementLocation);
+    this.eventsGateway.server.emit('create paiementLocation', savedPaiementLocation);
+
     return { paiementLocation: savedPaiementLocation, qrCode };
   }
 
