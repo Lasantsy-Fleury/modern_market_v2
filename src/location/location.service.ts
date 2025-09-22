@@ -9,6 +9,7 @@ import { Local } from 'src/local/entities/local.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 
+
 @Injectable()
 export class LocationService {
   constructor(
