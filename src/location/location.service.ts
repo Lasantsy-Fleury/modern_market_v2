@@ -10,7 +10,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { EventsGateway } from 'src/events/events.gateway';
 import { NotificationService } from 'src/notification/notification.service';
-
+import * as QRCode from 'qrcode';
+import axios from 'axios';
 @Injectable()
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
@@ -529,6 +530,26 @@ async handleExpiredLocations() {
 
     for (const loc of allLocations) {
       await this.checkAndSendReminders(loc);
+    }
+  }
+   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
+    try {
+      // Vérifier que l'utilisateur existe
+      const response = await axios.get(`https://gateway.tsirylab.com/serviceauth/users/${userId}`);
+
+      if (!response.data || !response.data.user_id) {
+        throw new NotFoundException(`Utilisateur avec ID ${userId} introuvable`);
+      }
+
+      // Générer un QRCode encodant l'userId
+      const qrCodeDataUrl = await QRCode.toDataURL(userId);
+
+      return {
+        userId: response.data.user_id,
+        qrCode: qrCodeDataUrl, // ⚡ base64 utilisable dans <img src="...">
+      };
+    } catch (error) {
+      throw new NotFoundException(`Impossible de générer le QRCode pour l'utilisateur ${userId}`);
     }
   }
 }
