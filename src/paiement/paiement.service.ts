@@ -258,7 +258,6 @@ export class PaiementService {
       throw new NotFoundException(`Paiement avec l'ID "${id}" introuvable`);
     }
 
-    // ⚡ Grâce au cascade + onDelete: 'CASCADE', les Paiementlocation seront supprimés automatiquement
     await this.paieRepository.remove(paiement);
 
     return { message: `Paiement avec l'ID "${id}" supprimé avec succès.` };
