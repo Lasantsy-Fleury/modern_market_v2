@@ -219,147 +219,103 @@ export class NotificationService {
     };
   }
 
-  async findAll(
-    municipalityId: number,
-    limit: number,
-    page: number,
-    filters: {
-      userId?: string;
-      type?: string;
-      keyword?: string;
-      isRead?: boolean;
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-      sentAt?: Date;
-      updatedAt?: Date;
-    },
-  ) {
-    try {
-      // Construction de la requête SQL brute pour de meilleures performances
-      let whereConditions = ['n.isArchived = false'];
-      let parameters: any = { municipalityId };
-      let paramIndex = 1;
-
-      // Filtrage par municipalité via les relations
-      const municipalityFilter = `
-      EXISTS (
+  async findAllSimple(municipalityId: number) {
+    return this.notifRepository
+      .createQueryBuilder('notification')
+      .where(
+        `EXISTS (
         SELECT 1 FROM location loc
-        JOIN local l ON l.id_local = loc.localId
-        JOIN zone z ON z.id_zone = l.zoneId
-        WHERE loc.id_location = n.data->>'id_location'
-        AND z.municipalityId = $${++paramIndex}
-      ) OR EXISTS (
-        SELECT 1 FROM paiement_location pl
-        JOIN location pl_loc ON pl_loc.id_location = pl.locationId
-        JOIN local pl_local ON pl_local.id_local = pl_loc.localId
-        JOIN zone pl_zone ON pl_zone.id_zone = pl_local.zoneId
-        WHERE pl.id_paiement_location = n.data->>'id_paiement_location'
-        AND pl_zone.municipalityId = $${paramIndex}
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )`,
+        { municipalityId }
       )
-    `;
-      whereConditions.push(`(${municipalityFilter})`);
-      parameters[`param${paramIndex}`] = municipalityId;
-
-      // Filtres dynamiques
-      if (filters.userId && filters.userId !== 'getAll') {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(filters.userId)) {
-          throw new BadRequestException('Format userId invalide.');
-        }
-        whereConditions.push(`n.userId = $${++paramIndex}`);
-        parameters[`param${paramIndex}`] = filters.userId;
-      }
-
-      if (filters.type) {
-        whereConditions.push(`n.type = $${++paramIndex}`);
-        parameters[`param${paramIndex}`] = filters.type;
-      }
-
-      if (filters.isRead !== undefined) {
-        whereConditions.push(`n.isRead = $${++paramIndex}`);
-        parameters[`param${paramIndex}`] = filters.isRead;
-      }
-
-      if (filters.priority) {
-        whereConditions.push(`n.priority = $${++paramIndex}`);
-        parameters[`param${paramIndex}`] = filters.priority;
-      }
-
-      if (filters.keyword) {
-        whereConditions.push(`(LOWER(n.title) LIKE $${++paramIndex} OR LOWER(n.message) LIKE $${++paramIndex})`);
-        const keyword = `%${filters.keyword.toLowerCase()}%`;
-        parameters[`param${paramIndex - 1}`] = keyword;
-        parameters[`param${paramIndex}`] = keyword;
-      }
-
-      // Construction de la requête finale
-      const whereClause = whereConditions.join(' AND ');
-      const offset = (page - 1) * limit;
-
-      const countQuery = `
-      SELECT COUNT(*) as total
-      FROM notification n
-      WHERE ${whereClause}
-    `;
-
-      const dataQuery = `
-      SELECT n.*
-      FROM notification n
-      WHERE ${whereClause}
-      ORDER BY 
-        CASE n.priority 
-          WHEN 'URGENT' THEN 4 
-          WHEN 'HIGH' THEN 3 
-          WHEN 'MEDIUM' THEN 2 
-          WHEN 'LOW' THEN 1 
-          ELSE 0 
-        END DESC,
-        n.createdAt DESC
-      LIMIT $${++paramIndex} OFFSET $${++paramIndex}
-    `;
-
-      parameters[`param${paramIndex - 1}`] = limit;
-      parameters[`param${paramIndex}`] = offset;
-
-      // Conversion des paramètres pour la requête
-      const queryParams = Object.keys(parameters)
-        .sort((a, b) => {
-          const aNum = a === 'municipalityId' ? 1 : parseInt(a.replace('param', ''));
-          const bNum = b === 'municipalityId' ? 1 : parseInt(b.replace('param', ''));
-          return aNum - bNum;
-        })
-        .map(key => parameters[key]);
-
-      // Exécution des requêtes
-      const [countResult, dataResult] = await Promise.all([
-        this.notifRepository.query(countQuery, queryParams.slice(0, -2)),
-        this.notifRepository.query(dataQuery, queryParams)
-      ]);
-
-      const total = parseInt(countResult[0].total);
-
-      return {
-        message: 'Liste des notifications filtrées par municipalité',
-        data: dataResult,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-        status: 200,
-      };
-    } catch (error) {
-      console.error('Erreur dans findAllOptimized:', error);
-
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-
-      throw new ServiceUnavailableException(
-        'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
-      );
-    }
+      .orWhere(
+        `EXISTS (
+        SELECT 1 FROM paiement_location pl
+        INNER JOIN location loc ON loc.id_location = pl."locationId"
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_paiement' IS NOT NULL AND notification.data->>'id_paiement' = pl."paiementId"::text)
+          OR (notification.data->>'id_paiement_location' IS NOT NULL AND notification.data->>'id_paiement_location' = pl.id_paiement_location::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )`,
+        { municipalityId }
+      )
+      .orderBy('notification.createdAt', 'DESC')
+      .getMany();
   }
 
+  async findOneSimple(id: string, municipalityId: number) {
+    console.log('Recherche notification:', { id, municipalityId });
 
+    // D'abord, vérifions si la notification existe
+    const notificationExists = await this.notifRepository.findOne({
+      where: { id_notification: id }
+    });
+
+    console.log('Notification existe:', !!notificationExists);
+    if (notificationExists) {
+      console.log('Data de la notification:', notificationExists.data);
+    }
+
+    // Testons chaque condition séparément
+    const locationCondition = await this.notifRepository
+      .createQueryBuilder('notification')
+      .where('notification.id_notification = :id', { id })
+      .andWhere(
+        `EXISTS (
+        SELECT 1 FROM location loc
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )`,
+        { municipalityId }
+      )
+      .getOne();
+
+    console.log('Résultat condition location:', !!locationCondition);
+
+    const paiementCondition = await this.notifRepository
+      .createQueryBuilder('notification')
+      .where('notification.id_notification = :id', { id })
+      .andWhere(
+        `EXISTS (
+        SELECT 1 FROM paiement_location pl
+        INNER JOIN location loc ON loc.id_location = pl."locationId"
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_paiement' IS NOT NULL AND notification.data->>'id_paiement' = pl."paiementId"::text)
+          OR (notification.data->>'id_paiement_location' IS NOT NULL AND notification.data->>'id_paiement_location' = pl.id_paiement_location::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )`,
+        { municipalityId }
+      )
+      .getOne();
+
+    console.log('Résultat condition paiement:', !!paiementCondition);
+
+    // Requête finale corrigée
+    return this.notifRepository
+      .createQueryBuilder('notification')
+      .where('notification.id_notification = :id', { id })
+      .andWhere(
+        `(EXISTS (/* condition location */) OR EXISTS (/* condition paiement */))`,
+        { municipalityId }
+      )
+      .getOne();
+  }
 }
