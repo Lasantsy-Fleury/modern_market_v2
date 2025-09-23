@@ -217,6 +217,7 @@ ${formatDate(locationData.date_fin_loc)}
   }
 
   @Get('/:id_location/reste-a-payer')
+  @ApiOperation({ summary: 'Recuperer le reste a payer d\'une location par son id ' })
   async getRemainingAmount(@Param('id_location') id: string) {
     return this.locationService.getRemainingAmount(id);
   }
