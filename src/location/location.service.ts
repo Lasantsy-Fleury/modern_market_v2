@@ -386,8 +386,13 @@ export class LocationService {
     return await this.locationRepository.save(location);
   }
 
-  async remove(municipalityId: number, id: string): Promise<void> {
-    const location = await this.findOne(id, municipalityId);
+  async remove(id: string): Promise<void> {
+    const location = await this.locationRepository.findOne({ where: { id_location: id } });
+
+    if (!location) {
+      throw new NotFoundException(`Location avec l'ID "${id}" introuvable`);
+    }
+
     await this.locationRepository.remove(location);
   }
 

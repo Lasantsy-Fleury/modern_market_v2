@@ -10,7 +10,7 @@ export class Notification {
   userId: string;
 
   // Type de notification
-  @Column({})
+  @Column()
   type: string;
 
   // Titre court

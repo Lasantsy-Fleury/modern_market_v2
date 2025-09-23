@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
@@ -146,7 +146,7 @@ export class NotificationService {
   async scheduleReminderNotification(
     userId: string,
     reminderData: any,
-    dateNormalPaie:number
+    dateNormalPaie: number
   ) {
     const notification = this.notifRepository.create({
       userId,
@@ -219,7 +219,79 @@ export class NotificationService {
     };
   }
 
-  async findAll(){
-    
+  async findAll(
+    userId: string, // on filtre par utilisateur
+    limit: number,
+    page: number,
+    filters: {
+      type?: string;
+      keyword?: string;   // recherche dans title ou message
+      isRead?: boolean;   // filtre sur lu / non lu
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
+    },
+  ) {
+    try {
+      const query = this.notifRepository
+        .createQueryBuilder('notif')
+        .where('notif.userId = :userId', { userId });
+
+      // 🔍 Filtre mot-clé (dans title et message)
+      if (filters.keyword) {
+        query.andWhere(
+          '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
+          { keyword: `%${filters.keyword.toLowerCase()}%` },
+        );
+      }
+
+      // 🔍 Filtre par statut de lecture
+      if (filters.isRead !== undefined) {
+        query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
+      }
+
+      // 🔍 Filtre par priorité
+      if (filters.priority) {
+        query.andWhere('notif.priority = :priority', { priority: filters.priority });
+      }
+
+      // 📌 Pagination et tri (les plus récentes en premier)
+      query
+        .orderBy('notif.createdAt', 'DESC')
+        .skip((page - 1) * limit)
+        .take(limit);
+
+      const [result, total] = await query.getManyAndCount();
+
+      // ✅ Construction de la réponse
+      return {
+        message: 'Liste des notifications filtrées',
+        data: result.map((notif) => ({
+          id_notification: notif.id_notification,
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          isRead: notif.isRead,
+          isArchived: notif.isArchived,
+          priority: notif.priority,
+          channels: notif.channels,
+          scheduledAt: notif.scheduledAt,
+          sentAt: notif.sentAt,
+          readAt: notif.readAt,
+          createdAt: notif.createdAt,
+          data: notif.data,
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        status: 200,
+      };
+    } catch (error) {
+      throw new ServiceUnavailableException(
+        'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
+      );
+    }
   }
+
 }
