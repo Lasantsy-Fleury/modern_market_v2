@@ -269,4 +269,11 @@ ${formatDate(locationData.date_fin_loc)}
   async getLocationEndDate(@Param('id_location') id: string) {
     return this.locationService.getLocationEndDate(id);
   }
+
+   @Get(':id/qrcode')
+  @ApiOperation({ summary: 'Générer un QR code pour un utilisateur' })
+  @ApiResponse({ status: 200, description: 'QR Code généré avec succès' })
+  async getUserQrCode(@Param('id') id: string) {
+    return await this.locationService.generateUserQrCode(id);
+  }
 }
