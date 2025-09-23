@@ -219,79 +219,83 @@ export class NotificationService {
     };
   }
 
-  async findAll(
-    userId: string, // on filtre par utilisateur
-    limit: number,
-    page: number,
-    filters: {
-      type?: string;
-      keyword?: string;   // recherche dans title ou message
-      isRead?: boolean;   // filtre sur lu / non lu
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
-    },
-  ) {
-    try {
-      const query = this.notifRepository
-        .createQueryBuilder('notif')
-        .where('notif.userId = :userId', { userId });
+  // async findAll(
+  //   municipalityId: number,
+  //   limit: number,
+  //   page: number,
+  //   filters: {
+  //     userId?: string,
+  //     type?: string;
+  //     keyword?: string;   // recherche dans title ou message
+  //     isRead?: boolean;   // filtre sur lu / non lu
+  //     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
+  //     sentAt?:Date;
+  //     updatedAt?: Date;
 
-      // 🔍 Filtre mot-clé (dans title et message)
-      if (filters.keyword) {
-        query.andWhere(
-          '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
-          { keyword: `%${filters.keyword.toLowerCase()}%` },
-        );
-      }
+  //   },
+  // ) {
+  //   try {
+  //     const query = this.notifRepository
+  //       .createQueryBuilder('notif')
+  //       .where('notif.userId = :userId', { userId });
 
-      // 🔍 Filtre par statut de lecture
-      if (filters.isRead !== undefined) {
-        query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
-      }
+  //     // 🔍 Filtre mot-clé (dans title et message)
+  //     if (filters.keyword) {
+  //       query.andWhere(
+  //         '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
+  //         { keyword: `%${filters.keyword.toLowerCase()}%` },
+  //       );
+  //     }
 
-      // 🔍 Filtre par priorité
-      if (filters.priority) {
-        query.andWhere('notif.priority = :priority', { priority: filters.priority });
-      }
+  //     // 🔍 Filtre par statut de lecture
+  //     if (filters.isRead !== undefined) {
+  //       query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
+  //     }
 
-      // 📌 Pagination et tri (les plus récentes en premier)
-      query
-        .orderBy('notif.createdAt', 'DESC')
-        .skip((page - 1) * limit)
-        .take(limit);
+  //     // 🔍 Filtre par priorité
+  //     if (filters.priority) {
+  //       query.andWhere('notif.priority = :priority', { priority: filters.priority });
+  //     }
 
-      const [result, total] = await query.getManyAndCount();
+  //     // 📌 Pagination et tri (les plus récentes en premier)
+  //     query
+  //       .orderBy('notif.createdAt', 'DESC')
+  //       .skip((page - 1) * limit)
+  //       .take(limit);
 
-      // ✅ Construction de la réponse
-      return {
-        message: 'Liste des notifications filtrées',
-        data: result.map((notif) => ({
-          id_notification: notif.id_notification,
-          type: notif.type,
-          title: notif.title,
-          message: notif.message,
-          isRead: notif.isRead,
-          isArchived: notif.isArchived,
-          priority: notif.priority,
-          channels: notif.channels,
-          scheduledAt: notif.scheduledAt,
-          sentAt: notif.sentAt,
-          readAt: notif.readAt,
-          createdAt: notif.createdAt,
-          data: notif.data,
-        })),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-        status: 200,
-      };
-    } catch (error) {
-      throw new ServiceUnavailableException(
-        'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
-      );
-    }
-  }
+  //     const [result, total] = await query.getManyAndCount();
+
+  //     // ✅ Construction de la réponse
+  //     return {
+  //       message: 'Liste des notifications filtrées',
+  //       data: result.map((notif) => ({
+  //         id_notification: notif.id_notification,
+  //         type: notif.type,
+  //         title: notif.title,
+  //         message: notif.message,
+  //         isRead: notif.isRead,
+  //         isArchived: notif.isArchived,
+  //         priority: notif.priority,
+  //         channels: notif.channels,
+  //         scheduledAt: notif.scheduledAt,
+  //         sentAt: notif.sentAt,
+  //         readAt: notif.readAt,
+  //         createdAt: notif.createdAt,
+  //         data: notif.data,
+  //       })),
+  //       pagination: {
+  //         page,
+  //         limit,
+  //         total,
+  //         totalPages: Math.ceil(total / limit),
+  //       },
+  //       status: 200,
+  //     };
+  //   } catch (error) {
+  //     throw new ServiceUnavailableException(
+  //       'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
+  //     );
+  //   }
+  // }
 
 }
