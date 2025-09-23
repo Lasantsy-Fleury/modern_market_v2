@@ -219,83 +219,95 @@ export class NotificationService {
     };
   }
 
-  // async findAll(
-  //   municipalityId: number,
-  //   limit: number,
-  //   page: number,
-  //   filters: {
-  //     userId?: string,
-  //     type?: string;
-  //     keyword?: string;   // recherche dans title ou message
-  //     isRead?: boolean;   // filtre sur lu / non lu
-  //     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
-  //     sentAt?:Date;
-  //     updatedAt?: Date;
+async findAll(
+  municipalityId: number,
+  limit: number,
+  page: number,
+  filters: {
+    userId?: string;
+    type?: string;
+    keyword?: string;   // recherche dans title ou message
+    isRead?: boolean;   // filtre sur lu / non lu
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
+    sentAt?: Date;
+    updatedAt?: Date;
+  },
+) {
+  try {
+    if (!municipalityId) {
+      throw new BadRequestException(
+        'Le paramètre "municipalityId" est obligatoire.',
+      );
+    }
 
-  //   },
-  // ) {
-  //   try {
-  //     const query = this.notifRepository
-  //       .createQueryBuilder('notif')
-  //       .where('notif.userId = :userId', { userId });
+    const query = this.notifRepository
+      .createQueryBuilder('notif')
+      .leftJoin('location', 'loc', 'loc.id_location = notif.data->>\'id_location\'')
+      .leftJoin('paiement_location', 'pl', 'pl.id_paiement_location = notif.data->>\'id_paiement_location\'')
+      .where('(loc.municipalityId = :municipalityId OR pl.municipalityId = :municipalityId)', { municipalityId });
 
-  //     // 🔍 Filtre mot-clé (dans title et message)
-  //     if (filters.keyword) {
-  //       query.andWhere(
-  //         '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
-  //         { keyword: `%${filters.keyword.toLowerCase()}%` },
-  //       );
-  //     }
+    // 🔍 Filtre userId
+    if (filters.userId) {
+      query.andWhere('notif.userId = :userId', { userId: filters.userId });
+    }
 
-  //     // 🔍 Filtre par statut de lecture
-  //     if (filters.isRead !== undefined) {
-  //       query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
-  //     }
+    // 🔍 Filtre type
+    if (filters.type) {
+      query.andWhere('notif.type = :type', { type: filters.type });
+    }
 
-  //     // 🔍 Filtre par priorité
-  //     if (filters.priority) {
-  //       query.andWhere('notif.priority = :priority', { priority: filters.priority });
-  //     }
+    // 🔍 Filtre mot-clé
+    if (filters.keyword) {
+      query.andWhere(
+        '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
+        { keyword: `%${filters.keyword.toLowerCase()}%` },
+      );
+    }
 
-  //     // 📌 Pagination et tri (les plus récentes en premier)
-  //     query
-  //       .orderBy('notif.createdAt', 'DESC')
-  //       .skip((page - 1) * limit)
-  //       .take(limit);
+    // 🔍 Filtre statut lecture
+    if (filters.isRead !== undefined) {
+      query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
+    }
 
-  //     const [result, total] = await query.getManyAndCount();
+    // 🔍 Filtre priorité
+    if (filters.priority) {
+      query.andWhere('notif.priority = :priority', { priority: filters.priority });
+    }
 
-  //     // ✅ Construction de la réponse
-  //     return {
-  //       message: 'Liste des notifications filtrées',
-  //       data: result.map((notif) => ({
-  //         id_notification: notif.id_notification,
-  //         type: notif.type,
-  //         title: notif.title,
-  //         message: notif.message,
-  //         isRead: notif.isRead,
-  //         isArchived: notif.isArchived,
-  //         priority: notif.priority,
-  //         channels: notif.channels,
-  //         scheduledAt: notif.scheduledAt,
-  //         sentAt: notif.sentAt,
-  //         readAt: notif.readAt,
-  //         createdAt: notif.createdAt,
-  //         data: notif.data,
-  //       })),
-  //       pagination: {
-  //         page,
-  //         limit,
-  //         total,
-  //         totalPages: Math.ceil(total / limit),
-  //       },
-  //       status: 200,
-  //     };
-  //   } catch (error) {
-  //     throw new ServiceUnavailableException(
-  //       'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
-  //     );
-  //   }
-  // }
+    // 🔍 Dates optionnelles
+    if (filters.sentAt) {
+      query.andWhere('DATE(notif.sentAt) = :sentAt', { sentAt: filters.sentAt });
+    }
+
+    if (filters.updatedAt) {
+      query.andWhere('DATE(notif.updatedAt) = :updatedAt', { updatedAt: filters.updatedAt });
+    }
+
+    // 📌 Pagination
+    query
+      .orderBy('notif.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [result, total] = await query.getManyAndCount();
+
+    return {
+      message: 'Liste des notifications filtrées par municipalité',
+      data: result,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      status: 200,
+    };
+  } catch (error) {
+    throw new ServiceUnavailableException(
+      'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
+    );
+  }
+}
+
 
 }

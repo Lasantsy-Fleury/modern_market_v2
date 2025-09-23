@@ -184,41 +184,62 @@ export class LocalService {
 
 
 
-// Trouver un local en vérifiant la municipalité
-async findOne(municipalityId: number, id_local: string) {
-  const local = await this.localRepository
-    .createQueryBuilder('local')
-    .leftJoinAndSelect('local.zone', 'zone')
-    .where('local.id_local = :id_local', { id_local })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-    .getOne();
+  // Trouver un local en vérifiant la municipalité
+  async findOne(municipalityId: number, id_local: string) {
+    const local = await this.localRepository
+      .createQueryBuilder('local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('local.id_local = :id_local', { id_local })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
 
-  if (!local) {
-    throw new NotFoundException(
-      `Local with id '${id_local}' not found in municipality '${municipalityId}'`
-    );
+    if (!local) {
+      throw new NotFoundException(
+        `Local with id '${id_local}' not found in municipality '${municipalityId}'`
+      );
+    }
+
+    return local;
   }
 
-  return local;
-}
+  async findLastLocationByLocal(municipalityId: number, id_local: string) {
+    const local = await this.localRepository
+      .createQueryBuilder('local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .leftJoinAndSelect('local.locations', 'location')
+      .where('local.id_local = :id_local', { id_local })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .orderBy('location.date_fin_loc', 'DESC') // la plus récente d'abord
+      .getOne();
 
-// Mettre à jour un local
-async update(
-  municipalityId: number,
-  id_local: string,
-  updateLocalDto: UpdateLocalDto
-) {
-  const local = await this.findOne(municipalityId, id_local);
+    if (!local || !local.locations || local.locations.length === 0) {
+      throw new NotFoundException(
+        `Aucune location trouvée pour le local '${id_local}' dans la municipalité '${municipalityId}'`,
+      );
+    }
 
-  Object.assign(local, updateLocalDto);
-  this.eventsGateway.server.emit('update local', local);
-  return await this.localRepository.save(local);
-}
+    // retourne uniquement la dernière location
+    return local.locations[0];
+  }
 
-// Supprimer un local
-async remove(municipalityId: number, id_local: string) {
-  const local = await this.findOne(municipalityId, id_local);
-  return await this.localRepository.remove(local);
-}
+
+  // Mettre à jour un local
+  async update(
+    municipalityId: number,
+    id_local: string,
+    updateLocalDto: UpdateLocalDto
+  ) {
+    const local = await this.findOne(municipalityId, id_local);
+
+    Object.assign(local, updateLocalDto);
+    this.eventsGateway.server.emit('update local', local);
+    return await this.localRepository.save(local);
+  }
+
+  // Supprimer un local
+  async remove(municipalityId: number, id_local: string) {
+    const local = await this.findOne(municipalityId, id_local);
+    return await this.localRepository.remove(local);
+  }
 
 }
