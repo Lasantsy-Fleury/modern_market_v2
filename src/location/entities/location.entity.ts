@@ -23,7 +23,7 @@ export class Location {
     @Column({ type: 'uuid' })
     id_user: string;
 
-    @Column({ length: 6 })
+    @Column({ length: 10 })
     nif: string;
 
     @Column({ type: 'date' })

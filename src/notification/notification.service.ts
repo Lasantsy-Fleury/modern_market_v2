@@ -234,70 +234,112 @@ export class NotificationService {
     },
   ) {
     try {
-      if (!municipalityId) {
-        throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+      // Construction de la requête SQL brute pour de meilleures performances
+      let whereConditions = ['n.isArchived = false'];
+      let parameters: any = { municipalityId };
+      let paramIndex = 1;
+
+      // Filtrage par municipalité via les relations
+      const municipalityFilter = `
+      EXISTS (
+        SELECT 1 FROM location loc
+        JOIN local l ON l.id_local = loc.localId
+        JOIN zone z ON z.id_zone = l.zoneId
+        WHERE loc.id_location = n.data->>'id_location'
+        AND z.municipalityId = $${++paramIndex}
+      ) OR EXISTS (
+        SELECT 1 FROM paiement_location pl
+        JOIN location pl_loc ON pl_loc.id_location = pl.locationId
+        JOIN local pl_local ON pl_local.id_local = pl_loc.localId
+        JOIN zone pl_zone ON pl_zone.id_zone = pl_local.zoneId
+        WHERE pl.id_paiement_location = n.data->>'id_paiement_location'
+        AND pl_zone.municipalityId = $${paramIndex}
+      )
+    `;
+      whereConditions.push(`(${municipalityFilter})`);
+      parameters[`param${paramIndex}`] = municipalityId;
+
+      // Filtres dynamiques
+      if (filters.userId && filters.userId !== 'getAll') {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(filters.userId)) {
+          throw new BadRequestException('Format userId invalide.');
+        }
+        whereConditions.push(`n.userId = $${++paramIndex}`);
+        parameters[`param${paramIndex}`] = filters.userId;
       }
 
-      const query = this.notifRepository
-        .createQueryBuilder('notif')
-        // Relier notification → location → local → zone
-        .leftJoin('location', 'loc', 'loc.id_location = notif.data->>\'id_location\'')
-        .leftJoin('local', 'l', 'l.id_local = loc.localId')
-        .leftJoin('zone', 'z', 'z.id_zone = l.zoneId')
-        // Relier notification → paiement_location → location → local → zone
-        .leftJoin('paiement_location', 'pl', 'pl.id_paiement_location = notif.data->>\'id_paiement_location\'')
-        .leftJoin('location', 'pl_loc', 'pl_loc.id_location = pl.locationId')
-        .leftJoin('local', 'pl_local', 'pl_local.id_local = pl_loc.localId')
-        .leftJoin('zone', 'pl_zone', 'pl_zone.id_zone = pl_local.zoneId')
-        // Filtrer sur la municipalité
-        .where('(z.municipalityId = :municipalityId OR pl_zone.municipalityId = :municipalityId)', { municipalityId });
-
-      // 🔍 Filtre userId
-      if (filters.userId) {
-        query.andWhere('notif.userId = :userId', { userId: filters.userId });
-      }
-
-      // 🔍 Filtre type
       if (filters.type) {
-        query.andWhere('notif.type = :type', { type: filters.type });
+        whereConditions.push(`n.type = $${++paramIndex}`);
+        parameters[`param${paramIndex}`] = filters.type;
       }
 
-      // 🔍 Filtre mot-clé
-      if (filters.keyword) {
-        query.andWhere('(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)', {
-          keyword: `%${filters.keyword.toLowerCase()}%`,
-        });
-      }
-
-      // 🔍 Filtre statut lecture
       if (filters.isRead !== undefined) {
-        query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
+        whereConditions.push(`n.isRead = $${++paramIndex}`);
+        parameters[`param${paramIndex}`] = filters.isRead;
       }
 
-      // 🔍 Filtre priorité
       if (filters.priority) {
-        query.andWhere('notif.priority = :priority', { priority: filters.priority });
+        whereConditions.push(`n.priority = $${++paramIndex}`);
+        parameters[`param${paramIndex}`] = filters.priority;
       }
 
-      // 🔍 Dates optionnelles
-      if (filters.sentAt) {
-        query.andWhere('DATE(notif.sentAt) = :sentAt', { sentAt: filters.sentAt });
+      if (filters.keyword) {
+        whereConditions.push(`(LOWER(n.title) LIKE $${++paramIndex} OR LOWER(n.message) LIKE $${++paramIndex})`);
+        const keyword = `%${filters.keyword.toLowerCase()}%`;
+        parameters[`param${paramIndex - 1}`] = keyword;
+        parameters[`param${paramIndex}`] = keyword;
       }
 
-      if (filters.updatedAt) {
-        query.andWhere('DATE(notif.updatedAt) = :updatedAt', { updatedAt: filters.updatedAt });
-      }
+      // Construction de la requête finale
+      const whereClause = whereConditions.join(' AND ');
+      const offset = (page - 1) * limit;
 
-      // 📌 Pagination et tri
-      query.orderBy('notif.createdAt', 'DESC')
-        .skip((page - 1) * limit)
-        .take(limit);
+      const countQuery = `
+      SELECT COUNT(*) as total
+      FROM notification n
+      WHERE ${whereClause}
+    `;
 
-      const [result, total] = await query.getManyAndCount();
+      const dataQuery = `
+      SELECT n.*
+      FROM notification n
+      WHERE ${whereClause}
+      ORDER BY 
+        CASE n.priority 
+          WHEN 'URGENT' THEN 4 
+          WHEN 'HIGH' THEN 3 
+          WHEN 'MEDIUM' THEN 2 
+          WHEN 'LOW' THEN 1 
+          ELSE 0 
+        END DESC,
+        n.createdAt DESC
+      LIMIT $${++paramIndex} OFFSET $${++paramIndex}
+    `;
+
+      parameters[`param${paramIndex - 1}`] = limit;
+      parameters[`param${paramIndex}`] = offset;
+
+      // Conversion des paramètres pour la requête
+      const queryParams = Object.keys(parameters)
+        .sort((a, b) => {
+          const aNum = a === 'municipalityId' ? 1 : parseInt(a.replace('param', ''));
+          const bNum = b === 'municipalityId' ? 1 : parseInt(b.replace('param', ''));
+          return aNum - bNum;
+        })
+        .map(key => parameters[key]);
+
+      // Exécution des requêtes
+      const [countResult, dataResult] = await Promise.all([
+        this.notifRepository.query(countQuery, queryParams.slice(0, -2)),
+        this.notifRepository.query(dataQuery, queryParams)
+      ]);
+
+      const total = parseInt(countResult[0].total);
 
       return {
         message: 'Liste des notifications filtrées par municipalité',
-        data: result,
+        data: dataResult,
         pagination: {
           page,
           limit,
@@ -307,12 +349,17 @@ export class NotificationService {
         status: 200,
       };
     } catch (error) {
+      console.error('Erreur dans findAllOptimized:', error);
+
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
       throw new ServiceUnavailableException(
         'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
       );
     }
   }
-
 
 
 }
