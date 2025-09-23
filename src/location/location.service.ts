@@ -26,95 +26,30 @@ export class LocationService {
     private readonly eventsGateway: EventsGateway,
   ) { }
 
-  private async updateAllLocalStatuses(today: Date) {
-  // Récupérer tous les locaux avec leurs locations
-  const allLocals = await this.localRepository
-    .createQueryBuilder('local')
-    .leftJoinAndSelect('local.locations', 'location')
-    .getMany();
+ @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT , {
+  timeZone: 'Europe/Paris',
+})
+async handleExpiredLocations() {
+  console.log('--- JOB CRON EXÉCUTÉ À MINUIT ---');
+  this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  let updatedCount = 0;
-
-  for (const local of allLocals) {
-    // Ne pas modifier les locaux volontairement INDISPONIBLE
-    if (local.statut === 'INDISPONIBLE') {
-      continue;
-    }
-
-    // Sauvegarder l'ancien statut AVANT la modification
-    const oldStatus = local.statut;
-
-    // Vérifier s'il y a une location active pour ce local
-    const hasActiveLocation = local.locations && local.locations.some(location => {
-      const dateDebut = new Date(location.date_debut_loc);
-      const dateFin = new Date(location.date_fin_loc);
-      dateDebut.setHours(0, 0, 0, 0);
-      dateFin.setHours(23, 59, 59, 999); // Inclure toute la journée de fin
-
-      return dateDebut <= today && dateFin >= today;
-    });
-
-    // Déterminer le statut correct
-    const correctStatus = hasActiveLocation ? 'LOUE' : 'DISPONIBLE';
-
-    // Mettre à jour si nécessaire
-    if (local.statut !== correctStatus) {
-      this.logger.log(`Local ${local.id_local}: ${oldStatus} → ${correctStatus}`);
-      local.statut = correctStatus;
-      await this.localRepository.save(local);
-
-      // Émettre un événement WebSocket (CORRECTION: utiliser oldStatus avant modification)
-      this.eventsGateway.server.emit('local_status_updated', {
-        localId: local.id_local,
-        oldStatus: oldStatus, // Utiliser la valeur sauvegardée
-        newStatus: correctStatus,
-        reason: hasActiveLocation ? 'location_active' : 'no_active_location',
-        timestamp: new Date()
-      });
-
-      updatedCount++;
-    }
-  }
-
-  this.logger.log(`${updatedCount} locaux mis à jour`);
-}
-
-  async updateLocalStatusAfterPayment(locationId: string): Promise<void> {
-  const location = await this.locationRepository.findOne({
-    where: { id_location: locationId },
+  const expiredLocations = await this.locationRepository.find({
+    where: { date_fin_loc: LessThanOrEqual(today) },
     relations: ['local'],
   });
 
-  if (!location || !location.local) {
-    throw new NotFoundException(`Location ou local introuvable pour ${locationId}`);
+  for (const location of expiredLocations) {
+    // On met à jour si le statut n'est pas déjà DISPONIBLE
+    if (location.local && location.local.statut !== 'DISPONIBLE') {
+      this.logger.log(`Le local ${location.local.id_local} a expiré. Mise à jour du statut en DISPONIBLE.`);
+      location.local.statut = 'DISPONIBLE';
+      // Utilisez le repository du local pour sauvegarder le local
+      await this.localRepository.save(location.local);
+    }
   }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const dateDebut = new Date(location.date_debut_loc);
-  const dateFin = new Date(location.date_fin_loc);
-  dateDebut.setHours(0, 0, 0, 0);
-  dateFin.setHours(23, 59, 59, 999);
-
-  // Vérifier si la location est active aujourd'hui
-  const isActiveToday = dateDebut <= today && dateFin >= today;
-  
-  if (isActiveToday && location.local.statut !== 'LOUE') {
-    const oldStatus = location.local.statut;
-    location.local.statut = 'LOUE';
-    await this.localRepository.save(location.local);
-
-    this.eventsGateway.server.emit('local_status_updated', {
-      localId: location.local.id_local,
-      oldStatus: oldStatus,
-      newStatus: 'LOUE',
-      reason: 'payment_confirmed',
-      timestamp: new Date()
-    });
-
-    this.logger.log(`Local ${location.local.id_local} mis à jour en LOUE après paiement`);
-  }
+  this.logger.log(`Fin du job CRON. ${expiredLocations.length} locations traitées.`);
 }
 
   async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
@@ -235,19 +170,27 @@ export class LocationService {
   }
 
   async updateLocalStatusToRented(locationId: string): Promise<void> {
-  // Utilisez la nouvelle méthode
-  await this.updateLocalStatusAfterPayment(locationId);
-  
-  // Émettre l'événement pour la location
-  const location = await this.locationRepository.findOne({
-    where: { id_location: locationId },
-    relations: ['local'],
-  });
-  
-  if (location) {
+    // 1. Trouver la Location en incluant la relation vers le Local
+    const location = await this.locationRepository.findOne({
+      where: { id_location: locationId },
+      relations: ['local'],
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location with id ${locationId} not found`);
+    }
+
+    // 2. Vérifier si un local est associé
+    if (!location.local) {
+      throw new NotFoundException(`Local not found for location id ${locationId}`);
+    }
+
+    // 3. Mettre à jour le statut du Local associé
+    const local = location.local;
+    local.statut = 'LOUE';
+    await this.localRepository.save(local);
     this.eventsGateway.server.emit('update location', location);
   }
-}
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateExpiredLocations() {
@@ -263,19 +206,12 @@ export class LocationService {
 
     for (const loc of expiredLocations) {
       loc.local.statut = 'DISPONIBLE';
-      await this.localRepository.save(loc.local);
+      await this.locationRepository.save(loc);
       console.log(`Location est maintenant disponible.`);
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Europe/Paris' })
-  async handleExpiredLocations() {
-    this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    await this.updateAllLocalStatuses(today);
-    this.logger.log('Fin du job CRON de vérification des locations expirées.');
-  }
+
 
   async findAllInProgress(municipalityId: number): Promise<Location[]> {
     const today = new Date();

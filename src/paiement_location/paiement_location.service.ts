@@ -87,7 +87,7 @@ export class PaiementLocationService {
       nombre_paye,
       date_debut: newDateDebut,
       date_fin: newDateFin,
-      date_paiement: now,
+      date_paiement: new Date(),
       montant_paye,
     });
 
