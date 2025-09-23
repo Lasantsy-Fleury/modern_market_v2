@@ -119,7 +119,11 @@ export class LocationService {
         (fin.getFullYear() - debut.getFullYear()) * 12 +
         (fin.getMonth() - debut.getMonth());
 
+      if (fin.getDate() === debut.getDate() && diffMonths > 0) {
+      frequence = diffMonths;
+  } else {
       frequence = fin.getDate() >= debut.getDate() ? diffMonths + 1 : diffMonths;
+  }
     }
 
     // Création de la location
@@ -301,7 +305,7 @@ export class LocationService {
     }
   }
 
-  async getRemainingAmount(id_location: string): Promise<{ Montant_total: number; total_payer: number; Reste_a_payer: number }> {
+ async getRemainingAmount(id_location: string): Promise<{ Montant_total: number; total_payer: number; Reste_a_payer: number }> {
     const location = await this.locationRepository.findOne({
       where: { id_location },
       relations: ['local', 'local.typelocal'],
@@ -317,21 +321,22 @@ export class LocationService {
 
     const { periodicite, frequence } = location;
     const tarif = location.local.typelocal.tarif;
-    let Montant_total = 0;
 
-    if (periodicite === 'MENSUEL' || periodicite === 'JOURNALIER') {
-      Montant_total = tarif * frequence;
-    } else {
-      throw new BadRequestException(`Unsupported periodicity: ${periodicite}`);
-    }
-
-    // You need to inject and use the PaiementLocationService
+    // Récupérer le montant total déjà payé pour cette location.
     const total_payer = await this.paiementLocationService.getTotalPaidAmount(id_location);
 
+    // Calculer le coût total de tout le contrat en additionnant le montant payé et le montant restant à payer.
+    let Montant_total = total_payer + (tarif * frequence);
+
+    // Calculer le montant restant à payer.
     const Reste_a_payer = Montant_total - total_payer;
 
-    return { Montant_total, total_payer, Reste_a_payer };
-  }
+    return { 
+      Montant_total, 
+      total_payer, 
+      Reste_a_payer: Math.max(0, Reste_a_payer) // Utiliser Math.max pour éviter les valeurs négatives
+    };
+}
 
   async getPaymentSchedule(id_location: string): Promise<any[]> {
     const location = await this.locationRepository.findOne({

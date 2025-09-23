@@ -37,7 +37,7 @@ export class LocalController {
     @Query('statut') statut?: 'DISPONIBLE' | 'LOUE' | 'INDISPONIBLE',
     @Query('keyword') keyword?: string,
     @Query('surface') surface?: number,
-    // @Query('latitude') latitude?: number,
+    // @Query('latitude') latitude?: number,z
     // @Query('longitude') longitude?: number
   ) {
     return this.localService.getAll(municipalityId, page, limit, {
@@ -53,6 +53,7 @@ export class LocalController {
 
 
  @Get('municipality/:municipalityId/:id_local')
+ @ApiOperation({ summary: 'Récupérer un local d’une municipalité ' })
   async findOne(
     @Param('municipalityId') municipalityId: number,
     @Param('id_local', ParseUUIDPipe) id_local: string,
@@ -62,6 +63,7 @@ export class LocalController {
 
   // Mettre à jour un local
   @Patch('municipality/:municipalityId/:id_local')
+  @ApiOperation({ summary: 'Modifier un local d’une municipalité ' })
   async update(
     @Param('municipalityId') municipalityId: number,
     @Param('id_local', ParseUUIDPipe) id_local: string,
@@ -72,6 +74,7 @@ export class LocalController {
 
   // Supprimer un local
   @Delete('municipality/:municipalityId/:id_local')
+  @ApiOperation({ summary: 'Supprimer un local d’une municipalité ' })
   async remove(
     @Param('municipalityId') municipalityId: number,
     @Param('id_local', ParseUUIDPipe) id_local: string,
