@@ -247,4 +247,20 @@ export class PaiementService {
       status: 200,
     };
   }
+
+  async remove(id: string): Promise<{ message: string }> {
+    const paiement = await this.paieRepository.findOne({
+      where: { id_paiement: id },
+      relations: ['paiement_locations'], // pour charger aussi les paiements liés
+    });
+
+    if (!paiement) {
+      throw new NotFoundException(`Paiement avec l'ID "${id}" introuvable`);
+    }
+
+    // ⚡ Grâce au cascade + onDelete: 'CASCADE', les Paiementlocation seront supprimés automatiquement
+    await this.paieRepository.remove(paiement);
+
+    return { message: `Paiement avec l'ID "${id}" supprimé avec succès.` };
+  }
 }

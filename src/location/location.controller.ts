@@ -3,7 +3,7 @@ import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
-import { ApiResponse,ApiTags,ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 
 
 @ApiTags('Locations')
@@ -241,18 +241,12 @@ ${formatDate(locationData.date_fin_loc)}
     return this.locationService.update(municipalityId, id, updateDto);
   }
 
-  @Delete('municipality/:municipalityId/location/:id')
-  @ApiOperation({ summary: 'Supprimer une location par son ID et son municipalityId' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  
+  @Delete('location/:id')
+  @ApiOperation({ summary: 'Supprimer une location par son ID' })
   @ApiResponse({ status: 204, description: 'La location a été supprimée avec succès.' })
-  async remove(
-    @Query('municipalityId') municipalityId: number,
-    @Param('id_location') id: string,
-  ) {
-    if (!municipalityId) {
-      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
-    }
-    await this.locationService.remove(municipalityId, id);
+  async remove(@Param('id') id: string) {
+    await this.locationService.remove(id);
     return { message: 'Location supprimée avec succès.' };
   }
 
@@ -269,9 +263,9 @@ ${formatDate(locationData.date_fin_loc)}
   }
 
   @Get('/:id_location/end-date')
-  @ApiOperation({summary:'Récupérer la date de fin d\'une location par son ID'})
-  @ApiResponse({ status: 200, description: 'Date de fin de la location trouvée avec succès.'})
-  @ApiResponse({ status: 404, description: 'Location non trouvée.'})
+  @ApiOperation({ summary: 'Récupérer la date de fin d\'une location par son ID' })
+  @ApiResponse({ status: 200, description: 'Date de fin de la location trouvée avec succès.' })
+  @ApiResponse({ status: 404, description: 'Location non trouvée.' })
   async getLocationEndDate(@Param('id_location') id: string) {
     return this.locationService.getLocationEndDate(id);
   }

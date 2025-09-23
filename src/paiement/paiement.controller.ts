@@ -77,7 +77,7 @@ export class PaiementController {
     return this.paiementService.findOne(id, municipalityId);
   }
 
- @Get('user/:user_id/history')
+  @Get('user/:user_id/history')
   @ApiOperation({ summary: 'Récupérer l\'historique des paiements d\'un utilisateur' })
   @ApiQuery({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité (optionnel)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
@@ -90,14 +90,23 @@ export class PaiementController {
   ) {
     // Conversion manuelle du municipalityId si présent
     let parsedMunicipalityId: number | undefined = undefined;
-    
+
     if (municipalityId) {
       parsedMunicipalityId = parseInt(municipalityId, 10);
       if (isNaN(parsedMunicipalityId)) {
         throw new BadRequestException('municipalityId doit être un nombre valide');
       }
     }
-    
+
     return this.paiementService.findHistoryByUser(id_user, parsedMunicipalityId, page, limit);
+  }
+
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Supprimer un paiement par son ID (et ses paiements_location associés)' })
+  @ApiResponse({ status: 200, description: 'Le paiement a été supprimé avec succès.' })
+  @ApiResponse({ status: 404, description: 'Paiement introuvable.' })
+  async remove(@Param('id') id: string) {
+    return this.paiementService.remove(id);
   }
 }
