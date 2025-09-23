@@ -219,95 +219,100 @@ export class NotificationService {
     };
   }
 
-async findAll(
-  municipalityId: number,
-  limit: number,
-  page: number,
-  filters: {
-    userId?: string;
-    type?: string;
-    keyword?: string;   // recherche dans title ou message
-    isRead?: boolean;   // filtre sur lu / non lu
-    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'; // filtre sur priorité
-    sentAt?: Date;
-    updatedAt?: Date;
-  },
-) {
-  try {
-    if (!municipalityId) {
-      throw new BadRequestException(
-        'Le paramètre "municipalityId" est obligatoire.',
+  async findAll(
+    municipalityId: number,
+    limit: number,
+    page: number,
+    filters: {
+      userId?: string;
+      type?: string;
+      keyword?: string;
+      isRead?: boolean;
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+      sentAt?: Date;
+      updatedAt?: Date;
+    },
+  ) {
+    try {
+      if (!municipalityId) {
+        throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
+      }
+
+      const query = this.notifRepository
+        .createQueryBuilder('notif')
+        // Relier notification → location → local → zone
+        .leftJoin('location', 'loc', 'loc.id_location = notif.data->>\'id_location\'')
+        .leftJoin('local', 'l', 'l.id_local = loc.localId')
+        .leftJoin('zone', 'z', 'z.id_zone = l.zoneId')
+        // Relier notification → paiement_location → location → local → zone
+        .leftJoin('paiement_location', 'pl', 'pl.id_paiement_location = notif.data->>\'id_paiement_location\'')
+        .leftJoin('location', 'pl_loc', 'pl_loc.id_location = pl.locationId')
+        .leftJoin('local', 'pl_local', 'pl_local.id_local = pl_loc.localId')
+        .leftJoin('zone', 'pl_zone', 'pl_zone.id_zone = pl_local.zoneId')
+        // Filtrer sur la municipalité
+        .where('(z.municipalityId = :municipalityId OR pl_zone.municipalityId = :municipalityId)', { municipalityId });
+
+      // 🔍 Filtre userId
+      if (filters.userId) {
+        query.andWhere('notif.userId = :userId', { userId: filters.userId });
+      }
+
+      // 🔍 Filtre type
+      if (filters.type) {
+        query.andWhere('notif.type = :type', { type: filters.type });
+      }
+
+      // 🔍 Filtre mot-clé
+      if (filters.keyword) {
+        query.andWhere('(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)', {
+          keyword: `%${filters.keyword.toLowerCase()}%`,
+        });
+      }
+
+      // 🔍 Filtre statut lecture
+      if (filters.isRead !== undefined) {
+        query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
+      }
+
+      // 🔍 Filtre priorité
+      if (filters.priority) {
+        query.andWhere('notif.priority = :priority', { priority: filters.priority });
+      }
+
+      // 🔍 Dates optionnelles
+      if (filters.sentAt) {
+        query.andWhere('DATE(notif.sentAt) = :sentAt', { sentAt: filters.sentAt });
+      }
+
+      if (filters.updatedAt) {
+        query.andWhere('DATE(notif.updatedAt) = :updatedAt', { updatedAt: filters.updatedAt });
+      }
+
+      // 📌 Pagination et tri
+      query.orderBy('notif.createdAt', 'DESC')
+        .skip((page - 1) * limit)
+        .take(limit);
+
+      const [result, total] = await query.getManyAndCount();
+
+      return {
+        message: 'Liste des notifications filtrées par municipalité',
+        data: result,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        status: 200,
+      };
+    } catch (error) {
+      throw new ServiceUnavailableException(
+        'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
       );
     }
-
-    const query = this.notifRepository
-      .createQueryBuilder('notif')
-      .leftJoin('location', 'loc', 'loc.id_location = notif.data->>\'id_location\'')
-      .leftJoin('paiement_location', 'pl', 'pl.id_paiement_location = notif.data->>\'id_paiement_location\'')
-      .where('(loc.municipalityId = :municipalityId OR pl.municipalityId = :municipalityId)', { municipalityId });
-
-    // 🔍 Filtre userId
-    if (filters.userId) {
-      query.andWhere('notif.userId = :userId', { userId: filters.userId });
-    }
-
-    // 🔍 Filtre type
-    if (filters.type) {
-      query.andWhere('notif.type = :type', { type: filters.type });
-    }
-
-    // 🔍 Filtre mot-clé
-    if (filters.keyword) {
-      query.andWhere(
-        '(LOWER(notif.title) LIKE :keyword OR LOWER(notif.message) LIKE :keyword)',
-        { keyword: `%${filters.keyword.toLowerCase()}%` },
-      );
-    }
-
-    // 🔍 Filtre statut lecture
-    if (filters.isRead !== undefined) {
-      query.andWhere('notif.isRead = :isRead', { isRead: filters.isRead });
-    }
-
-    // 🔍 Filtre priorité
-    if (filters.priority) {
-      query.andWhere('notif.priority = :priority', { priority: filters.priority });
-    }
-
-    // 🔍 Dates optionnelles
-    if (filters.sentAt) {
-      query.andWhere('DATE(notif.sentAt) = :sentAt', { sentAt: filters.sentAt });
-    }
-
-    if (filters.updatedAt) {
-      query.andWhere('DATE(notif.updatedAt) = :updatedAt', { updatedAt: filters.updatedAt });
-    }
-
-    // 📌 Pagination
-    query
-      .orderBy('notif.createdAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [result, total] = await query.getManyAndCount();
-
-    return {
-      message: 'Liste des notifications filtrées par municipalité',
-      data: result,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-      status: 200,
-    };
-  } catch (error) {
-    throw new ServiceUnavailableException(
-      'Impossible de récupérer les notifications pour le moment. Veuillez réessayer plus tard.',
-    );
   }
-}
+
 
 
 }

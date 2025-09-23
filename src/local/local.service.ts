@@ -8,6 +8,9 @@ import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
 import { EventsGateway } from 'src/events/events.gateway';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+
 
 @Injectable()
 export class LocalService {
@@ -21,7 +24,7 @@ export class LocalService {
 
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
-
+    private readonly httpService: HttpService,
     private readonly eventsGateway: EventsGateway
 
   ) { }
@@ -203,6 +206,7 @@ export class LocalService {
   }
 
   async findLastLocationByLocal(municipalityId: number, id_local: string) {
+    // 1️⃣ Récupération du local avec ses locations et zone
     const local = await this.localRepository
       .createQueryBuilder('local')
       .leftJoinAndSelect('local.zone', 'zone')
@@ -218,8 +222,29 @@ export class LocalService {
       );
     }
 
-    // retourne uniquement la dernière location
-    return local.locations[0];
+    const lastLocation = local.locations[0];
+
+    // 2️⃣ Récupérer le userPseudo via l'API externe
+    if (!lastLocation.id_user) {
+      throw new BadRequestException('La location n’a pas d’utilisateur associé.');
+    }
+
+    const url = `https://gateway.tsirylab.com/serviceauth/users/${lastLocation.id_user}`;
+
+    try {
+      const response = await firstValueFrom(this.httpService.get(url, {
+        headers: { accept: 'application/json' },
+      }));
+
+      const userPseudo = response.data?.user_pseudo || null;
+
+      return {
+        ...lastLocation,
+        userPseudo,
+      };
+    } catch (error) {
+      throw new NotFoundException(`Impossible de récupérer l'utilisateur '${lastLocation.id_user}'`);
+    }
   }
 
 
