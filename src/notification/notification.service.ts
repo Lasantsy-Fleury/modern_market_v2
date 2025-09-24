@@ -122,12 +122,12 @@ export class NotificationService {
     const templates = {
       SUCCESS: {
         title: 'Paiement réussi',
-        message: `Votre paiement de ${paymentData.montant}€ a été traité avec succès.`,
+        message: `Votre paiement de ${paymentData.montant} Ar a été traité avec succès.`,
         priority: 'HIGH',
       },
       FAILED: {
         title: 'Échec du paiement',
-        message: `Le paiement de ${paymentData.montant}€ a échoué. Veuillez réessayer.`,
+        message: `Le paiement de ${paymentData.montant} Ar a échoué. Veuillez réessayer.`,
         priority: 'URGENT',
       },
     };

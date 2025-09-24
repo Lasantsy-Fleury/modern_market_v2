@@ -8,6 +8,7 @@ import { Paiementlocation } from 'src/paiement_location/entities/paiement_locati
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { EventsGateway } from 'src/events/events.gateway';
 import { NotificationService } from 'src/notification/notification.service';
+
 @Injectable()
 export class PaiementService {
   constructor(
@@ -44,26 +45,38 @@ export class PaiementService {
 
       const savedPaiement = await queryRunner.manager.save(newPaiement);
 
-      if (savedPaiement){
-      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
-      console.log("envoie");
-    }
+      if (savedPaiement) {
+        this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+        console.log("envoie");
+      }
 
       const qrCodes: { id_paiement_location: string; qrCode: string }[] = [];
       const createdPaiementLocations: Paiementlocation[] = [];
 
       if (savedPaiement.status === 'success') {
         const montant_total_paye = paiement_locations.reduce((total, loc) => total + loc.montant_paye, 0);
+        
+        // ✅ CORRECTION : Calcul du montant attendu basé sur le nombre de périodes
+        const nombre_total_periodes = paiement_locations.reduce((total, loc) => total + loc.nombre_paye, 0);
+        const montant_attendu = location.local.typelocal.tarif * nombre_total_periodes;
 
-        // Validation du montant payé
-        if (montant_total_paye !== location.local.typelocal.tarif) {
+        // Validation du montant payé corrigée
+        if (montant_total_paye !== montant_attendu) {
           throw new BadRequestException(
-            `Le montant total payé (${montant_total_paye}€) ne correspond pas au prix du local (${location.local.typelocal.tarif}).`
+            `Le montant total payé (${montant_total_paye} Ar) ne correspond pas au montant attendu (${montant_attendu} Ar) pour ${nombre_total_periodes} période(s) à ${location.local.typelocal.tarif} Ar chacune.`
           );
         }
 
         // Création des paiements de location
         for (const locDto of paiement_locations) {
+          // ✅ Validation individuelle pour chaque paiement de location
+          const montant_attendu_individual = location.local.typelocal.tarif * locDto.nombre_paye;
+          if (locDto.montant_paye !== montant_attendu_individual) {
+            throw new BadRequestException(
+              `Le montant payé (${locDto.montant_paye} Ar) ne correspond pas au montant attendu (${montant_attendu_individual} Ar) pour ${locDto.nombre_paye} période(s).`
+            );
+          }
+
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
           qrCodes.push({ id_paiement_location: paiementLocation.id_paiement_location, qrCode });
           createdPaiementLocations.push(paiementLocation);
@@ -115,11 +128,9 @@ export class PaiementService {
     }
   }
 
-
   async findAll(
     municipalityId: number,
     filters: {
-      // userId?: string;
       reference?: string;
       status?: 'success' | 'failed';
       zoneId?: string;
@@ -139,7 +150,7 @@ export class PaiementService {
       .leftJoinAndSelect('paiement_location.location', 'location')
       .leftJoinAndSelect('location.local', 'local')
       .leftJoinAndSelect('local.zone', 'zone')
-      .where('zone.municipalityId = :municipalityId', { municipalityId }); // Filtre obligatoire
+      .where('zone.municipalityId = :municipalityId', { municipalityId });
 
     if (filters.reference) {
       query.andWhere('paiement.reference ILIKE :reference', {
@@ -217,9 +228,8 @@ export class PaiementService {
       .leftJoinAndSelect('paiement_location.location', 'location')
       .leftJoinAndSelect('location.local', 'local')
       .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_user = :id_user', { id_user }); // Filtre par l'ID de l'utilisateur
+      .where('location.id_user = :id_user', { id_user });
 
-    // Ajouter le filtre municipalityId seulement s'il est fourni
     if (municipalityId !== undefined) {
       query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
@@ -251,7 +261,7 @@ export class PaiementService {
   async remove(id: string): Promise<{ message: string }> {
     const paiement = await this.paieRepository.findOne({
       where: { id_paiement: id },
-      relations: ['paiement_locations'], // pour charger aussi les paiements liés
+      relations: ['paiement_locations'],
     });
 
     if (!paiement) {

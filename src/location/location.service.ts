@@ -12,9 +12,11 @@ import { EventsGateway } from 'src/events/events.gateway';
 import { NotificationService } from 'src/notification/notification.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
+
 @Injectable()
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
+  
   constructor(
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
@@ -27,31 +29,126 @@ export class LocationService {
     private readonly eventsGateway: EventsGateway,
   ) { }
 
- @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT , {
-  timeZone: 'Europe/Paris',
-})
-async handleExpiredLocations() {
-  console.log('--- JOB CRON EXÉCUTÉ À MINUIT ---');
-  this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  /**
+   * Job CRON qui s'exécute tous les jours à minuit pour gérer les locations expirées
+   * et mettre à jour le statut des locaux
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    timeZone: 'Europe/Paris',
+  })
+  async handleExpiredLocations() {
+    console.log('--- JOB CRON EXÉCUTÉ À MINUIT ---');
+    this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Fin de journée pour inclure toute la journée
 
-  const expiredLocations = await this.locationRepository.find({
-    where: { date_fin_loc: LessThanOrEqual(today) },
-    relations: ['local'],
-  });
+    try {
+      // 1. Récupérer toutes les locations expirées avec leurs locaux
+      const expiredLocations = await this.locationRepository.find({
+        where: { 
+          date_fin_loc: LessThan(today) // Strictement avant aujourd'hui
+        },
+        relations: ['local'],
+      });
 
-  for (const location of expiredLocations) {
-    // On met à jour si le statut n'est pas déjà DISPONIBLE
-    if (location.local && location.local.statut !== 'DISPONIBLE') {
-      this.logger.log(`Le local ${location.local.id_local} a expiré. Mise à jour du statut en DISPONIBLE.`);
-      location.local.statut = 'DISPONIBLE';
-      // Utilisez le repository du local pour sauvegarder le local
-      await this.localRepository.save(location.local);
+      this.logger.log(`${expiredLocations.length} locations expirées trouvées.`);
+
+      for (const location of expiredLocations) {
+        if (location.local) {
+          await this.updateLocalStatusIfNoActiveLocation(location.local.id_local);
+        }
+      }
+
+      // 2. Vérifier tous les locaux LOUÉS pour s'assurer qu'ils ont bien une location active
+      const rentedLocals = await this.localRepository.find({
+        where: { statut: 'LOUE' }
+      });
+
+      for (const local of rentedLocals) {
+        await this.updateLocalStatusIfNoActiveLocation(local.id_local);
+      }
+
+      this.logger.log(`Fin du job CRON. ${expiredLocations.length} locations expirées traitées.`);
+    } catch (error) {
+      this.logger.error('Erreur lors du traitement des locations expirées:', error);
     }
   }
-  this.logger.log(`Fin du job CRON. ${expiredLocations.length} locations traitées.`);
-}
+
+  /**
+   * Méthode utilitaire pour vérifier et mettre à jour le statut d'un local
+   * Met le statut à DISPONIBLE s'il n'y a pas de location active
+   */
+  private async updateLocalStatusIfNoActiveLocation(localId: string): Promise<void> {
+    try {
+      const today = new Date();
+      
+      // Vérifier s'il y a une location active pour ce local
+      const activeLocation = await this.locationRepository.findOne({
+        where: {
+          localId,
+          date_debut_loc: LessThanOrEqual(today),
+          date_fin_loc: MoreThanOrEqual(today),
+        },
+      });
+
+      // Récupérer le local
+      const local = await this.localRepository.findOne({
+        where: { id_local: localId }
+      });
+
+      if (local) {
+        // S'il n'y a pas de location active et que le local n'est pas déjà DISPONIBLE
+        if (!activeLocation && local.statut !== 'DISPONIBLE') {
+          this.logger.log(`Aucune location active trouvée pour le local ${localId}. Mise à jour du statut en DISPONIBLE.`);
+          
+          local.statut = 'DISPONIBLE';
+          await this.localRepository.save(local);
+          
+          // Émettre un événement pour notifier le changement
+          this.eventsGateway.server.emit('local_status_updated', {
+            localId: local.id_local,
+            newStatus: 'DISPONIBLE',
+            timestamp: new Date()
+          });
+        }
+        // S'il y a une location active et que le local n'est pas LOUÉ
+        else if (activeLocation && local.statut !== 'LOUE') {
+          this.logger.log(`Location active trouvée pour le local ${localId}. Mise à jour du statut en LOUÉ.`);
+          
+          local.statut = 'LOUE';
+          await this.localRepository.save(local);
+          
+          // Émettre un événement pour notifier le changement
+          this.eventsGateway.server.emit('local_status_updated', {
+            localId: local.id_local,
+            newStatus: 'LOUE',
+            timestamp: new Date()
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Erreur lors de la mise à jour du statut du local ${localId}:`, error);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async updateExpiredLocations() {
+    // Cette méthode peut être supprimée car la logique est maintenant dans handleExpiredLocations
+    // Ou vous pouvez la garder pour une vérification plus fréquente
+    const now = new Date();
+
+    const expiredLocations = await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .where('location.date_fin_loc < :now', { now })
+      .andWhere('local.statut = :statut', { statut: 'LOUE' })
+      .getMany();
+
+    for (const loc of expiredLocations) {
+      await this.updateLocalStatusIfNoActiveLocation(loc.local.id_local);
+    }
+  }
 
   async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
     const query = this.locationRepository
@@ -103,10 +200,10 @@ async handleExpiredLocations() {
       date_fin_loc = createLocationDto.date_fin_loc
         ? new Date(createLocationDto.date_fin_loc)
         : new Date(debut);
-    } date_fin_loc.setHours(0, 0, 0, 0); // normalisation
+    } 
+    date_fin_loc.setHours(0, 0, 0, 0); // normalisation
 
     const fin = new Date(date_fin_loc);
-
     const today = new Date();
 
     // Vérifier si le local est déjà en location
@@ -193,27 +290,6 @@ async handleExpiredLocations() {
     this.eventsGateway.server.emit('update location', location);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
-  async updateExpiredLocations() {
-    const now = new Date();
-
-    const expiredLocations = await this.locationRepository
-      .createQueryBuilder('location')
-      .leftJoinAndSelect('location.local', 'local')
-      .where('location.date_fin_loc < :now', { now })
-      .andWhere('local.statut = :statut', { statut: 'LOUE' })
-      .getMany();
-
-
-    for (const loc of expiredLocations) {
-      loc.local.statut = 'DISPONIBLE';
-      await this.locationRepository.save(loc);
-      console.log(`Location est maintenant disponible.`);
-    }
-  }
-
-
-
   async findAllInProgress(municipalityId: number): Promise<Location[]> {
     const today = new Date();
 
@@ -227,7 +303,6 @@ async handleExpiredLocations() {
       .getMany();
   }
 
-
   async findByUser(id_user: string): Promise<Location[]> {
     return await this.locationRepository.find({
       where: { id_user },
@@ -235,7 +310,6 @@ async handleExpiredLocations() {
       order: { date_debut_loc: 'DESC' },
     });
   }
-
 
   async findInProgressByUser(id_user: string): Promise<Location[]> {
     const today = new Date();
@@ -272,7 +346,6 @@ async handleExpiredLocations() {
   }
 
   // Version sécurisée sans propriétés potentiellement inexistantes
-
   async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
     try {
       console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
@@ -420,7 +493,10 @@ async handleExpiredLocations() {
   }
 
   async remove(id: string): Promise<void> {
-    const location = await this.locationRepository.findOne({ where: { id_location: id }, relations: ['local'], });
+    const location = await this.locationRepository.findOne({ 
+      where: { id_location: id }, 
+      relations: ['local'], 
+    });
 
     if (!location) {
       throw new NotFoundException(`Location avec l'ID "${id}" introuvable`);
@@ -428,11 +504,19 @@ async handleExpiredLocations() {
 
     const local = location.local;
 
-  if (local) {
-    // Mettre à jour le statut du local en 'DISPONIBLE' avant la suppression de la location
-    local.statut = 'DISPONIBLE';
-    await this.localRepository.save(local);
-  }
+    if (local) {
+      // Mettre à jour le statut du local en 'DISPONIBLE' avant la suppression de la location
+      local.statut = 'DISPONIBLE';
+      await this.localRepository.save(local);
+      
+      // Émettre un événement pour notifier le changement
+      this.eventsGateway.server.emit('local_status_updated', {
+        localId: local.id_local,
+        newStatus: 'DISPONIBLE',
+        timestamp: new Date()
+      });
+    }
+    
     await this.locationRepository.remove(location);
   }
 
@@ -523,7 +607,7 @@ async handleExpiredLocations() {
     }
   }
 
-  // 📌 Job CRON qui vérifie tous les jours à 8h
+  // 🔌 Job CRON qui vérifie tous les jours à 8h
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDailyReminders() {
     const allLocations = await this.locationRepository.find();
@@ -532,7 +616,8 @@ async handleExpiredLocations() {
       await this.checkAndSendReminders(loc);
     }
   }
-   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
+
+  async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
     try {
       // Vérifier que l'utilisateur existe
       const response = await axios.get(`https://gateway.tsirylab.com/serviceauth/users/${userId}`);
