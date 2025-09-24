@@ -11,10 +11,11 @@ import { PaiementLocationService } from 'src/paiement_location/paiement_location
 import { NotificationService } from 'src/notification/notification.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
-import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
+
 @Injectable()
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
+  
   constructor(
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
@@ -28,94 +29,124 @@ export class LocationService {
   
   ) { }
 
-  private async updateAllLocalStatuses(today: Date) {
-    // Récupérer tous les locaux avec leurs locations
-    const allLocals = await this.localRepository
-      .createQueryBuilder('local')
-      .leftJoinAndSelect('local.locations', 'location')
-      .getMany();
+  /**
+   * Job CRON qui s'exécute tous les jours à minuit pour gérer les locations expirées
+   * et mettre à jour le statut des locaux
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    timeZone: 'Europe/Paris',
+  })
+  async handleExpiredLocations() {
+    console.log('--- JOB CRON EXÉCUTÉ À MINUIT ---');
+    this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Fin de journée pour inclure toute la journée
 
-    let updatedCount = 0;
-
-    for (const local of allLocals) {
-      // Ne pas modifier les locaux volontairement INDISPONIBLE
-      if (local.statut === 'INDISPONIBLE') {
-        continue;
-      }
-
-      // Sauvegarder l'ancien statut AVANT la modification
-      const oldStatus = local.statut;
-
-      // Vérifier s'il y a une location active pour ce local
-      const hasActiveLocation = local.locations && local.locations.some(location => {
-        const dateDebut = new Date(location.date_debut_loc);
-        const dateFin = new Date(location.date_fin_loc);
-        dateDebut.setHours(0, 0, 0, 0);
-        dateFin.setHours(23, 59, 59, 999); // Inclure toute la journée de fin
-
-        return dateDebut <= today && dateFin >= today;
+    try {
+      // 1. Récupérer toutes les locations expirées avec leurs locaux
+      const expiredLocations = await this.locationRepository.find({
+        where: { 
+          date_fin_loc: LessThan(today) // Strictement avant aujourd'hui
+        },
+        relations: ['local'],
       });
 
-      // Déterminer le statut correct
-      const correctStatus = hasActiveLocation ? 'LOUE' : 'DISPONIBLE';
+      this.logger.log(`${expiredLocations.length} locations expirées trouvées.`);
 
-      // Mettre à jour si nécessaire
-      if (local.statut !== correctStatus) {
-        this.logger.log(`Local ${local.id_local}: ${oldStatus} → ${correctStatus}`);
-        local.statut = correctStatus;
-        await this.localRepository.save(local);
-
-        // Émettre un événement WebSocket (CORRECTION: utiliser oldStatus avant modification)
-        // this.eventsGateway.server.emit('local_status_updated', {
-        //   localId: local.id_local,
-        //   oldStatus: oldStatus, // Utiliser la valeur sauvegardée
-        //   newStatus: correctStatus,
-        //   reason: hasActiveLocation ? 'location_active' : 'no_active_location',
-        //   timestamp: new Date()
-        // });
-
-        updatedCount++;
+      for (const location of expiredLocations) {
+        if (location.local) {
+          await this.updateLocalStatusIfNoActiveLocation(location.local.id_local);
+        }
       }
+
+      // 2. Vérifier tous les locaux LOUÉS pour s'assurer qu'ils ont bien une location active
+      const rentedLocals = await this.localRepository.find({
+        where: { statut: 'LOUE' }
+      });
+
+      for (const local of rentedLocals) {
+        await this.updateLocalStatusIfNoActiveLocation(local.id_local);
+      }
+
+      this.logger.log(`Fin du job CRON. ${expiredLocations.length} locations expirées traitées.`);
+    } catch (error) {
+      this.logger.error('Erreur lors du traitement des locations expirées:', error);
     }
-
-    this.logger.log(`${updatedCount} locaux mis à jour`);
   }
-
-  async updateLocalStatusAfterPayment(locationId: string): Promise<void> {
-    const location = await this.locationRepository.findOne({
-      where: { id_location: locationId },
-      relations: ['local'],
+ 
+  private async updateLocalStatusIfNoActiveLocation(localId: string): Promise<void> {
+  try {
+    const today = new Date();
+    
+    // Vérifier s'il y a une location active pour ce local
+    const activeLocation = await this.locationRepository.findOne({
+      where: {
+        localId,
+        date_debut_loc: LessThanOrEqual(today),
+        date_fin_loc: MoreThanOrEqual(today),
+      },
     });
 
-    if (!location || !location.local) {
-      throw new NotFoundException(`Location ou local introuvable pour ${locationId}`);
+    // Récupérer le local
+    const local = await this.localRepository.findOne({
+      where: { id_local: localId }
+    });
+
+    if (local) {
+      // S'il n'y a pas de location active, le local doit être DISPONIBLE
+      if (!activeLocation) {
+        if (local.statut !== 'DISPONIBLE') {
+          this.logger.log(`Aucune location active trouvée pour le local ${localId}. Mise à jour du statut en DISPONIBLE.`);
+          
+          local.statut = 'DISPONIBLE';
+          await this.localRepository.save(local);
+          
+          // Émettre un événement pour notifier le changement
+          this.eventsGateway.server.emit('local_status_updated', {
+            localId: local.id_local,
+            newStatus: 'DISPONIBLE',
+            timestamp: new Date()
+          });
+        }
+      }
+      // S'il y a une location active, le local doit être LOUÉ
+      else {
+        if (local.statut !== 'LOUE') {
+          this.logger.log(`Location active trouvée pour le local ${localId}. Mise à jour du statut en LOUÉ.`);
+          
+          local.statut = 'LOUE';
+          await this.localRepository.save(local);
+          
+          // Émettre un événement pour notifier le changement
+          this.eventsGateway.server.emit('local_status_updated', {
+            localId: local.id_local,
+            newStatus: 'LOUE',
+            timestamp: new Date()
+          });
+        }
+      }
     }
+  } catch (error) {
+    this.logger.error(`Erreur lors de la mise à jour du statut du local ${localId}:`, error);
+  }
+}
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  @Cron(CronExpression.EVERY_MINUTE)
+  async updateExpiredLocations() {
+    // Cette méthode peut être supprimée car la logique est maintenant dans handleExpiredLocations
+    // Ou vous pouvez la garder pour une vérification plus fréquente
+    const now = new Date();
 
-    const dateDebut = new Date(location.date_debut_loc);
-    const dateFin = new Date(location.date_fin_loc);
-    dateDebut.setHours(0, 0, 0, 0);
-    dateFin.setHours(23, 59, 59, 999);
+    const expiredLocations = await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .where('location.date_fin_loc < :now', { now })
+      .andWhere('local.statut = :statut', { statut: 'LOUE' })
+      .getMany();
 
-    // Vérifier si la location est active aujourd'hui
-    const isActiveToday = dateDebut <= today && dateFin >= today;
-
-    if (isActiveToday && location.local.statut !== 'LOUE') {
-      const oldStatus = location.local.statut;
-      location.local.statut = 'LOUE';
-      await this.localRepository.save(location.local);
-
-      // this.eventsGateway.server.emit('local_status_updated', {
-      //   localId: location.local.id_local,
-      //   oldStatus: oldStatus,
-      //   newStatus: 'LOUE',
-      //   reason: 'payment_confirmed',
-      //   timestamp: new Date()
-      // });
-
-      this.logger.log(`Local ${location.local.id_local} mis à jour en LOUE après paiement`);
+    for (const loc of expiredLocations) {
+      await this.updateLocalStatusIfNoActiveLocation(loc.local.id_local);
     }
   }
 
@@ -136,147 +167,125 @@ export class LocationService {
   }
 
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
-    let { date_debut_loc, periodicite, localId, id_user, nif } = createLocationDto;
-    let date_fin_loc: Date;
+  let { date_debut_loc, periodicite, localId, id_user, nif } = createLocationDto;
+  let date_fin_loc: Date;
 
-    // Récupérer le local et son type_local
-    const local = await this.localRepository.findOne({
-      where: { id_local: localId },
-      relations: ['typelocal'],
-    });
+  const local = await this.localRepository.findOne({
+    where: { id_local: localId },
+    relations: ['typelocal'],
+  });
 
-    if (!local || local.statut === 'LOUE' || local.statut === 'INDISPONIBLE') {
-      throw new NotFoundException(`Local with id ${localId} not found`);
-    }
-    const countCurrentLocationUser = await this.countCurrentLocationsByUser(id_user);
-    if (countCurrentLocationUser > 2) {
-      throw new BadRequestException(`L'utilisateur avec l'ID ${id_user} a déjà 3 locations en cours.`);
-    }
-
-    // Conversion de la date de début
-    const debut = new Date(date_debut_loc);
-    debut.setHours(0, 0, 0, 0); // optionnel pour normaliser
-
-    // Si périodicité mensuelle et contrat d'un an, calcul automatique
-    if (periodicite === Periodicite.MENSUEL) {
-      date_fin_loc = new Date(debut);
-      date_fin_loc.setFullYear(date_fin_loc.getFullYear() + 1);
-    } else if (periodicite === Periodicite.JOURNALIER) {
-      date_fin_loc = new Date(debut);
-      date_fin_loc.setDate(date_fin_loc.getDate() + 1);
-    } else {
-      // Sinon, on prend la date fin fournie
-      date_fin_loc = createLocationDto.date_fin_loc
-        ? new Date(createLocationDto.date_fin_loc)
-        : new Date(debut);
-    } date_fin_loc.setHours(0, 0, 0, 0); // normalisation
-
-    const fin = new Date(date_fin_loc);
-
-    const today = new Date();
-
-    // Vérifier si le local est déjà en location
-    const existingLocation = await this.locationRepository.findOne({
-      where: {
-        localId,
-        date_debut_loc: LessThanOrEqual(today),
-        date_fin_loc: MoreThanOrEqual(today),
-      },
-    });
-
-    if (existingLocation) {
-      throw new BadRequestException(`Le local ${localId} est déjà en location en cours.`);
-    }
-
-    if (debut >= fin) {
-      throw new BadRequestException("La date de début doit être avant la date de fin.");
-    }
-
-    // Validation mensuelle
-    if (periodicite === Periodicite.MENSUEL) {
-      const diffMonths =
-        (fin.getFullYear() - debut.getFullYear()) * 12 +
-        (fin.getMonth() - debut.getMonth());
-
-      if (diffMonths < 1) {
-        throw new BadRequestException(
-          "Pour une location mensuelle, l'écart doit être d'au moins un mois."
-        );
-      }
-    }
-
-    // Calcul de la fréquence
-    let frequence = 0;
-    if (periodicite === Periodicite.JOURNALIER) {
-      frequence = Math.ceil((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24));
-    } else if (periodicite === Periodicite.MENSUEL) {
-      const diffMonths =
-        (fin.getFullYear() - debut.getFullYear()) * 12 +
-        (fin.getMonth() - debut.getMonth());
-
-      if (fin.getDate() === debut.getDate() && diffMonths > 0) {
-        frequence = diffMonths;
-      } else {
-        frequence = fin.getDate() >= debut.getDate() ? diffMonths + 1 : diffMonths;
-      }
-    }
-
-    // Création de la location
-    const location = this.locationRepository.create({
-      ...createLocationDto,
-      date_fin_loc,
-      frequence,
-    });
-    const notifData = {
-      id_location: location.id_location,
-      localId: location.localId
-    }
-  //  this.eventsGateway.server.emit('create location', location);
-    this.notificationService.createLocationNotification(location.id_user, "CONFIRMED", notifData)
-    return await this.locationRepository.save(location);
+  if (!local) {
+    throw new NotFoundException(`Local with id ${localId} not found`);
   }
 
-  async updateLocalStatusToRented(locationId: string): Promise<void> {
-    // Utilisez la nouvelle méthode
-    await this.updateLocalStatusAfterPayment(locationId);
+  const countCurrentLocationUser = await this.countCurrentLocationsByUser(id_user);
+  if (countCurrentLocationUser > 2) {
+    throw new BadRequestException(`L'utilisateur avec l'ID ${id_user} a déjà 3 locations en cours.`);
+  }
 
-    // Émettre l'événement pour la location
+  const debut = new Date(date_debut_loc);
+  debut.setHours(0, 0, 0, 0);
+
+  // Calcul de la date de fin
+  if (periodicite === Periodicite.MENSUEL) {
+    date_fin_loc = new Date(debut);
+    date_fin_loc.setFullYear(date_fin_loc.getFullYear() + 1);
+    date_fin_loc.setHours(0, 0, 0, 0); // Normalisation pour les locations mensuelles
+  } else if (periodicite === Periodicite.JOURNALIER) {
+    date_fin_loc = new Date(debut);
+    date_fin_loc.setHours(23, 59, 59, 999);
+  } else {
+    date_fin_loc = createLocationDto.date_fin_loc
+      ? new Date(createLocationDto.date_fin_loc)
+      : new Date(debut);
+    date_fin_loc.setHours(0, 0, 0, 0); // Normalisation pour les locations autres
+  }
+
+  const fin = new Date(date_fin_loc);
+
+  if (debut >= fin) {
+    throw new BadRequestException("La date de début doit être avant la date de fin.");
+  }
+
+  // Vérifier s'il y a un chevauchement avec une location existante
+  const existingLocation = await this.locationRepository.createQueryBuilder('location')
+    .where('location.localId = :localId', { localId })
+    .andWhere('location.date_debut_loc < :newFin', { newFin: fin })
+    .andWhere('location.date_fin_loc > :newDebut', { newDebut: debut })
+    .getOne();
+
+  if (existingLocation) {
+    throw new BadRequestException(`Le local ${localId} est déjà loué pour la période demandée.`);
+  }
+
+  // Validation mensuelle
+  if (periodicite === Periodicite.MENSUEL) {
+    const diffMonths =
+      (fin.getFullYear() - debut.getFullYear()) * 12 +
+      (fin.getMonth() - debut.getMonth());
+    if (diffMonths < 1) {
+      throw new BadRequestException(
+        "Pour une location mensuelle, l'écart doit être d'au moins un mois."
+      );
+    }
+  }
+
+  // Calcul de la fréquence
+  let frequence = 0;
+  if (periodicite === Periodicite.JOURNALIER) {
+    frequence = Math.ceil((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24));
+  } else if (periodicite === Periodicite.MENSUEL) {
+    const diffMonths =
+      (fin.getFullYear() - debut.getFullYear()) * 12 +
+      (fin.getMonth() - debut.getMonth());
+    
+    if (fin.getDate() === debut.getDate() && diffMonths > 0) {
+      frequence = diffMonths;
+    } else {
+      frequence = fin.getDate() >= debut.getDate() ? diffMonths + 1 : diffMonths;
+    }
+  }
+
+  // Création de la location
+  const location = this.locationRepository.create({
+    ...createLocationDto,
+    date_fin_loc: fin, // Utilisation de la date de fin calculée et normalisée
+    frequence,
+  });
+  
+  const notifData = {
+    id_location: location.id_location,
+    localId: location.localId
+  }
+
+  this.eventsGateway.server.emit('create location', location);
+  this.notificationService.createLocationNotification(location.id_user, "CONFIRMED", notifData);
+  
+  return await this.locationRepository.save(location);
+}
+
+  async updateLocalStatusToRented(locationId: string): Promise<void> {
+    // 1. Trouver la Location en incluant la relation vers le Local
     const location = await this.locationRepository.findOne({
       where: { id_location: locationId },
       relations: ['local'],
     });
 
-    if (location) {
-    //  this.eventsGateway.server.emit('update location', location);
+    if (!location) {
+      throw new NotFoundException(`Location with id ${locationId} not found`);
     }
-  }
 
-  @Cron(CronExpression.EVERY_MINUTE)
-  async updateExpiredLocations() {
-    const now = new Date();
-
-    const expiredLocations = await this.locationRepository
-      .createQueryBuilder('location')
-      .leftJoinAndSelect('location.local', 'local')
-      .where('location.date_fin_loc < :now', { now })
-      .andWhere('local.statut = :statut', { statut: 'LOUE' })
-      .getMany();
-
-
-    for (const loc of expiredLocations) {
-      loc.local.statut = 'DISPONIBLE';
-      await this.localRepository.save(loc.local);
-      console.log(`Location est maintenant disponible.`);
+    // 2. Vérifier si un local est associé
+    if (!location.local) {
+      throw new NotFoundException(`Local not found for location id ${locationId}`);
     }
-  }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Europe/Paris' })
-  async handleExpiredLocations() {
-    this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    await this.updateAllLocalStatuses(today);
-    this.logger.log('Fin du job CRON de vérification des locations expirées.');
+    // 3. Mettre à jour le statut du Local associé
+    const local = location.local;
+    local.statut = 'LOUE';
+    await this.localRepository.save(local);
+    this.eventsGateway.server.emit('update location', location);
   }
 
   async findAllInProgress(municipalityId: number): Promise<Location[]> {
@@ -292,7 +301,6 @@ export class LocationService {
       .getMany();
   }
 
-
   async findByUser(id_user: string): Promise<Location[]> {
     return await this.locationRepository.find({
       where: { id_user },
@@ -300,7 +308,6 @@ export class LocationService {
       order: { date_debut_loc: 'DESC' },
     });
   }
-
 
   async findInProgressByUser(id_user: string): Promise<Location[]> {
     const today = new Date();
@@ -386,7 +393,6 @@ export class LocationService {
   }
 
   // Version sécurisée sans propriétés potentiellement inexistantes
-
   async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
     try {
       console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
@@ -534,7 +540,10 @@ export class LocationService {
   }
 
   async remove(id: string): Promise<void> {
-    const location = await this.locationRepository.findOne({ where: { id_location: id }, relations: ['local'], });
+    const location = await this.locationRepository.findOne({ 
+      where: { id_location: id }, 
+      relations: ['local'], 
+    });
 
     if (!location) {
       throw new NotFoundException(`Location avec l'ID "${id}" introuvable`);
@@ -546,7 +555,15 @@ export class LocationService {
       // Mettre à jour le statut du local en 'DISPONIBLE' avant la suppression de la location
       local.statut = 'DISPONIBLE';
       await this.localRepository.save(local);
+      
+      // Émettre un événement pour notifier le changement
+      this.eventsGateway.server.emit('local_status_updated', {
+        localId: local.id_local,
+        newStatus: 'DISPONIBLE',
+        timestamp: new Date()
+      });
     }
+    
     await this.locationRepository.remove(location);
   }
 
@@ -637,7 +654,7 @@ export class LocationService {
     }
   }
 
-  // 📌 Job CRON qui vérifie tous les jours à 8h
+  // 🔌 Job CRON qui vérifie tous les jours à 8h
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDailyReminders() {
     const allLocations = await this.locationRepository.find();
@@ -646,6 +663,7 @@ export class LocationService {
       await this.checkAndSendReminders(loc);
     }
   }
+
   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
     try {
       // Vérifier que l'utilisateur existe
