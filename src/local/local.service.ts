@@ -7,7 +7,6 @@ import { Repository } from 'typeorm';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
-import { EventsGateway } from 'src/events/events.gateway';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -25,7 +24,7 @@ export class LocalService {
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
     private readonly httpService: HttpService,
-    private readonly eventsGateway: EventsGateway
+   // private readonly eventsGateway: EventsGateway
 
   ) { }
 
@@ -78,7 +77,7 @@ export class LocalService {
 
     try {
       const local = this.localRepository.create(createLocalDto);
-      this.eventsGateway.server.emit('create local', local);
+      //this.eventsGateway.server.emit('create local', local);
       return await this.localRepository.save(local)
     } catch (error) {
       throw new BadRequestException(
@@ -257,7 +256,7 @@ export class LocalService {
     const local = await this.findOne(municipalityId, id_local);
 
     Object.assign(local, updateLocalDto);
-    this.eventsGateway.server.emit('update local', local);
+  //  this.eventsGateway.server.emit('update local', local);
     return await this.localRepository.save(local);
   }
 

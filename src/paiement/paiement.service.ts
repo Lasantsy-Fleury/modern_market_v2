@@ -6,7 +6,6 @@ import { Repository } from 'typeorm';
 import { LocationService } from 'src/location/location.service';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
-import { EventsGateway } from 'src/events/events.gateway';
 import { NotificationService } from 'src/notification/notification.service';
 @Injectable()
 export class PaiementService {
@@ -15,7 +14,7 @@ export class PaiementService {
     private readonly paieRepository: Repository<Paiement>,
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
-    private readonly eventsGateway: EventsGateway,
+   // private readonly eventsGateway: EventsGateway,
     private readonly notificationService: NotificationService
   ) { }
 
@@ -43,9 +42,10 @@ export class PaiementService {
       });
 
       const savedPaiement = await queryRunner.manager.save(newPaiement);
+    
 
       if (savedPaiement){
-      this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+    //  this.eventsGateway.server.emit('paiement effectue', savedPaiement);
       console.log("envoie");
     }
 

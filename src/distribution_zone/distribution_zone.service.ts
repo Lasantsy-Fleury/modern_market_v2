@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 import { DistributionZone } from './entities/distribution_zone.entity';
 import { ZoneService } from 'src/zone/zone.service';
 import { Zone } from 'src/zone/entities/zone.entity';
-import { EventsGateway } from 'src/events/events.gateway';
+
 
 @Injectable()
 export class DistributionZoneService {
@@ -14,7 +14,7 @@ export class DistributionZoneService {
     @InjectRepository(DistributionZone)
     private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly zoneService: ZoneService,
-    private readonly eventsGateway: EventsGateway
+  //  private readonly eventsGateway: EventsGateway
   ) {}
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
@@ -24,7 +24,7 @@ export class DistributionZoneService {
     }
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
-    this.eventsGateway.server.emit('create distribution zone', distributionZone);
+ //   this.eventsGateway.server.emit('create distribution zone', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
   
@@ -60,7 +60,7 @@ export class DistributionZoneService {
   async update(id_distribution_zone: string, municipalityId: number, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
-    this.eventsGateway.server.emit('update distribution zone', distributionZone);
+   // this.eventsGateway.server.emit('update distribution zone', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
