@@ -11,7 +11,7 @@ import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/
 export class LocationController {
   constructor(private readonly locationService: LocationService) { }
 
-  @Post('valider-la-location-apres-avoir-fait-le-paiement')
+  @Post()
   @ApiOperation({ summary: 'Créer un nouvelle location et le valider' })
   @ApiResponse({ status: 201, description: 'L\'utilisateur a été affecté à la zone de distribution avec succès.' })
   async createAndValidate(@Body() createLocationDto: CreateLocationDto) {
