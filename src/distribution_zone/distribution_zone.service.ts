@@ -57,6 +57,20 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
+  async findOneByidUser(id_user: string, municipalityId: number) {
+    const distributionZone = await this.distributionZoneRepository
+      .createQueryBuilder('distributionZone')
+      .leftJoinAndSelect('distributionZone.zone', 'zone')
+      .where('distributionZone.id_user = :id_user', { id_user })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
+
+    if (!distributionZone) {
+      throw new NotFoundException(`DistributionZone for user ${id_user} introuvable dans cette municipalité`);
+    }
+    return distributionZone;
+  }
+
   async update(id_distribution_zone: string, municipalityId: number, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
