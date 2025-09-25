@@ -47,6 +47,12 @@ export class DistributionZoneController {
     return this.distributionZoneService.findOneByidUser(id_user, municipalityId);
   }
 
+  @Get('history/municipalityId/:municipalityId/id_user/:id_user')
+  @ApiOperation({summary:'Récupérer tous les zones historiques qui sont affectées par l\'id utilisateur'})
+  findAllByIdUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: number) {
+    return this.distributionZoneService.findAllByIdUser(id_user, municipalityId);
+  }
+
   @Patch('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Modifier une zone de distribution'})
   update(@Param('id') id: string, @Param('municipalityId') municipalityId: number, @Body() updateDistributionZoneDto: UpdateDistributionZoneDto) {
