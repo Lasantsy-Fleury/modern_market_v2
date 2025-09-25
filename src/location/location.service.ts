@@ -724,12 +724,19 @@ export class LocationService {
     }
   }
 
-  async findOccupiedPeriods(localId: string): Promise<Location[]> {
-    const occupiedPeriods = await this.locationRepository.find({
-      where: { localId },
-      select: ['date_debut_loc', 'date_fin_loc'],
-      order: { date_debut_loc: 'ASC' },
-    });
-    return occupiedPeriods;
-  }
+  async findOccupiedPeriods(municipalityId: number, localId: string): Promise<Location[]> {
+  const occupiedPeriods = await this.locationRepository.find({
+    where: {
+    local: {
+      id_local: localId,
+      zone: {
+        municipalityId: municipalityId,
+      },
+    },
+  },
+    select: ['date_debut_loc', 'date_fin_loc'],
+    order: { date_debut_loc: 'ASC' },
+  });
+  return occupiedPeriods;
+}
 }

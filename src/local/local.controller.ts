@@ -55,12 +55,17 @@ export class LocalController {
     });
   }
 
-  @Get(':id_local/occupied-dates')
-async getOccupiedDates(@Param('id_local') localId: string) {
-  return this.locationService.findOccupiedPeriods(localId);
-}
+  @Get('municipality/:municipalityId/:id_local/occupied-dates')
+  @ApiOperation({ summary: 'Récupérer les dates occupées d’un local d’une municipalité' })
+  async getOccupiedDates(
+    @Param('municipalityId') municipalityId: number,
+    @Param('id_local', ParseUUIDPipe) id_local: string,
+  ) {
+    return this.locationService.findOccupiedPeriods(municipalityId, id_local);
+  }
 
   @Get('municipality/:municipalityId/:id_local')
+  @ApiOperation({ summary: 'Récupérer un local d’une municipalité ' })
   async findOne(
     @Param('municipalityId') municipalityId: number,
     @Param('id_local', ParseUUIDPipe) id_local: string,

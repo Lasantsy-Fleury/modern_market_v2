@@ -57,6 +57,35 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
+  async findOneByidUser(id_user: string, municipalityId: number) {
+    const distributionZone = await this.distributionZoneRepository
+      .createQueryBuilder('distributionZone')
+      .leftJoinAndSelect('distributionZone.zone', 'zone')
+      .where('distributionZone.id_user = :id_user', { id_user })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
+
+    if (!distributionZone) {
+      throw new NotFoundException(`DistributionZone for user ${id_user} introuvable dans cette municipalité`);
+    }
+    return distributionZone;
+  }
+
+  async findAllByIdUser(id_user: string, municipalityId: number): Promise<DistributionZone[]> {
+  const distributionZones = await this.distributionZoneRepository
+    .createQueryBuilder('distributionZone')
+    .leftJoinAndSelect('distributionZone.zone', 'zone')
+    .where('distributionZone.id_user = :id_user', { id_user })
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+    .getMany();
+
+  if (!distributionZones || distributionZones.length === 0) {
+    throw new NotFoundException(`Aucune zone de distribution historique n'a été trouvée pour l'utilisateur ${id_user} dans cette municipalité.`);
+  }
+
+  return distributionZones;
+}
+
   async update(id_distribution_zone: string, municipalityId: number, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
