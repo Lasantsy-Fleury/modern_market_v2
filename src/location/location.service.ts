@@ -316,7 +316,7 @@ export class LocationService {
     });
   }
 
-  async findInProgressByUserByControlleur(
+ async findInProgressByUserByControlleur(
     id_user: string,
     id_controleur: string
   ): Promise<Location[]> {
@@ -338,8 +338,9 @@ export class LocationService {
       relations: ['zone'],
     });
 
+    console.log("location",locations.length)
     // 🔥 CORRECTION : Vérifier si locations est vide ou null
-    if (!locations || locations.length === 0) {
+    if (!locations || locations.length == 0) {
       // 🚨 Aucun location trouvé → priorité URGENT
       const histData = {
         resultat: 'Aucune location trouvée',
@@ -409,6 +410,7 @@ export class LocationService {
 
     return [];
   }
+
 
 
 
