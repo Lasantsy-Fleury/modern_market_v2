@@ -326,77 +326,90 @@ export class LocationService {
     const locations = await this.locationRepository.find({
       where: {
         id_user,
-        date_debut_loc: Between(new Date('1900-01-01'), today),
-        date_fin_loc: Between(today, new Date('9999-12-31')),
+        date_debut_loc: LessThanOrEqual(today),
+        date_fin_loc: MoreThanOrEqual(today),
       },
-      relations: ['local', 'local.zone'], // 👈 assure-toi que la relation Local → Zone est bien définie
+      relations: ['local', 'local.zone'],
     });
 
-    // Récupérer les distribution zones affectées à ce contrôleur
+    // Récupérer les distribution zones affectées au contrôleur
     const distributionZones = await this.distributionZoneRepository.find({
       where: { id_user: id_controleur },
       relations: ['zone'],
     });
 
-    if (locations.length === 0) {
+    // 🔥 CORRECTION : Vérifier si locations est vide ou null
+    if (!locations || locations.length === 0) {
       // 🚨 Aucun location trouvé → priorité URGENT
       const histData = {
         resultat: 'Aucune location trouvée',
         id_contribuable: id_user,
+        zoneName: null, // pas de zone
       };
 
       // await this.notificationService.CreateHistorique(
       //   id_controleur,
       //   histData,
-      //   'URGENT',
+      //   'URGENT'
       // );
+
+      // 🔥 CORRECTION : Appel correct du WebSocket
       this.eventsService.sendWebSocketNotification('location_inexistante', histData);
 
-      return [];
+      return []; // 🔥 Retourner un tableau vide
     }
 
-    // Vérifier si au moins une location est dans une zone affectée au contrôleur
+    // Vérifier si au moins une location est dans la zone du contrôleur
     let inDistributionZone = false;
+    let zoneName: string | null = null;
 
     for (const loc of locations) {
-      const zoneId = loc.local?.zone?.id_zone;
-      if (zoneId && distributionZones.some((dz) => dz.zoneId === zoneId)) {
-        inDistributionZone = true;
-        break;
+      const locZoneId = loc.local?.zone?.id_zone;
+      if (locZoneId) {
+        const dz = distributionZones.find(dz => dz.zoneId === locZoneId);
+        if (dz) {
+          inDistributionZone = true;
+          zoneName = dz.zone.nom; // Nom de la zone
+          break;
+        }
       }
     }
 
     if (inDistributionZone) {
-      // ✅ Location trouvée dans la distribution zone du contrôleur → priorité MEDIUM
+      // ✅ Location trouvée dans la distribution zone → priorité MEDIUM
       const histData = {
         id_location: locations[0].id_location,
         resultat: 'Location valide dans la zone',
         id_contribuable: id_user,
+        zoneName,
       };
 
       await this.notificationService.CreateHistorique(
         id_controleur,
         histData,
-        'MEDIUM',
+        'MEDIUM'
       );
     } else {
-      // ⚠️ Location trouvée mais pas dans la distribution zone → priorité HIGH
+      // ⚠️ Location trouvée mais hors distribution zone → priorité HIGH
       const histData = {
-        id_user:id_user,
+        id_location: locations[0].id_location,
         resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
+        zoneName: locations[0].local?.zone?.nom || null,
       };
 
       await this.notificationService.CreateHistorique(
         id_controleur,
         histData,
-        'HIGH',
+        'HIGH'
       );
+
       this.eventsService.sendWebSocketNotification('Mauvais_controlleur', histData);
     }
 
-    return locations;
+    return [];
   }
+
 
 
 
@@ -725,18 +738,18 @@ export class LocationService {
   }
 
   async findOccupiedPeriods(municipalityId: number, localId: string): Promise<Location[]> {
-  const occupiedPeriods = await this.locationRepository.find({
-    where: {
-    local: {
-      id_local: localId,
-      zone: {
-        municipalityId: municipalityId,
+    const occupiedPeriods = await this.locationRepository.find({
+      where: {
+        local: {
+          id_local: localId,
+          zone: {
+            municipalityId: municipalityId,
+          },
+        },
       },
-    },
-  },
-    select: ['date_debut_loc', 'date_fin_loc'],
-    order: { date_debut_loc: 'ASC' },
-  });
-  return occupiedPeriods;
-}
+      select: ['date_debut_loc', 'date_fin_loc'],
+      order: { date_debut_loc: 'ASC' },
+    });
+    return occupiedPeriods;
+  }
 }

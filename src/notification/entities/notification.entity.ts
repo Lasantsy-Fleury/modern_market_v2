@@ -29,6 +29,8 @@ export class Notification {
     id_paiement_location?:string;
     localId?: string;
     montant?: number;
+    zoneName? :string;
+    resultat? : string;
 
    
   };

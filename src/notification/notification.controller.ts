@@ -175,4 +175,20 @@ export class NotificationController {
     }
   }
 
+
+  @Get(':userId/rapport')
+  @ApiOperation({ summary: 'Obtenir le rapport des notifications HISTORIQUE CONTROLLEUR par zone' })
+  async getRapport(
+    @Param('userId') userId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    // Si besoin : filtrer par période
+    const filters = {
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    };
+
+    return this.notificationService.getRapport(userId, filters);
+  }
 }

@@ -8,6 +8,8 @@ import { Local } from 'src/local/entities/local.entity';
 import axios from 'axios';
 import { Brackets } from 'typeorm';
 import { EventsService } from 'src/events/events.service';
+import { Between } from 'typeorm';
+
 
 @Injectable()
 export class NotificationService {
@@ -242,7 +244,7 @@ export class NotificationService {
 
 
   async findAllSimple(
-    
+
     options: {
       municipalityId?: number,
       page?: number;
@@ -255,14 +257,14 @@ export class NotificationService {
       dateTo?: Date | string;
     }
   ) {
-    const {municipalityId, page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
+    const { municipalityId, page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
 
-   
+
     let query = this.notifRepository
       .createQueryBuilder('notification')
       .where('1 = 1'); // Condition toujours vraie pour faciliter l'ajout de conditions
 
-  
+
     if (municipalityId) {
       query.andWhere(
         new Brackets((qb) => {
@@ -485,6 +487,46 @@ export class NotificationService {
     }
   }
 
-  
+
+  async getRapport(
+    userId: string,
+    filters?: { from?: Date; to?: Date }
+  ) {
+    const where: any = {
+      userId,
+      type: 'HISTORIQUE CONTROLLEUR',
+    };
+
+    if (filters?.from && filters?.to) {
+      where.createdAt = Between(filters.from, filters.to);
+    }
+
+    const notifications = await this.notifRepository.find({
+      where,
+      order: { createdAt: 'DESC' },
+    });
+
+    const rapport: Record<
+      string,
+      { counts: Record<string, number>; notifications: any[] }
+    > = {};
+
+    notifications.forEach((notif) => {
+      const zone = notif.data.zoneName || 'Zone inconnue';
+      const resultat = notif.data.resultat || 'Résultat inconnu';
+
+      if (!rapport[zone]) {
+        rapport[zone] = { counts: {}, notifications: [] };
+      }
+
+      rapport[zone].counts[resultat] =
+        (rapport[zone].counts[resultat] || 0) + 1;
+
+      rapport[zone].notifications.push(notif);
+    });
+
+    return rapport;
+  }
+
 
 }
