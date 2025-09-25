@@ -5,6 +5,7 @@ import { Paiementlocation } from './entities/paiement_location.entity';
 import { CreatePaiementLocationDto } from './dto/create-paiement_location.dto';
 import { Location, Periodicite } from 'src/location/entities/location.entity';
 import * as QRCode from 'qrcode';
+import { EventsService } from 'src/events/events.service';
 
 @Injectable()
 export class PaiementLocationService {
@@ -13,8 +14,7 @@ export class PaiementLocationService {
     private readonly paiementLocationRepository: Repository<Paiementlocation>,
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
-
-  //  private readonly eventsGateway: EventsGateway
+    private readonly eventsService: EventsService,
   ) { }
 
   async create(
@@ -101,8 +101,8 @@ export class PaiementLocationService {
 
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
-    // this.eventsGateway.server.emit('userCreated', newPaiementLocation);
-    // this.eventsGateway.server.emit('create paiementLocation', savedPaiementLocation);
+    this.eventsService.sendWebSocketNotification('paiement_location_created', savedPaiementLocation);
+
 
     return { paiementLocation: savedPaiementLocation, qrCode };
   }

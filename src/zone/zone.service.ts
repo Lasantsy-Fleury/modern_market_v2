@@ -12,13 +12,14 @@ import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse, AxiosError } from 'axios';
 import * as _ from 'lodash';
-
+import { EventsService } from 'src/events/events.service';
 @Injectable()
 export class ZoneService {
   constructor(
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
     private readonly httpService: HttpService,
+    private readonly eventsService: EventsService,
   ) { }
 
   async findOneById(zoneId: string): Promise<Zone | null> {
@@ -93,6 +94,8 @@ export class ZoneService {
         ...createZoneDto,
         municipalityId,
       });
+
+      this.eventsService.sendWebSocketNotification('zone_created', zone);
       return await this.zoneRepository.save(zone);
     } catch (error) {
       throw new BadRequestException(

@@ -9,7 +9,7 @@ import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-
+import { EventsService } from 'src/events/events.service';
 
 @Injectable()
 export class LocalService {
@@ -24,7 +24,8 @@ export class LocalService {
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
     private readonly httpService: HttpService,
-   // private readonly eventsGateway: EventsGateway
+
+    private readonly eventsService: EventsService,
 
   ) { }
 
@@ -77,7 +78,7 @@ export class LocalService {
 
     try {
       const local = this.localRepository.create(createLocalDto);
-      //this.eventsGateway.server.emit('create local', local);
+      this.eventsService.sendWebSocketNotification('local_created', local);
       return await this.localRepository.save(local)
     } catch (error) {
       throw new BadRequestException(
@@ -256,7 +257,7 @@ export class LocalService {
     const local = await this.findOne(municipalityId, id_local);
 
     Object.assign(local, updateLocalDto);
-  //  this.eventsGateway.server.emit('update local', local);
+    this.eventsService.sendWebSocketNotification('local_updated', local);
     return await this.localRepository.save(local);
   }
 

@@ -108,39 +108,35 @@ export class NotificationController {
   //   });
   // }
 
-  @Get()
-  @ApiOperation({ summary: 'Lister les notifications filtrées par municipalité avec pagination' })
-  async findAll(
-    @Query() query: GetMunicipalityNotificationsDto, // DTO contenant municipalityId et tous les filtres optionnels
-  ) {
-    const {
-      municipalityId,
-      userId,
-      type,
-      priority,
-      isRead,
-      page = 1,
-      limit = 20,
-      dateFrom,
-      dateTo,
-      
-    } = query;
+ @Get()
+@ApiOperation({ summary: 'Lister les notifications filtrées par municipalité avec pagination' })
+async findAll(
+  @Query() query: GetMunicipalityNotificationsDto,
+) {
+  const {
+    municipalityId, // 👉 Peut être undefined maintenant
+    userId,
+    type,
+    priority,
+    isRead,
+    page = 1,
+    limit = 20,
+    dateFrom,
+    dateTo,
+  } = query;
 
-    if (!municipalityId) {
-      throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
-    }
-
-    return this.notificationService.findAllSimple(municipalityId, {
-      userId,
-      type,
-      priority,
-      isRead,
-      page,
-      limit,
-      dateFrom,
-      dateTo
-    });
-  }
+  return this.notificationService.findAllSimple( {
+    municipalityId,
+    userId,
+    type,
+    priority,
+    isRead,
+    page,
+    limit,
+    dateFrom,
+    dateTo
+  });
+}
 
 
 

@@ -3,15 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Raw, Repository } from 'typeorm';
 import { CreateTypeLocalDto } from './dto/create-type_locale.dto';
 import { Typelocal } from './entities/type_locale.entity';
-
+import { EventsService } from 'src/events/events.service';
 @Injectable()
 export class TypeLocalService {
   repo: any;
   constructor(
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
-  //  private readonly eventsGateway: EventsGateway
-  ) {}
+    private readonly eventsService: EventsService,
+  ) { }
 
   async create(createTypeLocalDto: CreateTypeLocalDto): Promise<Typelocal> {
     // Vérifiez si un type_local avec le même typeLoc existe déjà pour le municipalityId donné
@@ -25,9 +25,9 @@ export class TypeLocalService {
     if (existingTypeLocal) {
       throw new BadRequestException('Ce type local existe déjà dans cette municipalité.');
     }
-    
+
     const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);
-  //  this.eventsGateway.server.emit('create typeLocal', typeLocal);
+    this.eventsService.sendWebSocketNotification('type_local_created', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 
@@ -43,30 +43,30 @@ export class TypeLocalService {
       order: { id_type_local: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-  });
+    });
 
-  const data = result.map(item => ({
-    ...item,
-    typeLoc: item.typeLoc?.[lang] ?? item.typeLoc,
-    description: item.description?.[lang] ?? item.description,
-}));
+    const data = result.map(item => ({
+      ...item,
+      typeLoc: item.typeLoc?.[lang] ?? item.typeLoc,
+      description: item.description?.[lang] ?? item.description,
+    }));
 
-  return {
-    message: 'Liste des types locaux',
-    data,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPagination: Math.ceil(total / limit),
-    },
-    status: 200,
-  };
+    return {
+      message: 'Liste des types locaux',
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPagination: Math.ceil(total / limit),
+      },
+      status: 200,
+    };
   }
 
   async findOne(municipalityId: number, id_type_local: string): Promise<Typelocal> {
     const typeLocal = await this.typeLocalRepository.findOne({
-      where: { municipalityId ,id_type_local: id_type_local },
+      where: { municipalityId, id_type_local: id_type_local },
       relations: ['locaux'],
     });
     if (!typeLocal) {
@@ -83,18 +83,18 @@ export class TypeLocalService {
       throw new NotFoundException(`TypeLocal with id ${id_type_local} in municipality ${municipalityId} not found`);
     }
     Object.assign(typeLocal, updateDto);
-   // this.eventsGateway.server.emit('update typeLocal', typeLocal);
+    this.eventsService.sendWebSocketNotification('type_local_updated', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 
   async remove(municipalityId: number, id: string): Promise<{ message: string; status: number; data: any }> {
-    const type = await this.typeLocalRepository.findOne({ where: { municipalityId , id_type_local: id } });
+    const type = await this.typeLocalRepository.findOne({ where: { municipalityId, id_type_local: id } });
     if (!type) {
       return { message: 'Type local introuvable', status: 404, data: null };
     }
 
-  await this.typeLocalRepository.remove(type);
-  return { message: 'Type local supprimé avec succès', status: 200, data: type };
-}
+    await this.typeLocalRepository.remove(type);
+    return { message: 'Type local supprimé avec succès', status: 200, data: type };
+  }
 
 }

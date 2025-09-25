@@ -175,7 +175,7 @@ export class GetMunicipalityNotificationsDto {
 
   @ApiProperty({
     description: "municipality Id ",
-    required: true,
+    required: false,
   })
   @IsOptional()
   municipalityId?: number;

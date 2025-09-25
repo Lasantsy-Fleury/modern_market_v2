@@ -242,8 +242,9 @@ export class NotificationService {
 
 
   async findAllSimple(
-    municipalityId: number,
+    
     options: {
+      municipalityId?: number,
       page?: number;
       limit?: number;
       isRead?: boolean;
@@ -254,19 +255,19 @@ export class NotificationService {
       dateTo?: Date | string;
     }
   ) {
-    const { page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
+    const {municipalityId, page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
 
     // 👉 SOLUTION 2: Construction pas à pas avec des conditions claires
     let query = this.notifRepository
       .createQueryBuilder('notification')
-      // Commencer avec une condition toujours vraie
-      .where('1 = 1');
+      .where('1 = 1'); // Condition toujours vraie pour faciliter l'ajout de conditions
 
-    // Ajouter les conditions principales de municipalité
-    query.andWhere(
-      new Brackets((qb) => {
-        qb.where(
-          `EXISTS (
+    // 👉 Condition de municipalité (seulement si municipalityId est fourni)
+    if (municipalityId) {
+      query.andWhere(
+        new Brackets((qb) => {
+          qb.where(
+            `EXISTS (
           SELECT 1 FROM location loc
           INNER JOIN local l ON l.id_local = loc."localId"
           INNER JOIN zone z ON z.id_zone = l."zoneId"
@@ -276,9 +277,9 @@ export class NotificationService {
           )
           AND z."municipalityId" = :municipalityId
         )`,
-          { municipalityId }
-        ).orWhere(
-          `EXISTS (
+            { municipalityId }
+          ).orWhere(
+            `EXISTS (
           SELECT 1 FROM paiement_location pl
           INNER JOIN location loc ON loc.id_location = pl."locationId"
           INNER JOIN local l ON l.id_local = loc."localId"
@@ -289,10 +290,14 @@ export class NotificationService {
           )
           AND z."municipalityId" = :municipalityId
         )`,
-          { municipalityId }
-        );
-      })
-    );
+            { municipalityId }
+          );
+        })
+      );
+      console.log("Filtre municipalityId appliqué:", municipalityId);
+    } else {
+      console.log("Aucun filtre municipalityId appliqué - retourne toutes les municipalités");
+    }
 
     // Maintenant ajouter tous les filtres avec AND
     if (userId) {

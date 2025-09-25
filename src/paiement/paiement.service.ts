@@ -7,7 +7,7 @@ import { LocationService } from 'src/location/location.service';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { NotificationService } from 'src/notification/notification.service';
-
+import { EventsService } from 'src/events/events.service';
 @Injectable()
 export class PaiementService {
   constructor(
@@ -15,7 +15,7 @@ export class PaiementService {
     private readonly paieRepository: Repository<Paiement>,
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
-    // private readonly eventsGateway: EventsGateway,
+    private readonly eventsService: EventsService,
     private readonly notificationService: NotificationService
   ) { }
 
@@ -46,7 +46,7 @@ export class PaiementService {
 
 
       if (savedPaiement) {
-        //  this.eventsGateway.server.emit('paiement effectue', savedPaiement);
+        this.eventsService.sendWebSocketNotification('paiement_created', newPaiement);
         console.log("envoie");
       }
 
