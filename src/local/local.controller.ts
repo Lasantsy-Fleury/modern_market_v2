@@ -3,11 +3,15 @@ import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse} from '@nestjs/swagger';
+import { LocationService } from 'src/location/location.service';
 
 @ApiTags('Local')
 @Controller('local')
 export class LocalController {
-  constructor(private readonly localService: LocalService) { }
+  constructor(
+    private readonly localService: LocalService , 
+    private readonly locationService: LocationService
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Créer un nouveau local' })
@@ -51,6 +55,10 @@ export class LocalController {
     });
   }
 
+  @Get(':id_local/occupied-dates')
+async getOccupiedDates(@Param('id_local') localId: string) {
+  return this.locationService.findOccupiedPeriods(localId);
+}
 
   @Get('municipality/:municipalityId/:id_local')
   async findOne(

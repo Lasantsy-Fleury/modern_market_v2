@@ -195,13 +195,7 @@ export class PaiementLocationService {
     }
 
     const qrData = {
-      nombre_paye: found.nombre_paye,
-      date_debut: found.date_debut,
-      date_fin: found.date_fin,
-      date_paiement: found.date_paiement,
-      paiement: found.paiement,
-      location: found.location,
-      montant_paye: found.montant_paye
+      reference: found.id_paiement_location
     };
 
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
