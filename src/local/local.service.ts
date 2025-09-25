@@ -8,6 +8,9 @@ import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
 import { EventsGateway } from 'src/events/events.gateway';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+
 
 @Injectable()
 export class LocalService {
@@ -21,7 +24,7 @@ export class LocalService {
 
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
-
+    private readonly httpService: HttpService,
     private readonly eventsGateway: EventsGateway
 
   ) { }
@@ -184,41 +187,84 @@ export class LocalService {
 
 
 
-// Trouver un local en vérifiant la municipalité
-async findOne(municipalityId: number, id_local: string) {
-  const local = await this.localRepository
-    .createQueryBuilder('local')
-    .leftJoinAndSelect('local.zone', 'zone')
-    .where('local.id_local = :id_local', { id_local })
-    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-    .getOne();
+  // Trouver un local en vérifiant la municipalité
+  async findOne(municipalityId: number, id_local: string) {
+    const local = await this.localRepository
+      .createQueryBuilder('local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('local.id_local = :id_local', { id_local })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .getOne();
 
-  if (!local) {
-    throw new NotFoundException(
-      `Local with id '${id_local}' not found in municipality '${municipalityId}'`
-    );
+    if (!local) {
+      throw new NotFoundException(
+        `Local with id '${id_local}' not found in municipality '${municipalityId}'`
+      );
+    }
+
+    return local;
   }
 
-  return local;
-}
+  async findLastLocationByLocal(municipalityId: number, id_local: string) {
+    // 1️⃣ Récupération du local avec ses locations et zone
+    const local = await this.localRepository
+      .createQueryBuilder('local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .leftJoinAndSelect('local.locations', 'location')
+      .where('local.id_local = :id_local', { id_local })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      .orderBy('location.date_fin_loc', 'DESC') // la plus récente d'abord
+      .getOne();
 
-// Mettre à jour un local
-async update(
-  municipalityId: number,
-  id_local: string,
-  updateLocalDto: UpdateLocalDto
-) {
-  const local = await this.findOne(municipalityId, id_local);
+    if (!local || !local.locations || local.locations.length === 0) {
+      throw new NotFoundException(
+        `Aucune location trouvée pour le local '${id_local}' dans la municipalité '${municipalityId}'`,
+      );
+    }
 
-  Object.assign(local, updateLocalDto);
-  this.eventsGateway.server.emit('update local', local);
-  return await this.localRepository.save(local);
-}
+    const lastLocation = local.locations[0];
 
-// Supprimer un local
-async remove(municipalityId: number, id_local: string) {
-  const local = await this.findOne(municipalityId, id_local);
-  return await this.localRepository.remove(local);
-}
+    // 2️⃣ Récupérer le userPseudo via l'API externe
+    if (!lastLocation.id_user) {
+      throw new BadRequestException('La location n’a pas d’utilisateur associé.');
+    }
+
+    const url = `https://gateway.tsirylab.com/serviceauth/users/${lastLocation.id_user}`;
+
+    try {
+      const response = await firstValueFrom(this.httpService.get(url, {
+        headers: { accept: 'application/json' },
+      }));
+
+      const userPseudo = response.data?.user_pseudo || null;
+
+      return {
+        ...lastLocation,
+        userPseudo,
+      };
+    } catch (error) {
+      throw new NotFoundException(`Impossible de récupérer l'utilisateur '${lastLocation.id_user}'`);
+    }
+  }
+
+
+  // Mettre à jour un local
+  async update(
+    municipalityId: number,
+    id_local: string,
+    updateLocalDto: UpdateLocalDto
+  ) {
+    const local = await this.findOne(municipalityId, id_local);
+
+    Object.assign(local, updateLocalDto);
+    this.eventsGateway.server.emit('update local', local);
+    return await this.localRepository.save(local);
+  }
+
+  // Supprimer un local
+  async remove(municipalityId: number, id_local: string) {
+    const local = await this.findOne(municipalityId, id_local);
+    return await this.localRepository.remove(local);
+  }
 
 }

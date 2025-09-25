@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe,ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe, ParseUUIDPipe } from '@nestjs/common';
 import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
-import { ApiTags, ApiOperation, ApiQuery, } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse} from '@nestjs/swagger';
 
 @ApiTags('Local')
 @Controller('local')
@@ -52,8 +52,7 @@ export class LocalController {
   }
 
 
- @Get('municipality/:municipalityId/:id_local')
- @ApiOperation({ summary: 'Récupérer un local d’une municipalité ' })
+  @Get('municipality/:municipalityId/:id_local')
   async findOne(
     @Param('municipalityId') municipalityId: number,
     @Param('id_local', ParseUUIDPipe) id_local: string,
@@ -70,6 +69,18 @@ export class LocalController {
     @Body() updateLocalDto: UpdateLocalDto,
   ) {
     return this.localService.update(municipalityId, id_local, updateLocalDto);
+  }
+
+
+  @Get('municipality/:municipalityId/local/:id_local/last-location')
+  @ApiOperation({ summary: 'Récupérer la dernière location associée à un local dans une municipalité' })
+  @ApiResponse({ status: 200, description: 'Dernière location trouvée.' })
+  @ApiResponse({ status: 404, description: 'Aucune location trouvée pour ce local dans cette municipalité.' })
+  async findLastLocationByLocal(
+    @Param('municipalityId') municipalityId: number,
+    @Param('id_local') id_local: string,
+  ) {
+    return this.localService.findLastLocationByLocal(municipalityId, id_local);
   }
 
   // Supprimer un local
