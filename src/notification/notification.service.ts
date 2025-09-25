@@ -257,12 +257,12 @@ export class NotificationService {
   ) {
     const {municipalityId, page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
 
-    // 👉 SOLUTION 2: Construction pas à pas avec des conditions claires
+   
     let query = this.notifRepository
       .createQueryBuilder('notification')
       .where('1 = 1'); // Condition toujours vraie pour faciliter l'ajout de conditions
 
-    // 👉 Condition de municipalité (seulement si municipalityId est fourni)
+  
     if (municipalityId) {
       query.andWhere(
         new Brackets((qb) => {

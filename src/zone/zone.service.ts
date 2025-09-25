@@ -66,7 +66,6 @@ export class ZoneService {
   }
 
   async create(createZoneDto: CreateZoneDto) {
-
     // Vérifier que la fokontany existe dans le service externe
     const fokontany = await this.existingFokontany(createZoneDto.fokotany_id);
 
@@ -77,6 +76,7 @@ export class ZoneService {
         `Municipality not found for fokontany ${createZoneDto.fokotany_id}`,
       );
     }
+
     const existingZone = await this.zoneRepository.findOne({
       where: {
         nom: createZoneDto.nom,
@@ -86,9 +86,30 @@ export class ZoneService {
 
     if (existingZone) {
       throw new ConflictException(
-        `Zone with id '${createZoneDto.nom}' already exists in municipality ${createZoneDto.fokotany_id}`,
+        `Zone '${createZoneDto.nom}' already exists in fokontany ${createZoneDto.fokotany_id}`,
       );
     }
+
+    // 🚨 Vérifier les intersections avec d’autres zones
+    const intersection = await this.zoneRepository
+      .createQueryBuilder('zone')
+      .where(
+        `ST_Intersects(
+        ST_GeomFromGeoJSON(:newPolygon)::geometry,
+        zone.delimitation
+      )`,
+      )
+      .setParameters({
+        newPolygon: JSON.stringify(createZoneDto.delimitation),
+      })
+      .getOne();
+
+    if (intersection) {
+      throw new ConflictException(
+        `The new zone intersects with existing zone '${intersection.nom}' (id: ${intersection.id_zone})`,
+      );
+    }
+
     try {
       const zone = this.zoneRepository.create({
         ...createZoneDto,
@@ -96,13 +117,15 @@ export class ZoneService {
       });
 
       this.eventsService.sendWebSocketNotification('zone_created', zone);
+
       return await this.zoneRepository.save(zone);
     } catch (error) {
       throw new BadRequestException(
-        `Failed to create zone. Please check your input data.`,
+        `Failed to create zone. Please check your input data. ${error.message}`,
       );
     }
   }
+
 
   // Retourner toutes les zones d’une municipalité
   async findAll(

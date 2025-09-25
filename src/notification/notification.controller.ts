@@ -84,11 +84,11 @@ export class NotificationController {
   // -----------------------
   // Nombre de notifications non lues
   // -----------------------
-  // @Get('unread/count/:userId')
-  // @ApiOperation({ summary: 'Obtenir le nombre de notifications non lues' })
-  // async getUnreadCount(@Param('userId') userId: string) {
-  //   return this.notificationService.getUnreadCount(userId);
-  // }
+  @Get('unread/count/:userId')
+  @ApiOperation({ summary: 'Obtenir le nombre de notifications non lues' })
+  async getUnreadCount(@Param('userId') userId: string) {
+    return this.notificationService.getUnreadCount(userId);
+  }
 
   // -----------------------
   // Récupérer les notifications d'un utilisateur avec filtres
@@ -108,35 +108,35 @@ export class NotificationController {
   //   });
   // }
 
- @Get()
-@ApiOperation({ summary: 'Lister les notifications filtrées par municipalité avec pagination' })
-async findAll(
-  @Query() query: GetMunicipalityNotificationsDto,
-) {
-  const {
-    municipalityId, // 👉 Peut être undefined maintenant
-    userId,
-    type,
-    priority,
-    isRead,
-    page = 1,
-    limit = 20,
-    dateFrom,
-    dateTo,
-  } = query;
+  @Get()
+  @ApiOperation({ summary: 'Lister les notifications filtrées par municipalité avec pagination' })
+  async findAll(
+    @Query() query: GetMunicipalityNotificationsDto,
+  ) {
+    const {
+      municipalityId, // 👉 Peut être undefined maintenant
+      userId,
+      type,
+      priority,
+      isRead,
+      page = 1,
+      limit = 20,
+      dateFrom,
+      dateTo,
+    } = query;
 
-  return this.notificationService.findAllSimple( {
-    municipalityId,
-    userId,
-    type,
-    priority,
-    isRead,
-    page,
-    limit,
-    dateFrom,
-    dateTo
-  });
-}
+    return this.notificationService.findAllSimple({
+      municipalityId,
+      userId,
+      type,
+      priority,
+      isRead,
+      page,
+      limit,
+      dateFrom,
+      dateTo
+    });
+  }
 
 
 
