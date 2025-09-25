@@ -42,9 +42,9 @@ export class DistributionZoneController {
   }
 
   @Get('municipalityId/:municipalityId/id_user/:id_user')
-  @ApiOperation({summary:'Récupérer une zone qui est affectée par l\'id utilisateur'})
+  @ApiOperation({summary:'Récupérer une zone qui est affectée par l\'id utilisateur et qui a le status true'})
   findOneByidUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: number) {
-    return this.distributionZoneService.findOneByidUser(id_user, municipalityId);
+    return this.distributionZoneService.findAllTrueByidUser(id_user, municipalityId);
   }
 
   @Get('history/municipalityId/:municipalityId/id_user/:id_user')

@@ -15,4 +15,7 @@ export class DistributionZone {
     @ManyToOne(() => Zone, zone => zone.distributionZones)
     @JoinColumn({ name: 'zoneId' }) // Assurez-vous que 'zoneId' est le bon nom de la colonne de clé étrangère
     zone: Zone;
+
+    @Column({ type: 'boolean', default: true })
+    status: boolean;
 }
