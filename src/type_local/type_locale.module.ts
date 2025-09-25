@@ -6,7 +6,8 @@ import { Typelocal } from './entities/type_locale.entity';
 import { EventsModule } from 'src/events/events.module';
 @Module({
   imports: [TypeOrmModule.forFeature([Typelocal]),
-    EventsModule],
+  EventsModule
+   ],
   controllers: [TypeLocalController],
   providers: [TypeLocalService],
 })

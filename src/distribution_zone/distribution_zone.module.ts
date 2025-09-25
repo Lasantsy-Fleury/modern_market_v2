@@ -10,8 +10,8 @@ import { EventsModule } from 'src/events/events.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([DistributionZone , Zone]),
-    ZoneModule,
-    EventsModule
+    ZoneModule
+   ,EventsModule
   ],
   controllers: [DistributionZoneController],
   providers: [DistributionZoneService],

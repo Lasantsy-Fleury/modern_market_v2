@@ -1,34 +1,18 @@
+import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { Server } from 'ws';
 
-import {
-  MessageBody,
-  SubscribeMessage,
-  WebSocketGateway,
-  WebSocketServer,
-  WsResponse,
-} from '@nestjs/websockets';
-import { from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { Server } from 'socket.io';
-
-@WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
-})
-
+@WebSocketGateway({ path: '/servicenotification', cors: true }) // juste le path, pas l'URL complète
 export class EventsGateway {
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage('events')
-  findAll(@MessageBody() data: any): Observable<WsResponse<number>> {
-    return from([1, 2, 3]).pipe(map(item => ({ event: 'events', data: item })));
+  // Fonction pour émettre un message à tous les clients
+  broadcastMessage(event: string, data: any) {
+    const payload = JSON.stringify({ event, data });
+    this.server.clients.forEach(client => {
+      if (client.readyState === client.OPEN) {
+        client.send(payload);
+      }
+    });
   }
-
-  @SubscribeMessage('identity')
-  async identity(@MessageBody() data: number): Promise<number> {
-    console.log("envoie d'un event");
-    return data;
-  }
-
 }

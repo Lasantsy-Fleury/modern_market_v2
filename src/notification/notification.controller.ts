@@ -9,7 +9,7 @@ import {
   BadRequestException,
   ParseIntPipe,
   UsePipes,
-  ValidationPipe ,
+  ValidationPipe,
   NotFoundException
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
@@ -18,7 +18,7 @@ import {
   CreatePaymentNotificationDto,
   CreateReminderNotificationDto,
   MarkAsReadDto,
-  GetUserNotificationsDto
+  GetMunicipalityNotificationsDto
 } from './dto/create-notification.dto';
 import {
   ApiTags, ApiOperation, ApiBody, ApiQuery, ApiResponse, ApiParam
@@ -84,52 +84,63 @@ export class NotificationController {
   // -----------------------
   // Nombre de notifications non lues
   // -----------------------
-  @Get('unread/count/:userId')
-  @ApiOperation({ summary: 'Obtenir le nombre de notifications non lues' })
-  async getUnreadCount(@Param('userId') userId: string) {
-    return this.notificationService.getUnreadCount(userId);
-  }
+  // @Get('unread/count/:userId')
+  // @ApiOperation({ summary: 'Obtenir le nombre de notifications non lues' })
+  // async getUnreadCount(@Param('userId') userId: string) {
+  //   return this.notificationService.getUnreadCount(userId);
+  // }
 
   // -----------------------
   // Récupérer les notifications d'un utilisateur avec filtres
   // -----------------------
-  @Get(':userId')
-  @ApiOperation({ summary: 'Lister les notifications d’un utilisateur avec pagination et filtres' })
-  async getUserNotifications(
-    @Param('userId') userId: string,
-    @Query() query: GetUserNotificationsDto,
-  ) {
-    return this.notificationService.getUserNotifications(userId, {
-      page: query.page ? +query.page : 1,
-      limit: query.limit ? +query.limit : 20,
-      isRead: query.isRead,
-      priority: query.priority,
-      // category: query.category, // si tu veux l’ajouter plus tard
-    });
-  }
+  // @Get(':userId')
+  // @ApiOperation({ summary: 'Lister les notifications d’un utilisateur avec pagination et filtres' })
+  // async getUserNotifications(
+  //   @Param('userId') userId: string,
+  //   @Query() query: GetUserNotificationsDto,
+  // ) {
+  //   return this.notificationService.getUserNotifications(userId, {
+  //     page: query.page ? +query.page : 1,
+  //     limit: query.limit ? +query.limit : 20,
+  //     isRead: query.isRead,
+  //     priority: query.priority,
+  //     type: query.type, // <-- ajout du filtre type
+  //   });
+  // }
 
-   @Get()
-  @UsePipes(new ValidationPipe({ transform: true }))
-  async findAll(
-    @Query('municipalityId', new ParseIntPipe({ 
-      errorHttpStatusCode: 400,
-      exceptionFactory: () => new BadRequestException('municipalityId must be a valid number')
-    })) municipalityId: number
-  ) {
-    try {
-      const notifications = await this.notificationService.findAllSimple(municipalityId);
-      return {
-        success: true,
-        data: notifications,
-        count: notifications.length,
-        municipalityId
-      };
-    } catch (error) {
-      throw new BadRequestException(`Error fetching notifications: ${error.message}`);
-    }
-  }
+ @Get()
+@ApiOperation({ summary: 'Lister les notifications filtrées par municipalité avec pagination' })
+async findAll(
+  @Query() query: GetMunicipalityNotificationsDto,
+) {
+  const {
+    municipalityId, // 👉 Peut être undefined maintenant
+    userId,
+    type,
+    priority,
+    isRead,
+    page = 1,
+    limit = 20,
+    dateFrom,
+    dateTo,
+  } = query;
 
-    @Get(':id')
+  return this.notificationService.findAllSimple( {
+    municipalityId,
+    userId,
+    type,
+    priority,
+    isRead,
+    page,
+    limit,
+    dateFrom,
+    dateTo
+  });
+}
+
+
+
+  @Get(':id')
   @UsePipes(new ValidationPipe({ transform: true }))
   @ApiOperation({ summary: 'Récupérer une notification spécifique par ID avec vérification de municipalité' })
   @ApiParam({ name: 'id', type: String, description: 'ID de la notification' })
@@ -138,14 +149,14 @@ export class NotificationController {
   @ApiResponse({ status: 404, description: 'Notification non trouvée ou non accessible dans cette municipalité' })
   async findOne(
     @Param('id') id: string,
-    @Query('municipalityId', new ParseIntPipe({ 
+    @Query('municipalityId', new ParseIntPipe({
       errorHttpStatusCode: 400,
       exceptionFactory: () => new BadRequestException('municipalityId must be a valid number')
     })) municipalityId: number
   ) {
     try {
       const notification = await this.notificationService.findOneSimple(id, municipalityId);
-      
+
       if (!notification) {
         throw new NotFoundException(`Notification with ID ${id} not found or not accessible in municipality ${municipalityId}`);
       }

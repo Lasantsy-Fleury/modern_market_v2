@@ -14,11 +14,11 @@ export class Notification {
   type: string;
 
   // Titre court
-  @Column({ length: 100 })
+  @Column({ length: 100, nullable:true })
   title: string;
 
   // Message détaillé
-  @Column({ type: 'text' })
+  @Column({ type: 'text',nullable:true })
   message: string;
 
   // Données contextuelles (JSON)
@@ -37,8 +37,7 @@ export class Notification {
   @Column({ type: 'boolean', default: false })
   isRead: boolean;
 
-  @Column({ type: 'boolean', default: false })
-  isArchived: boolean;
+
 
   // Priorité
   @Column({ 
@@ -54,7 +53,7 @@ export class Notification {
     inApp: boolean;
     email: boolean;
     sms: boolean;
-    push: boolean;
+    
   };
 
 

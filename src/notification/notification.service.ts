@@ -5,6 +5,10 @@ import { Notification } from './entities/notification.entity';
 import { Location } from 'src/location/entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { Local } from 'src/local/entities/local.entity';
+import axios from 'axios';
+import { Brackets } from 'typeorm';
+import { EventsService } from 'src/events/events.service';
+
 @Injectable()
 export class NotificationService {
   constructor(
@@ -19,7 +23,11 @@ export class NotificationService {
 
     @InjectRepository(Local)
     private readonly localRepository: Repository<Local>,
+
+    private readonly eventsService: EventsService,
+
   ) { }
+
 
   async createLocationNotification(
     userId: string,
@@ -110,8 +118,12 @@ export class NotificationService {
       data: locationData,
     });
 
-    return await this.notifRepository.save(notification);
+    const savedNotification = await this.notifRepository.save(notification);
+
+    this.eventsService.sendWebSocketNotification('location_created', savedNotification);
+    return savedNotification;
   }
+
 
 
   async createPaymentNotification(
@@ -177,20 +189,25 @@ export class NotificationService {
 
   async getUnreadCount(userId: string): Promise<number> {
     return this.notifRepository.count({
-      where: { userId, isRead: false, isArchived: false },
+      where: { userId, isRead: false },
     });
   }
 
   async getUserNotifications(
     userId: string,
-    options: { page?: number; limit?: number; isRead?: boolean; priority?: string },
+    options: {
+      page?: number;
+      limit?: number;
+      isRead?: boolean;
+      priority?: string;
+      type?: string; // <-- ajout du filtre type
+    },
   ) {
-    const { page = 1, limit = 20, isRead, priority } = options;
+    const { page = 1, limit = 20, isRead, priority, type } = options;
 
     const query = this.notifRepository
       .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId })
-      .andWhere('notification.isArchived = :archived', { archived: false });
+      .where('notification.userId = :userId', { userId });
 
     if (isRead !== undefined) {
       query.andWhere('notification.isRead = :isRead', { isRead });
@@ -198,6 +215,10 @@ export class NotificationService {
 
     if (priority) {
       query.andWhere('notification.priority = :priority', { priority });
+    }
+
+    if (type) {
+      query.andWhere('notification.type = :type', { type });
     }
 
     query
@@ -219,38 +240,120 @@ export class NotificationService {
     };
   }
 
-  async findAllSimple(municipalityId: number) {
-    return this.notifRepository
+
+  async findAllSimple(
+    
+    options: {
+      municipalityId?: number,
+      page?: number;
+      limit?: number;
+      isRead?: boolean;
+      priority?: string;
+      type?: string;
+      userId?: string;
+      dateFrom?: Date | string;
+      dateTo?: Date | string;
+    }
+  ) {
+    const {municipalityId, page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
+
+    // 👉 SOLUTION 2: Construction pas à pas avec des conditions claires
+    let query = this.notifRepository
       .createQueryBuilder('notification')
-      .where(
-        `EXISTS (
-        SELECT 1 FROM location loc
-        INNER JOIN local l ON l.id_local = loc."localId"
-        INNER JOIN zone z ON z.id_zone = l."zoneId"
-        WHERE (
-          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
-          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
-        )
-        AND z."municipalityId" = :municipalityId
-      )`,
-        { municipalityId }
-      )
-      .orWhere(
-        `EXISTS (
-        SELECT 1 FROM paiement_location pl
-        INNER JOIN location loc ON loc.id_location = pl."locationId"
-        INNER JOIN local l ON l.id_local = loc."localId"
-        INNER JOIN zone z ON z.id_zone = l."zoneId"
-        WHERE (
-          (notification.data->>'id_paiement' IS NOT NULL AND notification.data->>'id_paiement' = pl."paiementId"::text)
-          OR (notification.data->>'id_paiement_location' IS NOT NULL AND notification.data->>'id_paiement_location' = pl.id_paiement_location::text)
-        )
-        AND z."municipalityId" = :municipalityId
-      )`,
-        { municipalityId }
-      )
+      .where('1 = 1'); // Condition toujours vraie pour faciliter l'ajout de conditions
+
+    // 👉 Condition de municipalité (seulement si municipalityId est fourni)
+    if (municipalityId) {
+      query.andWhere(
+        new Brackets((qb) => {
+          qb.where(
+            `EXISTS (
+          SELECT 1 FROM location loc
+          INNER JOIN local l ON l.id_local = loc."localId"
+          INNER JOIN zone z ON z.id_zone = l."zoneId"
+          WHERE (
+            (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+            OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+          )
+          AND z."municipalityId" = :municipalityId
+        )`,
+            { municipalityId }
+          ).orWhere(
+            `EXISTS (
+          SELECT 1 FROM paiement_location pl
+          INNER JOIN location loc ON loc.id_location = pl."locationId"
+          INNER JOIN local l ON l.id_local = loc."localId"
+          INNER JOIN zone z ON z.id_zone = l."zoneId"
+          WHERE (
+            (notification.data->>'id_paiement' IS NOT NULL AND notification.data->>'id_paiement' = pl."paiementId"::text)
+            OR (notification.data->>'id_paiement_location' IS NOT NULL AND notification.data->>'id_paiement_location' = pl.id_paiement_location::text)
+          )
+          AND z."municipalityId" = :municipalityId
+        )`,
+            { municipalityId }
+          );
+        })
+      );
+      console.log("Filtre municipalityId appliqué:", municipalityId);
+    } else {
+      console.log("Aucun filtre municipalityId appliqué - retourne toutes les municipalités");
+    }
+
+    // Maintenant ajouter tous les filtres avec AND
+    if (userId) {
+      query.andWhere('notification.userId = :userId', { userId });
+      console.log("Filtre userId appliqué:", userId);
+    }
+
+    if (isRead !== undefined) {
+      query.andWhere('notification.isRead = :isRead', { isRead });
+      console.log("Filtre isRead appliqué:", isRead);
+    }
+
+    if (priority) {
+      query.andWhere('notification.priority = :priority', { priority });
+      console.log("Filtre priority appliqué:", priority);
+    }
+
+    if (type) {
+      query.andWhere('notification.type = :type', { type });
+      console.log("Filtre type appliqué:", type);
+    }
+
+    if (dateFrom) {
+      query.andWhere('notification.createdAt >= :dateFrom', {
+        dateFrom: typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom
+      });
+      console.log("Filtre dateFrom appliqué:", dateFrom);
+    }
+
+    if (dateTo) {
+      query.andWhere('notification.createdAt <= :dateTo', {
+        dateTo: typeof dateTo === 'string' ? new Date(dateTo) : dateTo
+      });
+      console.log("Filtre dateTo appliqué:", dateTo);
+    }
+
+    // Debug: voir la query générée
+    console.log("Query SQL générée:", query.getSql());
+    console.log("Paramètres:", query.getParameters());
+
+    query
       .orderBy('notification.createdAt', 'DESC')
-      .getMany();
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [result, total] = await query.getManyAndCount();
+
+    return {
+      data: result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOneSimple(id: string, municipalityId: number) {
@@ -308,14 +411,79 @@ export class NotificationService {
 
     console.log('Résultat condition paiement:', !!paiementCondition);
 
-    // Requête finale corrigée
+    // Requête finale CORRIGÉE (sans les commentaires)
     return this.notifRepository
       .createQueryBuilder('notification')
       .where('notification.id_notification = :id', { id })
       .andWhere(
-        `(EXISTS (/* condition location */) OR EXISTS (/* condition paiement */))`,
+        `(EXISTS (
+        SELECT 1 FROM location loc
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )
+      OR EXISTS (
+        SELECT 1 FROM paiement_location pl
+        INNER JOIN location loc ON loc.id_location = pl."locationId"
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_paiement' IS NOT NULL AND notification.data->>'id_paiement' = pl."paiementId"::text)
+          OR (notification.data->>'id_paiement_location' IS NOT NULL AND notification.data->>'id_paiement_location' = pl.id_paiement_location::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      ))`,
         { municipalityId }
       )
       .getOne();
   }
+
+
+  async CreateHistorique(
+    userId: string,
+    data: any,
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  ) {
+    try {
+      // Vérifier que l'utilisateur existe dans le service externe
+      const response = await axios.get(
+        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
+      );
+
+      const userData = response.data;
+
+      if (!userData || !userData.user_id) {
+        throw new NotFoundException(
+          `Utilisateur avec ID ${userId} introuvable`
+        );
+      }
+
+      // Créer l'historique (ici enregistré dans la table notif)
+      const historique = this.notifRepository.create({
+        userId,
+        type: 'HISTORIQUE CONTROLLEUR',
+        data: data,
+        priority,
+      });
+
+      await this.notifRepository.save(historique);
+
+      return {
+        message: 'Historique enregistré avec succès',
+        historique,
+      };
+    } catch (error) {
+      console.error('Erreur CreateHistorique:', error?.message || error);
+
+      throw new BadRequestException(
+        'Impossible de créer l’historique pour cet utilisateur'
+      );
+    }
+  }
+
+
 }

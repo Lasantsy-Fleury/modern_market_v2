@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Res, NotFoundException, BadRequestException, Query, DefaultValuePipe, ParseIntPipe, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Res, NotFoundException, BadRequestException, Query, DefaultValuePipe, ParseIntPipe, Param, ParseUUIDPipe, Delete } from '@nestjs/common';
 import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import * as QRCode from 'qrcode';
@@ -216,6 +216,17 @@ ${formatDate(locationData.date_fin_loc)}
     }
   }
 
+  @Get('in-progress/:id_user/:id_controleur')
+  @ApiOperation({ summary: 'Récupérer les locations en cours pour un contribuable' })
+  @ApiParam({ name: 'id_user', required: true, type: 'string', description: "ID de l'utilisateur" })
+  @ApiParam({ name: 'id_controleur', required: true, type: 'string', description: "ID du contrôleur" })
+  async findInProgress(
+    @Param('id_user', new ParseUUIDPipe()) id_user: string,
+    @Param('id_controleur', new ParseUUIDPipe()) id_controleur: string,
+  ) {
+    return this.locationService.findInProgressByUserByControlleur(id_user, id_controleur);
+  }
+
   @Get('/:id_location/reste-a-payer')
   @ApiOperation({ summary: 'Recuperer le reste a payer d\'une location par son id ' })
   async getRemainingAmount(@Param('id_location') id: string) {
@@ -241,7 +252,7 @@ ${formatDate(locationData.date_fin_loc)}
     return this.locationService.update(municipalityId, id, updateDto);
   }
 
-  
+
   @Delete('location/:id')
   @ApiOperation({ summary: 'Supprimer une location par son ID' })
   @ApiResponse({ status: 204, description: 'La location a été supprimée avec succès.' })
@@ -270,7 +281,7 @@ ${formatDate(locationData.date_fin_loc)}
     return this.locationService.getLocationEndDate(id);
   }
 
-   @Get(':id/qrcode')
+  @Get(':id/qrcode')
   @ApiOperation({ summary: 'Générer un QR code pour un utilisateur' })
   @ApiResponse({ status: 200, description: 'QR Code généré avec succès' })
   async getUserQrCode(@Param('id') id: string) {

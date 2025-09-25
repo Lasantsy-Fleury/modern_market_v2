@@ -169,7 +169,24 @@ export class MarkAsReadDto {
 }
 
 // Filtres (GET notifications)
-export class GetUserNotificationsDto {
+
+
+export class GetMunicipalityNotificationsDto {
+
+  @ApiProperty({
+    description: "municipality Id ",
+    required: false,
+  })
+  @IsOptional()
+  municipalityId?: number;
+
+  @ApiProperty({
+    description: "L' id de l utilisateur concerne par les notifications",
+    required: false,
+  })
+  @IsOptional()
+  userId?: string;
+
   @ApiProperty({
     description: "Page de résultats (pagination)",
     example: 1,
@@ -186,13 +203,13 @@ export class GetUserNotificationsDto {
   @IsOptional()
   limit?: number;
 
-  // @ApiProperty({
-  //   description: "Catégorie de notifications à filtrer",
-  //   example: "PAIEMENT",
-  //   required: false,
-  // })
-  // @IsOptional()
-  // category?: string;
+  @ApiProperty({
+    description: "Filtrer par type",
+    example: "HISTORIQUE CONTROLLEUR",
+    required: false,
+  })
+  @IsOptional()
+  type?: string;
 
   @ApiProperty({
     description: "Filtrer uniquement les notifications lues ou non lues",
@@ -209,59 +226,19 @@ export class GetUserNotificationsDto {
   })
   @IsOptional()
   priority?: string;
+
+  @ApiProperty({
+    description: "Notification created apres cette date",
+    required: false,
+  })
+  @IsOptional()
+  dateFrom?: string;
+
+  @ApiProperty({
+    description: "Notification created avant cette date",
+    required: false,
+  })
+  @IsOptional()
+  dateTo?: string;
 }
 
-export class CreateNotificationDto {
-  @IsUUID()
-  userId: string;
-
-  @IsEnum([
-    'LOCATION CONFIRMEE',
-    'LOCATION ANNULEE',
-    'PAIEMENT REUSSIE',
-    'PAIEMENT NON REUSSIE',
-    'PAIEMENT EN ATTENTE',
-    'RAPPELLE DE PAIEMENT',
-    'RAPPELLE D EVENEMENT',
-    'STATUT MIS A JOUR',
-    'SYSTEM_MAINTENANCE',
-  ])
-  type: string;
-
-  @IsString()
-  @MaxLength(100)
-  title: string;
-
-  @IsString()
-  message: string;
-
-  @IsOptional()
-  @IsObject()
-  data?: Record<string, any>;
-
-  @IsOptional()
-  @IsBoolean()
-  isRead?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  isArchived?: boolean;
-
-  @IsOptional()
-  @IsIn(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
-  priority?: string = 'MEDIUM';
-
-  @IsOptional()
-  @IsObject()
-  channels?: {
-    inApp: boolean;
-    email: boolean;
-    sms: boolean;
-    push: boolean;
-  };
-
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  scheduledAt?: Date;
-}

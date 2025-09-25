@@ -12,7 +12,6 @@ import { PaiementLocationModule } from './paiement_location/paiement_location.mo
 import { NotificationModule } from './notification/notification.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
 import { TypeLocalModule } from './type_local/type_locale.module';
-import { EventsModule } from './events/events.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -38,7 +37,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
-    EventsModule,
+
 
   ],
   controllers: [AppController],
