@@ -103,11 +103,11 @@ export class LocationService {
           await this.localRepository.save(local);
           
           // Émettre un événement pour notifier le changement
-          this.eventsGateway.server.emit('local_status_updated', {
-            localId: local.id_local,
-            newStatus: 'DISPONIBLE',
-            timestamp: new Date()
-          });
+          // this.eventsGateway.server.emit('local_status_updated', {
+          //   localId: local.id_local,
+          //   newStatus: 'DISPONIBLE',
+          //   timestamp: new Date()
+          // });
         }
       }
       // S'il y a une location active, le local doit être LOUÉ
@@ -119,11 +119,11 @@ export class LocationService {
           await this.localRepository.save(local);
           
           // Émettre un événement pour notifier le changement
-          this.eventsGateway.server.emit('local_status_updated', {
-            localId: local.id_local,
-            newStatus: 'LOUE',
-            timestamp: new Date()
-          });
+        //  this.eventsGateway.server.emit('local_status_updated', {
+          //   localId: local.id_local,
+          //   newStatus: 'LOUE',
+          //   timestamp: new Date()
+          // });
         }
       }
     }
@@ -259,7 +259,7 @@ export class LocationService {
     localId: location.localId
   }
 
-  this.eventsGateway.server.emit('create location', location);
+  //this.eventsGateway.server.emit('create location', location);
   this.notificationService.createLocationNotification(location.id_user, "CONFIRMED", notifData);
   
   return await this.locationRepository.save(location);
@@ -285,7 +285,7 @@ export class LocationService {
     const local = location.local;
     local.statut = 'LOUE';
     await this.localRepository.save(local);
-    this.eventsGateway.server.emit('update location', location);
+   // this.eventsGateway.server.emit('update location', location);
   }
 
   async findAllInProgress(municipalityId: number): Promise<Location[]> {
@@ -557,11 +557,11 @@ export class LocationService {
       await this.localRepository.save(local);
       
       // Émettre un événement pour notifier le changement
-      this.eventsGateway.server.emit('local_status_updated', {
-        localId: local.id_local,
-        newStatus: 'DISPONIBLE',
-        timestamp: new Date()
-      });
+      // this.eventsGateway.server.emit('local_status_updated', {
+      //   localId: local.id_local,
+      //   newStatus: 'DISPONIBLE',
+      //   timestamp: new Date()
+      // });
     }
     
     await this.locationRepository.remove(location);

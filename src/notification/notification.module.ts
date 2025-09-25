@@ -7,9 +7,10 @@ import { HttpModule } from '@nestjs/axios';
 import { Location } from 'src/location/entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { Local } from 'src/local/entities/local.entity';
+import { EventsModule } from 'src/events/events.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification,Location,Paiementlocation,Local]),HttpModule],
+  imports: [TypeOrmModule.forFeature([Notification,Location,Paiementlocation,Local]),HttpModule,EventsModule],
   controllers: [NotificationController],
   providers: [NotificationService],
   exports: [NotificationService],

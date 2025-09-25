@@ -7,6 +7,8 @@ import { Paiementlocation } from 'src/paiement_location/entities/paiement_locati
 import { Local } from 'src/local/entities/local.entity';
 import axios from 'axios';
 import { Brackets } from 'typeorm';
+import { EventsService } from 'src/events/events.service';
+
 @Injectable()
 export class NotificationService {
   constructor(
@@ -21,6 +23,9 @@ export class NotificationService {
 
     @InjectRepository(Local)
     private readonly localRepository: Repository<Local>,
+
+    private readonly eventsService: EventsService,
+
   ) { }
 
 
@@ -113,8 +118,12 @@ export class NotificationService {
       data: locationData,
     });
 
-    return await this.notifRepository.save(notification);
+    const savedNotification = await this.notifRepository.save(notification);
+
+    this.eventsService.sendWebSocketNotification('location_created', savedNotification);
+    return savedNotification;
   }
+
 
 
   async createPaymentNotification(
@@ -245,7 +254,7 @@ export class NotificationService {
       dateTo?: Date | string;
     }
   ) {
-    const { page = 1, limit = 20, isRead, priority, type, userId , dateFrom, dateTo} = options;
+    const { page = 1, limit = 20, isRead, priority, type, userId, dateFrom, dateTo } = options;
 
     // 👉 SOLUTION 2: Construction pas à pas avec des conditions claires
     let query = this.notifRepository
