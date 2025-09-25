@@ -57,13 +57,14 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
-  async findOneByidUser(id_user: string, municipalityId: number) {
+  async findAllTrueByidUser(id_user: string, municipalityId: number) {
     const distributionZone = await this.distributionZoneRepository
       .createQueryBuilder('distributionZone')
       .leftJoinAndSelect('distributionZone.zone', 'zone')
       .where('distributionZone.id_user = :id_user', { id_user })
       .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-      .getOne();
+      .andWhere('distributionZone.status = :status', { status: true })
+      .getMany();
 
     if (!distributionZone) {
       throw new NotFoundException(`DistributionZone for user ${id_user} introuvable dans cette municipalité`);

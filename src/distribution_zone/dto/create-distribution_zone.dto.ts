@@ -6,4 +6,7 @@ export class CreateDistributionZoneDto {
 
     @ApiProperty({ description: 'Identifiant unique de la zone' })
     zoneId: string;
+
+    @ApiProperty({ description: 'Statut de la zone de distribution', default: true })
+    status?: boolean; // Optionnel, par défaut true
 }
