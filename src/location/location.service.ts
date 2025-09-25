@@ -635,4 +635,13 @@ export class LocationService {
       throw new NotFoundException(`Impossible de générer le QRCode pour l'utilisateur ${userId}`);
     }
   }
+
+  async findOccupiedPeriods(localId: string): Promise<Location[]> {
+  const occupiedPeriods = await this.locationRepository.find({
+    where: { localId },
+    select: ['date_debut_loc', 'date_fin_loc'],
+    order: { date_debut_loc: 'ASC' },
+  });
+  return occupiedPeriods;
+}
 }

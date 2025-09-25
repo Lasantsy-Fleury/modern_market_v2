@@ -11,8 +11,11 @@ import { NotificationModule } from 'src/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Location,Paiementlocation,Local]),PaiementLocationModule,EventsModule,NotificationModule,
-   ScheduleModule.forRoot(),
+  imports:[TypeOrmModule.forFeature([Location,Paiementlocation,Local]),
+  PaiementLocationModule,
+  EventsModule,
+  NotificationModule,
+  ScheduleModule.forRoot(),
 ],
   controllers: [LocationController],
   providers: [LocationService],
