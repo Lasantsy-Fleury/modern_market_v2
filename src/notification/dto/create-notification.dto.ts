@@ -169,7 +169,32 @@ export class MarkAsReadDto {
 }
 
 // Filtres (GET notifications)
+export class CreateHistoriqueDto {
+  @ApiProperty({
+    description: "ID de l'utilisateur concerné",
+    example: "00b70203-4c6d-4c92-bce0-de7f2df4e0df",
+  })
+  @IsNotEmpty()
+  @IsString()
+  userId: string;
 
+  @ApiProperty({
+    description: "Données liées à l’historique (flexibles, objet JSON)",
+    example: { id_local: "abc123", resultat: "Contrôle effectué" },
+  })
+  @IsNotEmpty()
+  @IsObject()
+  data: any;
+
+  @ApiProperty({
+    description: "Priorité de l’historique",
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+    example: 'HIGH',
+  })
+  @IsNotEmpty()
+  @IsEnum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+}
 
 export class GetMunicipalityNotificationsDto {
 

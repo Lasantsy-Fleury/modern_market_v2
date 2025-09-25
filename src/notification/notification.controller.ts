@@ -18,7 +18,8 @@ import {
   CreatePaymentNotificationDto,
   CreateReminderNotificationDto,
   MarkAsReadDto,
-  GetMunicipalityNotificationsDto
+  GetMunicipalityNotificationsDto,
+  CreateHistoriqueDto
 } from './dto/create-notification.dto';
 import {
   ApiTags, ApiOperation, ApiBody, ApiQuery, ApiResponse, ApiParam
@@ -173,4 +174,5 @@ export class NotificationController {
       throw new BadRequestException(`Error fetching notification: ${error.message}`);
     }
   }
+
 }

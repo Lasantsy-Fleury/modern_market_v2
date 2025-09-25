@@ -12,6 +12,7 @@ import { NotificationService } from 'src/notification/notification.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
 import { EventsService } from 'src/events/events.service';
+import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
 
 @Injectable()
 export class LocationService {
@@ -25,6 +26,9 @@ export class LocationService {
     private readonly paiementLocationService: PaiementLocationService,
     @InjectRepository(Paiementlocation)
     private readonly paiementLocationRepository: Repository<Paiementlocation>,
+
+    @InjectRepository(DistributionZone)
+    private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly notificationService: NotificationService,
     private readonly eventsService: EventsService,
 
@@ -312,39 +316,88 @@ export class LocationService {
     });
   }
 
-  async findInProgressByUserByControlleur(id_user: string, id_controleur: string): Promise<Location[]> {
+  async findInProgressByUserByControlleur(
+    id_user: string,
+    id_controleur: string
+  ): Promise<Location[]> {
     const today = new Date();
 
-    // On récupère toutes les locations en cours pour ce user
+    // Récupérer les locations en cours
     const locations = await this.locationRepository.find({
       where: {
         id_user,
         date_debut_loc: Between(new Date('1900-01-01'), today),
         date_fin_loc: Between(today, new Date('9999-12-31')),
       },
-      relations: ['local', 'paiement_locations'],
+      relations: ['local', 'local.zone'], // 👈 assure-toi que la relation Local → Zone est bien définie
     });
 
-    if (locations.length > 0) {
-      // On peut logguer la première location (ou toutes si tu veux boucler)
+    // Récupérer les distribution zones affectées à ce contrôleur
+    const distributionZones = await this.distributionZoneRepository.find({
+      where: { id_user: id_controleur },
+      relations: ['zone'],
+    });
+
+    if (locations.length === 0) {
+      // 🚨 Aucun location trouvé → priorité URGENT
       const histData = {
-        id_location: locations[0].id_location, // ⚡ première location
-        resultat: 'Location existante',
+        resultat: 'Aucune location trouvée',
         id_contribuable: id_user,
       };
 
-      await this.notificationService.CreateHistorique(id_controleur, histData, 'MEDIUM');
+      // await this.notificationService.CreateHistorique(
+      //   id_controleur,
+      //   histData,
+      //   'URGENT',
+      // );
+      this.eventsService.sendWebSocketNotification('location_inexistante', histData);
+
+      return [];
+    }
+
+    // Vérifier si au moins une location est dans une zone affectée au contrôleur
+    let inDistributionZone = false;
+
+    for (const loc of locations) {
+      const zoneId = loc.local?.zone?.id_zone;
+      if (zoneId && distributionZones.some((dz) => dz.zoneId === zoneId)) {
+        inDistributionZone = true;
+        break;
+      }
+    }
+
+    if (inDistributionZone) {
+      // ✅ Location trouvée dans la distribution zone du contrôleur → priorité MEDIUM
+      const histData = {
+        id_location: locations[0].id_location,
+        resultat: 'Location valide dans la zone',
+        id_contribuable: id_user,
+      };
+
+      await this.notificationService.CreateHistorique(
+        id_controleur,
+        histData,
+        'MEDIUM',
+      );
     } else {
+      // ⚠️ Location trouvée mais pas dans la distribution zone → priorité HIGH
       const histData = {
-        resultat: 'Location inexistante',
+        id_user:id_user,
+        resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
       };
 
-      await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
+      await this.notificationService.CreateHistorique(
+        id_controleur,
+        histData,
+        'HIGH',
+      );
+      this.eventsService.sendWebSocketNotification('Mauvais_controlleur', histData);
     }
 
     return locations;
   }
+
 
 
   //   async controleUser(id_user: string,id_controleur: string): Promise<Location[]> {
@@ -672,11 +725,11 @@ export class LocationService {
   }
 
   async findOccupiedPeriods(localId: string): Promise<Location[]> {
-  const occupiedPeriods = await this.locationRepository.find({
-    where: { localId },
-    select: ['date_debut_loc', 'date_fin_loc'],
-    order: { date_debut_loc: 'ASC' },
-  });
-  return occupiedPeriods;
-}
+    const occupiedPeriods = await this.locationRepository.find({
+      where: { localId },
+      select: ['date_debut_loc', 'date_fin_loc'],
+      order: { date_debut_loc: 'ASC' },
+    });
+    return occupiedPeriods;
+  }
 }
