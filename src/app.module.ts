@@ -13,9 +13,11 @@ import { NotificationModule } from './notification/notification.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
 import { TypeLocalModule } from './type_local/type_locale.module';
 import { EventsModule } from './events/events.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({

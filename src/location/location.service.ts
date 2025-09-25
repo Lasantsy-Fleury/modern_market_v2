@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan } from 'typeorm';
 import { Location } from './entities/location.entity';
@@ -13,6 +13,7 @@ import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class LocationService {
+  private readonly logger = new Logger(LocationService.name);
   constructor(
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
@@ -22,8 +23,34 @@ export class LocationService {
     @InjectRepository(Paiementlocation)
     private readonly paiementLocationRepository: Repository<Paiementlocation>,
     private readonly notificationService: NotificationService,
-    private readonly eventsGateway: EventsGateway
+    private readonly eventsGateway: EventsGateway,
   ) { }
+
+ @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT , {
+  timeZone: 'Europe/Paris',
+})
+async handleExpiredLocations() {
+  console.log('--- JOB CRON EXÉCUTÉ À MINUIT ---');
+  this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const expiredLocations = await this.locationRepository.find({
+    where: { date_fin_loc: LessThanOrEqual(today) },
+    relations: ['local'],
+  });
+
+  for (const location of expiredLocations) {
+    // On met à jour si le statut n'est pas déjà DISPONIBLE
+    if (location.local && location.local.statut !== 'DISPONIBLE') {
+      this.logger.log(`Le local ${location.local.id_local} a expiré. Mise à jour du statut en DISPONIBLE.`);
+      location.local.statut = 'DISPONIBLE';
+      // Utilisez le repository du local pour sauvegarder le local
+      await this.localRepository.save(location.local);
+    }
+  }
+  this.logger.log(`Fin du job CRON. ${expiredLocations.length} locations traitées.`);
+}
 
   async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
     const query = this.locationRepository
@@ -173,7 +200,7 @@ export class LocationService {
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.local', 'local')
       .where('location.date_fin_loc < :now', { now })
-      .andWhere('local.statut = :statut', { statut: 'EN_COURS' })
+      .andWhere('local.statut = :statut', { statut: 'LOUE' })
       .getMany();
 
 
@@ -392,12 +419,19 @@ export class LocationService {
   }
 
   async remove(id: string): Promise<void> {
-    const location = await this.locationRepository.findOne({ where: { id_location: id } });
+    const location = await this.locationRepository.findOne({ where: { id_location: id }, relations: ['local'], });
 
     if (!location) {
       throw new NotFoundException(`Location avec l'ID "${id}" introuvable`);
     }
 
+    const local = location.local;
+
+  if (local) {
+    // Mettre à jour le statut du local en 'DISPONIBLE' avant la suppression de la location
+    local.statut = 'DISPONIBLE';
+    await this.localRepository.save(local);
+  }
     await this.locationRepository.remove(location);
   }
 
@@ -488,7 +522,6 @@ export class LocationService {
     }
   }
 
-
   // 📌 Job CRON qui vérifie tous les jours à 8h
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDailyReminders() {
@@ -498,9 +531,4 @@ export class LocationService {
       await this.checkAndSendReminders(loc);
     }
   }
-
-
-
-
-
 }
