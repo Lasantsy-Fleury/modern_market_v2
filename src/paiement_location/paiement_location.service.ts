@@ -101,8 +101,8 @@ export class PaiementLocationService {
 
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
-    this.eventsService.sendWebSocketNotification('paiement_location_created', savedPaiementLocation);
-
+    this.eventsService.broadcastToAll('paiement_location_created', savedPaiementLocation);
+    this.eventsService.sendToUser(location.id_user, 'votre_paiement_location_reussi', savedPaiementLocation);
 
     return { paiementLocation: savedPaiementLocation, qrCode };
   }

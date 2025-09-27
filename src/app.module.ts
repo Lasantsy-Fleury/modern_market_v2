@@ -13,6 +13,7 @@ import { NotificationModule } from './notification/notification.module';
 import { DistributionZoneModule } from './distribution_zone/distribution_zone.module';
 import { TypeLocalModule } from './type_local/type_locale.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
-
+    EventsModule
 
   ],
   controllers: [AppController],

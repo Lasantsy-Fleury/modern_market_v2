@@ -46,7 +46,8 @@ export class PaiementService {
 
 
       if (savedPaiement) {
-        this.eventsService.sendWebSocketNotification('paiement_created', newPaiement);
+        this.eventsService.broadcastToAll('paiement_created', newPaiement);
+        
         console.log("envoie");
       }
 
@@ -93,6 +94,10 @@ export class PaiementService {
           {
             montant: montant_total_paye,
             reference: savedPaiement.reference,
+            id_paiement: savedPaiement.id_paiement,
+            id_paiement_locations: createdPaiementLocations.map(
+              (pl) => pl.id_paiement_location
+            ),
           }
         );
 

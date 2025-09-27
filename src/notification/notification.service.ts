@@ -122,7 +122,7 @@ export class NotificationService {
 
     const savedNotification = await this.notifRepository.save(notification);
 
-    this.eventsService.sendWebSocketNotification('location_created', savedNotification);
+    this.eventsService.sendToUser(userId, 'votre_location_created', savedNotification);
     return savedNotification;
   }
 
@@ -528,5 +528,69 @@ export class NotificationService {
     return rapport;
   }
 
+  async getHistorique(
+    municipalityId: number,
+    userId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      dateFrom?: Date | string;
+      dateTo?: Date | string;
+    },
+  ) {
+    const { page = 1, limit = 20, dateFrom, dateTo } = options;
+
+    let query = this.notifRepository
+      .createQueryBuilder('notification')
+      .where('notification.userId = :userId', { userId })
+      .andWhere('notification.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
+      .andWhere(
+        `EXISTS (
+        SELECT 1 
+        FROM location loc
+        INNER JOIN local l ON l.id_local = loc."localId"
+        INNER JOIN zone z ON z.id_zone = l."zoneId"
+        WHERE (
+          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+        )
+        AND z."municipalityId" = :municipalityId
+      )`,
+        { municipalityId },
+      );
+
+    if (dateFrom) {
+      query.andWhere('notification.createdAt >= :dateFrom', {
+        dateFrom: typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom,
+      });
+    }
+
+    if (dateTo) {
+      query.andWhere('notification.createdAt <= :dateTo', {
+        dateTo: typeof dateTo === 'string' ? new Date(dateTo) : dateTo,
+      });
+    }
+
+    // Debug: voir la query générée
+    console.log('Query SQL générée:', query.getSql());
+    console.log('Paramètres:', query.getParameters());
+
+    query
+      .orderBy('notification.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [result, total] = await query.getManyAndCount();
+
+    return {
+      data: result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
 }
