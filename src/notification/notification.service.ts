@@ -487,6 +487,47 @@ export class NotificationService {
     }
   }
 
+    async CreateCritiqueHistorique(
+    userId: string,
+    data: any,
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  ) {
+    try {
+      // Vérifier que l'utilisateur existe dans le service externe
+      const response = await axios.get(
+        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
+      );
+
+      const userData = response.data;
+
+      if (!userData || !userData.user_id) {
+        throw new NotFoundException(
+          `Utilisateur avec ID ${userId} introuvable`
+        );
+      }
+
+      // Créer l'historique (ici enregistré dans la table notif)
+      const historique = this.notifRepository.create({
+        userId,
+        type: 'HISTORIQUE CONTROLLEUR',
+        data: data,
+        priority,
+      });
+
+      await this.notifRepository.save(historique);
+      this.eventsService.sendWebSocketNotification('location_critique',historique);
+      return {
+        message: 'Historique enregistré avec succès',
+        historique,
+      };
+    } catch (error) {
+      console.error('Erreur CreateHistorique:', error?.message || error);
+
+      throw new BadRequestException(
+        'Impossible de créer l’historique pour cet utilisateur'
+      );
+    }
+  }
 
   async getRapport(
     userId: string,

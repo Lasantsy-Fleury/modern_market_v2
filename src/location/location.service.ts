@@ -385,7 +385,7 @@ export class LocationService {
         histData,
         'MEDIUM'
       );
-      this.eventsService.broadcastToAll('location_en_regle',histData);
+      this.eventsService.sendToUser(id_controleur,'location_en_regle',histData);
       return locations;
     } else {
       // ⚠️ Location trouvée mais hors distribution zone → priorité HIGH
