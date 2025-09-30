@@ -317,4 +317,10 @@ export class ZoneService {
     const zone = await this.findOne(municipalityId, id_zone);
     return await this.zoneRepository.remove(zone);
   }
+
+  async findAll1(): Promise<Zone[]> {
+    return this.zoneRepository.find({
+      relations: ['locaux', 'distributionZones'], // si tu veux récupérer les relations
+    });
+  }
 }

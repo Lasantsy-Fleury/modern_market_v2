@@ -66,7 +66,11 @@ export class ZoneController {
     });
   }
 
-
+  @Get()
+  @ApiOperation({ summary: 'Récupérer toutes les zones' })
+  getAllZones(){
+    return this.zoneService.findAll1();
+  }
 
   @Get(':municipalityId/:id_zone')
   @ApiOperation({ summary: 'Récupérer une zone par son id' })
