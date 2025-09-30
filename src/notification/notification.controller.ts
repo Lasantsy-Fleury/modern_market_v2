@@ -20,7 +20,7 @@ import {
   MarkAsReadDto,
   GetMunicipalityNotificationsDto,
   CreateHistoriqueDto,
-  
+
 } from './dto/create-notification.dto';
 import {
   ApiTags, ApiOperation, ApiBody, ApiQuery, ApiResponse, ApiParam
@@ -74,6 +74,54 @@ export class NotificationController {
   ) {
     const { userId, data, dateNormalPaie } = dto;
     return this.notificationService.scheduleReminderNotification(userId, data, dateNormalPaie);
+  }
+
+  @Post('critique-historique/:userId')
+  @ApiParam({
+    name: 'userId',
+    required: true,
+    description: "Identifiant de l'utilisateur contrôleur",
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          description: 'Données supplémentaires de l’historique',
+          example: {
+            resultat: 'Aucune location trouvée',
+            id_contribuable: '123456',
+            zoneName: null,
+            local_id: 'loc-789',
+          },
+        }
+      },
+      required: ['data', 'priority'],
+    },
+  })
+  async createCritiqueHistorique(
+    @Param('userId') userId: string,
+    @Body()
+    body: {
+      data: any;
+
+    },
+  ) {
+    if (!userId || userId.trim() === '') {
+      throw new BadRequestException('Le paramètre userId est obligatoire');
+    }
+
+    const { data } = body;
+    if (!data) {
+      throw new BadRequestException('Le champ data est obligatoire');
+    }
+
+    return this.notificationService.CreateCritiqueHistorique(
+      userId,
+      data,
+
+    );
   }
 
   // -----------------------
@@ -253,7 +301,7 @@ export class NotificationController {
     );
   }
 
-   @Get('stats')
+  @Get('stats')
   @ApiOperation({ summary: 'Obtenir le nombre de locaux par zone avec option de dates' })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })

@@ -490,7 +490,7 @@ export class NotificationService {
     async CreateCritiqueHistorique(
     userId: string,
     data: any,
-    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+   
   ) {
     try {
       // Vérifier que l'utilisateur existe dans le service externe
@@ -511,7 +511,7 @@ export class NotificationService {
         userId,
         type: 'HISTORIQUE CONTROLLEUR',
         data: data,
-        priority,
+        priority: 'URGENT'
       });
 
       await this.notifRepository.save(historique);
@@ -596,6 +596,8 @@ export class NotificationService {
 
     return Object.values(result);
   }
+
+  
   async getRapport(
     userId: string,
     filters?: { from?: Date; to?: Date }

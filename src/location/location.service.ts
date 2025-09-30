@@ -346,7 +346,7 @@ export class LocationService {
       // );
 
       // 🔥 CORRECTION : Appel correct du WebSocket
-      this.eventsService.sendWebSocketNotification('location_inexistante', histData);
+      this.eventsService.sendToUser(id_controleur,'aucune_location,entrer_id_local', histData);
 
       return []; // 🔥 Retourner un tableau vide
     }
@@ -428,7 +428,7 @@ export class LocationService {
     return location;
   }
 
-  async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
+  async findLocationWithPaymentDates(municipalityId: string, id_location: string): Promise<any> {
     try {
       console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
 
