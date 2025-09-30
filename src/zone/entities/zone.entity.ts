@@ -18,7 +18,7 @@ export class Zone {
     fokotany_id: number;
 
     @Column()
-    municipalityId: number;
+    municipalityId: string;
 
     @Column({
         type: 'geometry',

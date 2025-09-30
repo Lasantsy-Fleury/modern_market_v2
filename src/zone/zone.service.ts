@@ -129,7 +129,7 @@ export class ZoneService {
 
   // Retourner toutes les zones d’une municipalité
   async findAll(
-    municipalityId: number,
+    municipalityId: string,
     limit: number,
     page: number,
     filters: {
@@ -213,7 +213,7 @@ export class ZoneService {
     }
   }
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
-  async findOne(municipalityId: number, id_zone: string) {
+  async findOne(municipalityId: string, id_zone: string) {
     try {
       const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
       const response = await firstValueFrom(
@@ -244,7 +244,7 @@ export class ZoneService {
     }
   }
 
-  async searchByName(municipalityId: number, keyword: string): Promise<Zone[]> {
+  async searchByName(municipalityId: string, keyword: string): Promise<Zone[]> {
     if (!keyword) {
       throw new BadRequestException('Le mot-clé de recherche est requis');
     }
@@ -280,7 +280,7 @@ export class ZoneService {
 
   // Mettre à jour une zone via son nom et la municipalité
   async update(
-    municipalityId: number,
+    municipalityId: string,
     id_zone: string,
     updateZoneDto: UpdateZoneDto,
   ) {
@@ -312,7 +312,7 @@ export class ZoneService {
     }
   }
   // Supprimer une zone via son nom et la municipalité
-  async remove(municipalityId: number, id_zone: string) {
+  async remove(municipalityId: string, id_zone: string) {
     const zone = await this.findOne(municipalityId, id_zone);
     return await this.zoneRepository.remove(zone);
   }

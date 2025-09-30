@@ -145,7 +145,7 @@ export class LocationService {
     }
   }
 
-  async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
+  async findAll(municipalityId: string, page: number = 1, limit: number = 10): Promise<{ data: Location[], total: number }> {
     const query = this.locationRepository
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.local', 'local')
@@ -283,7 +283,7 @@ export class LocationService {
     this.eventsService.broadcastToAll('local_updated', local);
   }
 
-  async findAllInProgress(municipalityId: number): Promise<Location[]> {
+  async findAllInProgress(municipalityId: string): Promise<Location[]> {
     const today = new Date();
 
     return await this.locationRepository
@@ -431,7 +431,7 @@ export class LocationService {
   //     relations: ['local', 'paiement_locations'],
   //   });
   // }
-  async findOne(id: string, municipalityId?: number | null | undefined): Promise<Location> {
+  async findOne(id: string, municipalityId?: string | null | undefined): Promise<Location> {
     const query = this.locationRepository
       .createQueryBuilder('location')
       .leftJoinAndSelect('location.local', 'local')
@@ -454,7 +454,7 @@ export class LocationService {
   }
 
   // Version sécurisée sans propriétés potentiellement inexistantes
-  async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
+  async findLocationWithPaymentDates(municipalityId: string, id_location: string): Promise<any> {
     try {
       console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
 
@@ -594,7 +594,7 @@ export class LocationService {
     return schedule;
   }
 
-  async update(municipalityId: number, id: string, updateDto: Partial<CreateLocationDto>): Promise<Location> {
+  async update(municipalityId: string, id: string, updateDto: Partial<CreateLocationDto>): Promise<Location> {
     const location = await this.findOne(id, municipalityId);
     Object.assign(location, updateDto);
     return await this.locationRepository.save(location);
@@ -741,7 +741,7 @@ export class LocationService {
     }
   }
 
-  async findOccupiedPeriods(municipalityId: number, localId: string): Promise<Location[]> {
+  async findOccupiedPeriods(municipalityId: string, localId: string): Promise<Location[]> {
     const occupiedPeriods = await this.locationRepository.find({
       where: {
         local: {

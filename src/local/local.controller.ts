@@ -33,7 +33,7 @@ export class LocalController {
   // @ApiQuery({ name: 'latitude', required: true, type: Number, description: 'Latitude du local' })
   // @ApiQuery({ name: 'longitude', required: true, type: Number, description: 'Longitude du local'})
   async getAll(
-    @Param('municipalityId', ParseIntPipe) municipalityId: number,
+    @Param('municipalityId', ParseIntPipe) municipalityId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('zoneId') zoneId?: string, // ✅ Pas de ParseIntPipe pour les UUID
@@ -58,7 +58,7 @@ export class LocalController {
   @Get('municipality/:municipalityId/:id_local/occupied-dates')
   @ApiOperation({ summary: 'Récupérer les dates occupées d’un local d’une municipalité' })
   async getOccupiedDates(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_local', ParseUUIDPipe) id_local: string,
   ) {
     return this.locationService.findOccupiedPeriods(municipalityId, id_local);
@@ -67,7 +67,7 @@ export class LocalController {
   @Get('municipality/:municipalityId/:id_local')
   @ApiOperation({ summary: 'Récupérer un local d’une municipalité ' })
   async findOne(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_local', ParseUUIDPipe) id_local: string,
   ) {
     return this.localService.findOne(municipalityId, id_local);
@@ -77,7 +77,7 @@ export class LocalController {
   @Patch('municipality/:municipalityId/:id_local')
   @ApiOperation({ summary: 'Modifier un local d’une municipalité ' })
   async update(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_local', ParseUUIDPipe) id_local: string,
     @Body() updateLocalDto: UpdateLocalDto,
   ) {
@@ -90,7 +90,7 @@ export class LocalController {
   @ApiResponse({ status: 200, description: 'Dernière location trouvée.' })
   @ApiResponse({ status: 404, description: 'Aucune location trouvée pour ce local dans cette municipalité.' })
   async findLastLocationByLocal(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_local') id_local: string,
   ) {
     return this.localService.findLastLocationByLocal(municipalityId, id_local);
@@ -100,7 +100,7 @@ export class LocalController {
   @Delete('municipality/:municipalityId/:id_local')
   @ApiOperation({ summary: 'Supprimer un local d’une municipalité ' })
   async remove(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_local', ParseUUIDPipe) id_local: string,
   ) {
     return this.localService.remove(municipalityId, id_local);

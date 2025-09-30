@@ -358,7 +358,7 @@ export class NotificationService {
     };
   }
 
-  async findOneSimple(id: string, municipalityId: number) {
+  async findOneSimple(id: string, municipalityId: string) {
     console.log('Recherche notification:', { id, municipalityId });
 
     // D'abord, vérifions si la notification existe
@@ -529,6 +529,73 @@ export class NotificationService {
     }
   }
 
+  async getStatsByZone(
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<
+    {
+      zoneName: string;
+      totalLocaux: number;
+      totalLoues: number;
+      totalScannes: number;
+      totalNonScannes: number;
+    }[]
+  > {
+    // Récupérer tous les locaux avec leur zone
+    const locaux = await this.localRepository.find({ relations: ['zone'] });
+
+    // Récupérer les notifications groupées par zone
+    const notifQuery = this.notifRepository
+      .createQueryBuilder('n')
+      .select('n.data ->> \'zoneName\'', 'zoneName')
+      .addSelect('COUNT(DISTINCT n.data ->> \'localId\')', 'totalScannes')
+      .groupBy('n.data ->> \'zoneName\'');
+
+    if (startDate && endDate) {
+      notifQuery.where('n.createdAt BETWEEN :start AND :end', {
+        start: startDate,
+        end: endDate,
+      });
+    } else if (startDate) {
+      notifQuery.where('n.createdAt >= :start', { start: startDate });
+    } else if (endDate) {
+      notifQuery.where('n.createdAt <= :end', { end: endDate });
+    }
+
+    const notifStats = await notifQuery.getRawMany();
+
+    // Mapper les résultats
+    const statsMap = new Map<string, number>();
+    notifStats.forEach((n) => {
+      statsMap.set(n.zoneName, Number(n.totalScannes));
+    });
+
+    // Construire résultat final
+    const result = locaux.reduce((acc, local) => {
+      const zoneName = local.zone?.nom || 'Inconnue';
+      if (!acc[zoneName]) {
+        acc[zoneName] = {
+          zoneName,
+          totalLocaux: 0,
+          totalLoues: 0,
+          totalScannes: statsMap.get(zoneName) || 0,
+          totalNonScannes: 0,
+        };
+      }
+
+      acc[zoneName].totalLocaux += 1;
+      if (local.statut === 'LOUE') acc[zoneName].totalLoues += 1;
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Calcul des non scannés
+    Object.values(result).forEach((r: any) => {
+      r.totalNonScannes = r.totalLocaux - r.totalScannes;
+    });
+
+    return Object.values(result);
+  }
   async getRapport(
     userId: string,
     filters?: { from?: Date; to?: Date }
@@ -570,7 +637,7 @@ export class NotificationService {
   }
 
   async getHistorique(
-    municipalityId: number,
+    municipalityId: string,
     userId: string,
     options: {
       page?: number;

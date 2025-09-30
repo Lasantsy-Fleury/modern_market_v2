@@ -19,7 +19,7 @@ export class PaiementLocationController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Date de début au format YYYY-MM-DD' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Date de fin au format YYYY-MM-DD' })
   async findAll(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Query('locationId') locationId?: string,
     @Query('paiementId') paiementId?: string,
     @Query('startDate') startDate?: string,
@@ -43,7 +43,7 @@ export class PaiementLocationController {
   @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
   async findOne(
     @Param('id') id: string,
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
   ): Promise<Paiementlocation> {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
@@ -56,7 +56,7 @@ export class PaiementLocationController {
   @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
   async findOneWithQr(
     @Param('id') id: string,
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
   ): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');

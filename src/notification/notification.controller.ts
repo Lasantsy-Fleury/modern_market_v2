@@ -19,7 +19,8 @@ import {
   CreateReminderNotificationDto,
   MarkAsReadDto,
   GetMunicipalityNotificationsDto,
-  CreateHistoriqueDto
+  CreateHistoriqueDto,
+  
 } from './dto/create-notification.dto';
 import {
   ApiTags, ApiOperation, ApiBody, ApiQuery, ApiResponse, ApiParam
@@ -159,7 +160,7 @@ export class NotificationController {
     @Query('municipalityId', new ParseIntPipe({
       errorHttpStatusCode: 400,
       exceptionFactory: () => new BadRequestException('municipalityId must be a valid number')
-    })) municipalityId: number
+    })) municipalityId: string
   ) {
     try {
       const notification = await this.notificationService.findOneSimple(id, municipalityId);
@@ -249,9 +250,23 @@ export class NotificationController {
     };
 
     return this.notificationService.getHistorique(
-      Number(municipalityId),
+      municipalityId,
       userId,
       options,
+    );
+  }
+
+   @Get('stats')
+  @ApiOperation({ summary: 'Obtenir le nombre de locaux par zone avec option de dates' })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  async getStats(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.notificationService.getStatsByZone(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
     );
   }
 }

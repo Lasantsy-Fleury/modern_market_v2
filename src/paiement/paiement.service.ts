@@ -134,7 +134,7 @@ export class PaiementService {
   }
 
   async findAll(
-    municipalityId: number,
+    municipalityId: string,
     filters: {
       reference?: string;
       status?: 'success' | 'failed';
@@ -200,7 +200,7 @@ export class PaiementService {
     };
   }
 
-  async findOne(id_paiement: string, municipalityId: number) {
+  async findOne(id_paiement: string, municipalityId: string) {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
     }
@@ -222,46 +222,56 @@ export class PaiementService {
     return paiement;
   }
 
-  async findHistoryByUser(id_user: string, municipalityId?: number, page: number = 1, limit: number = 10) {
-    if (!id_user) {
-      throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
-    }
-
-    const query = this.paieRepository
-      .createQueryBuilder('paiement')
-      .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
-      .leftJoinAndSelect('paiement_location.location', 'location')
-      .leftJoinAndSelect('location.local', 'local')
-      .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_user = :id_user', { id_user });
-
-    if (municipalityId !== undefined) {
-      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
-    }
-
-    query
-      .orderBy('paiement.date_creation', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [data, total] = await query.getManyAndCount();
-
-    const message = municipalityId
-      ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
-      : `Historique des paiements pour l'utilisateur ${id_user}`;
-
-    return {
-      message,
-      data,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-      status: 200,
-    };
+async findHistoryByUser(
+  id_user: string,
+  municipalityId?: string,   // <-- UUID string
+  page: number = 1,
+  limit: number = 10,
+) {
+  if (!id_user) {
+    throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
   }
+
+  if (municipalityId && !/^[0-9a-fA-F-]{36}$/.test(municipalityId)) {
+    throw new BadRequestException('municipalityId doit être un UUID valide.');
+  }
+
+  const query = this.paieRepository
+    .createQueryBuilder('paiement')
+    .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
+    .leftJoinAndSelect('paiement_location.location', 'location')
+    .leftJoinAndSelect('location.local', 'local')
+    .leftJoinAndSelect('local.zone', 'zone')
+    .where('location.id_user = :id_user', { id_user });
+
+  if (municipalityId) {
+    query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+  }
+
+  query
+    .orderBy('paiement.date_creation', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [data, total] = await query.getManyAndCount();
+
+  const message = municipalityId
+    ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
+    : `Historique des paiements pour l'utilisateur ${id_user}`;
+
+  return {
+    message,
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    status: 200,
+  };
+}
+
 
   async remove(id: string): Promise<{ message: string }> {
     const paiement = await this.paieRepository.findOne({

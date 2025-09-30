@@ -24,7 +24,7 @@ export class LocationController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
   async findAll(
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
     @Query('page') page: number,
     @Query('limit') limit: number,
   ) {
@@ -37,7 +37,7 @@ export class LocationController {
 
   @Get('municipality/:municipalityId/en_cours')
   @ApiOperation({ summary: 'Récupérer tous les locations en cours' })
-  findAllInProgress(@Param('municipalityId') municipalityId: number) {
+  findAllInProgress(@Param('municipalityId') municipalityId: string) {
     return this.locationService.findAllInProgress(municipalityId);
   }
 
@@ -60,7 +60,7 @@ export class LocationController {
   @ApiParam({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité' })
   async findOne(
     @Param('id_location') id: string,
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
   ) {
     if (!municipalityId) {
       throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
@@ -70,65 +70,64 @@ export class LocationController {
 
   @Get('locationQrCode/:id/municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer le QR Code contenant les infos d\'une location par son id-location' })
-  async findOneWithQrcode(
-    @Param('id') id: string,
-    @Param('municipalityId') municipalityId: string,
-    @Res() res: Response
-  ) {
-    try {
-      // Validation des paramètres
-      if (!id || !id.trim()) {
-        throw new BadRequestException('Le paramètre "id" est requis.');
+async findOneWithQrcode(
+  @Param('id') id: string,
+  @Param('municipalityId') municipalityId: string,
+  @Res() res: Response
+) {
+  try {
+    // Validation des paramètres
+    if (!id || !id.trim()) {
+      throw new BadRequestException('Le paramètre "id" est requis.');
+    }
+
+    if (!municipalityId || !municipalityId.trim()) {
+      throw new BadRequestException('Le paramètre "municipalityId" est requis.');
+    }
+
+    // Récupérer les données de location
+    const locationData = await this.locationService.findLocationWithPaymentDates(
+      municipalityId,
+      id
+    );
+
+    if (!locationData) {
+      throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
+    }
+
+    // Fonction pour formater les dates
+    const formatDate = (date: string | Date) => {
+      if (!date) return 'Non définie';
+      const d = new Date(date);
+      return d.toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    };
+
+    // Fonction pour formater la périodicité
+    const formatPeriodicite = (periodicite: string) => {
+      switch (periodicite) {
+        case 'MENSUEL': return 'Mensuelle';
+        case 'JOURNALIER': return 'Journalière';
+        case 'HEBDOMADAIRE': return 'Hebdomadaire';
+        default: return periodicite;
       }
+    };
 
-      const municipalityIdNumber = parseInt(municipalityId, 10);
-      if (isNaN(municipalityIdNumber)) {
-        throw new BadRequestException('Le paramètre "municipalityId" doit être un nombre valide.');
-      }
+    // Fonction pour formater le montant
+    const formatAmount = (amount: number) => {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'MGA',
+        minimumFractionDigits: 0
+      }).format(amount);
+    };
 
-      // Récupérer les données de location
-      const locationData = await this.locationService.findLocationWithPaymentDates(
-        municipalityIdNumber,
-        id
-      );
-
-      if (!locationData) {
-        throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
-      }
-
-      // Fonction pour formater les dates
-      const formatDate = (date: string | Date) => {
-        if (!date) return 'Non définie';
-        const d = new Date(date);
-        return d.toLocaleDateString('fr-FR', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      };
-
-      // Fonction pour formater la périodicité
-      const formatPeriodicite = (periodicite: string) => {
-        switch (periodicite) {
-          case 'MENSUEL': return 'Mensuelle';
-          case 'JOURNALIER': return 'Journalière';
-          case 'HEBDOMADAIRE': return 'Hebdomadaire';
-          default: return periodicite;
-        }
-      };
-
-      // Fonction pour formater le montant
-      const formatAmount = (amount: number) => {
-        return new Intl.NumberFormat('fr-FR', {
-          style: 'currency',
-          currency: 'MGA', // ou 'EUR' selon votre devise
-          minimumFractionDigits: 0
-        }).format(amount);
-      };
-
-      // === OPTION 1: Format texte structuré et lisible ===
-      const readableText = `
-        CONTRAT DE LOCATION
+    // Texte lisible
+    const readableText = `
+      CONTRAT DE LOCATION
 
 NIF :
 ${locationData.nif}
@@ -153,68 +152,53 @@ ${locationData.local_id || 'Non spécifié'}
 Contrat valide jusqu'au
 ${formatDate(locationData.date_fin_loc)}
 `.trim();
-      const structuredData = {
-        "CONTRAT_DE_LOCATION": {
-          "NIF": locationData.nif,
-          "ID_Location": locationData.id_location,
-          "Periode": {
-            "Debut": formatDate(locationData.date_debut_loc),
-            "Fin": formatDate(locationData.date_fin_loc),
-            "Type": formatPeriodicite(locationData.periodicite)
-          },
-          "Finances": {
-            "Tarif": formatAmount(locationData.tarif),
-            "Dernier_Paiement": locationData.derniere_date_payer ? formatDate(locationData.derniere_date_payer) : 'Aucun'
-          },
-          "Reference_Locale": locationData.local_id || 'Non spécifié',
-          "Statut": "Actif"
-        }
-      };
-      const qrContent = readableText;
 
-      // Générer le QR code
-      const qrCodeBuffer = await QRCode.toBuffer(qrContent, {
-        type: 'png',
-        width: 400, // Taille plus grande pour la lisibilité
-        margin: 4,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'H' // Haute correction d'erreur
-      });
+    const qrContent = readableText;
 
-      // Envoyer la réponse
-      res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
-      res.send(qrCodeBuffer);
+    // Générer le QR code
+    const qrCodeBuffer = await QRCode.toBuffer(qrContent, {
+      type: 'png',
+      width: 400,
+      margin: 4,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      },
+      errorCorrectionLevel: 'H'
+    });
 
-    } catch (error) {
-      console.error('Erreur lors de la génération du QR code:', error);
+    // Envoyer la réponse
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
+    res.send(qrCodeBuffer);
 
-      if (error instanceof NotFoundException) {
-        return res.status(404).json({
-          message: error.message,
-          error: 'Not Found',
-          statusCode: 404
-        });
-      }
+  } catch (error) {
+    console.error('Erreur lors de la génération du QR code:', error);
 
-      if (error instanceof BadRequestException) {
-        return res.status(400).json({
-          message: error.message,
-          error: 'Bad Request',
-          statusCode: 400
-        });
-      }
-
-      return res.status(500).json({
-        message: 'Erreur lors de la génération du QR code',
-        error: 'Internal Server Error',
-        statusCode: 500
+    if (error instanceof NotFoundException) {
+      return res.status(404).json({
+        message: error.message,
+        error: 'Not Found',
+        statusCode: 404
       });
     }
+
+    if (error instanceof BadRequestException) {
+      return res.status(400).json({
+        message: error.message,
+        error: 'Bad Request',
+        statusCode: 400
+      });
+    }
+
+    return res.status(500).json({
+      message: 'Erreur lors de la génération du QR code',
+      error: 'Internal Server Error',
+      statusCode: 500
+    });
   }
+}
+
 
   @Get('in-progress/:id_user/:id_controleur')
   @ApiOperation({ summary: 'Récupérer les locations en cours pour un contribuable' })
@@ -243,7 +227,7 @@ ${formatDate(locationData.date_fin_loc)}
   @ApiResponse({ status: 200, description: 'La location a été mise à jour avec succès.' })
   update(
     @Param('id_location') id: string,
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Body() updateDto: CreateLocationDto
   ) {
     if (!municipalityId) {

@@ -25,7 +25,7 @@ export class DistributionZoneController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
   async findAll(
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
@@ -37,31 +37,31 @@ export class DistributionZoneController {
 
   @Get('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Récupérer une zone de distribution par son id'})
-  findOne(@Param('id') id: string, @Param('municipalityId') municipalityId: number) {
+  findOne(@Param('id') id: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findOne(id, municipalityId);
   }
 
   @Get('municipalityId/:municipalityId/id_user/:id_user')
   @ApiOperation({summary:'Récupérer une zone qui est affectée par l\'id utilisateur et qui a le status true'})
-  findOneByidUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: number) {
+  findOneByidUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findAllTrueByidUser(id_user, municipalityId);
   }
 
   @Get('history/municipalityId/:municipalityId/id_user/:id_user')
   @ApiOperation({summary:'Récupérer tous les zones historiques qui sont affectées par l\'id utilisateur'})
-  findAllByIdUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: number) {
+  findAllByIdUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findAllByIdUser(id_user, municipalityId);
   }
 
   @Patch('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Modifier une zone de distribution'})
-  update(@Param('id') id: string, @Param('municipalityId') municipalityId: number, @Body() updateDistributionZoneDto: UpdateDistributionZoneDto) {
+  update(@Param('id') id: string, @Param('municipalityId') municipalityId: string, @Body() updateDistributionZoneDto: UpdateDistributionZoneDto) {
     return this.distributionZoneService.update(id, municipalityId, updateDistributionZoneDto);
   }
 
   @Delete('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Supprimer une zone de distribution'})
-  remove(@Param('id') id: string, @Param('municipalityId') municipalityId: number) {
+  remove(@Param('id') id: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.remove(id, municipalityId);
   }
 }

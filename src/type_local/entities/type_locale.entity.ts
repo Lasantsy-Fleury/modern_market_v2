@@ -6,8 +6,8 @@ export class Typelocal {
     @PrimaryGeneratedColumn('uuid')
     id_type_local: string;
 
-    @Column()
-    municipalityId : number;
+   @Column({ type: 'uuid' })
+municipalityId: string;
 
     @Column({ type: 'jsonb', nullable: false })
     typeLoc: { mg: string; fr: string };

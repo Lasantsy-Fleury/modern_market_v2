@@ -35,23 +35,23 @@ export class TypeLocalController {
     return this.typeLocalService.create(createTypeLocalDto);
   }
 
-  @Get('municipalityId/:municipalityId')
-  @ApiOperation({summary:'Récupérer tous les type local existant'})
-  @ApiQuery({ name: 'lang', required: false, type: String, description: 'Langue de la réponse (par défaut mg)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
-  async findAll(
-    @Param('municipalityId') municipalityId : number,
-    @Query('lang') lang: 'mg' | 'fr' = 'mg',
-    @Param('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Param('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
-    return this.typeLocalService.findAll(municipalityId, lang, Number(page), Number(limit));
-  }
+@Get('municipalityId/:municipalityId')
+@ApiOperation({ summary: 'Récupérer tous les type local existant' })
+@ApiQuery({ name: 'lang', required: false, type: String, description: 'Langue de la réponse (par défaut mg)' })
+@ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+@ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+async findAll(
+  @Param('municipalityId') municipalityId: string, // UUID string
+  @Query('lang') lang: 'mg' | 'fr' = 'mg',
+  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+) {
+  return this.typeLocalService.findAll(municipalityId, lang, page, limit);
+}
 
   @Get('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Récupérer un type local par son id'})
-  findOne(@Param('municipalityId') municipalityId: number, @Param('id') id: string) {
+  findOne(@Param('municipalityId') municipalityId: string, @Param('id') id: string) {
     return this.typeLocalService.findOne(municipalityId, id);
   }
 
@@ -87,7 +87,7 @@ export class TypeLocalController {
   @ApiResponse({ status: 201, description: 'Type local update successfully', type: Typelocal })
   @ApiResponse({ status: 404, description: 'Données non touver' })
   async update(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id') id: string,
     @Body() updateDto: Partial<CreateTypeLocalDto>,
   ) {
@@ -96,7 +96,7 @@ export class TypeLocalController {
 
   @Delete(':id')
   @ApiOperation({summary:'Supprimer un type local'})
-  async remove(@Param('municipalityId') municipalityId: number, @Param('id') id: string) : Promise< { message : string , status : number , data : any }> {
+  async remove(@Param('municipalityId') municipalityId: string, @Param('id') id: string) : Promise< { message : string , status : number , data : any }> {
     const type = await this.typeLocalService.remove(municipalityId, id);
     if ( type.status === 404 ) {
       throw new NotFoundException(type.message);
