@@ -12,22 +12,7 @@ export class TypeLocalController {
 
   @Post()
   @ApiOperation({summary:'Créer un type de local'})
-  // @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-
-  //       municipalityId: { type: "number" },
-  //       typeLoc: { type: "string" },
-  //       tarif: { type: "number" },
-  //       description: { type: "string" },
-  //       type_contrat: { type: "string" }
-  //     },
-  //     required: ['typeLoc', 'tarif'] 
-  //   }
-  // })
   @ApiResponse({ status: 201, description: 'Type local created successfully', type: Typelocal })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   async create(
@@ -35,19 +20,19 @@ export class TypeLocalController {
     return this.typeLocalService.create(createTypeLocalDto);
   }
 
-@Get('municipalityId/:municipalityId')
-@ApiOperation({ summary: 'Récupérer tous les type local existant' })
-@ApiQuery({ name: 'lang', required: false, type: String, description: 'Langue de la réponse (par défaut mg)' })
-@ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
-@ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
-async findAll(
-  @Param('municipalityId') municipalityId: string, // UUID string
-  @Query('lang') lang: 'mg' | 'fr' = 'mg',
-  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-  @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-) {
-  return this.typeLocalService.findAll(municipalityId, lang, page, limit);
-}
+  @Get('municipalityId/:municipalityId')
+  @ApiOperation({summary:'Récupérer tous les type local existant'})
+  @ApiQuery({ name: 'lang', required: false, type: String, description: 'Langue de la réponse (par défaut mg)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  async findAll(
+    @Param('municipalityId') municipalityId : string,
+    @Query('lang') lang: 'mg' | 'fr' = 'mg',
+    @Param('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Param('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.typeLocalService.findAll(municipalityId, lang, Number(page), Number(limit));
+  }
 
   @Get('municipalityId/:municipalityId/id/:id')
   @ApiOperation({summary:'Récupérer un type local par son id'})

@@ -34,10 +34,6 @@ export class LocationService {
 
   ) { }
 
-  /**
-   * Job CRON qui s'exécute tous les jours à minuit pour gérer les locations expirées
-   * et mettre à jour le statut des locaux
-   */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
     timeZone: 'Europe/Paris',
   })
@@ -46,13 +42,12 @@ export class LocationService {
     this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
 
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // Fin de journée pour inclure toute la journée
+    today.setHours(23, 59, 59, 999); 
 
     try {
-      // 1. Récupérer toutes les locations expirées avec leurs locaux
       const expiredLocations = await this.locationRepository.find({
         where: {
-          date_fin_loc: LessThan(today) // Strictement avant aujourd'hui
+          date_fin_loc: LessThan(today)
         },
         relations: ['local'],
       });
@@ -65,7 +60,6 @@ export class LocationService {
         }
       }
 
-      // 2. Vérifier tous les locaux LOUÉS pour s'assurer qu'ils ont bien une location active
       const rentedLocals = await this.localRepository.find({
         where: { statut: 'LOUE' }
       });
@@ -99,7 +93,6 @@ export class LocationService {
       });
 
       if (local) {
-        // S'il n'y a pas de location active, le local doit être DISPONIBLE
         if (!activeLocation) {
           if (local.statut !== 'DISPONIBLE') {
             this.logger.log(`Aucune location active trouvée pour le local ${localId}. Mise à jour du statut en DISPONIBLE.`);
@@ -129,8 +122,6 @@ export class LocationService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateExpiredLocations() {
-    // Cette méthode peut être supprimée car la logique est maintenant dans handleExpiredLocations
-    // Ou vous pouvez la garder pour une vérification plus fréquente
     const now = new Date();
 
     const expiredLocations = await this.locationRepository
@@ -348,13 +339,18 @@ export class LocationService {
         zoneName: null, // pas de zone
       };
 
-      this.eventsService.sendToUser(id_controleur,'aucune_location,entrer_id_local', histData);
-      throw new NotFoundException(
-        `Aucune location en cours trouvée pour l'utilisateur ${id_user} entrer l id local`,
-      );
+      // await this.notificationService.CreateHistorique(
+      //   id_controleur,
+      //   histData,
+      //   'URGENT'
+      // );
+
+      // 🔥 CORRECTION : Appel correct du WebSocket
+      this.eventsService.sendWebSocketNotification('location_inexistante', histData);
+
+      return []; // 🔥 Retourner un tableau vide
     }
 
-    // Vérifier si au moins une location est dans la zone du contrôleur
     let inDistributionZone = false;
     let zoneName: string | null = null;
 
@@ -364,14 +360,13 @@ export class LocationService {
         const dz = distributionZones.find(dz => dz.zoneId === locZoneId);
         if (dz) {
           inDistributionZone = true;
-          zoneName = dz.zone.nom; // Nom de la zone
+          zoneName = dz.zone.nom; 
           break;
         }
       }
     }
 
     if (inDistributionZone) {
-      // ✅ Location trouvée dans la distribution zone → priorité MEDIUM
       const histData = {
         id_location: locations[0].id_location,
         id_local:locations[0].localId,
@@ -388,7 +383,6 @@ export class LocationService {
       this.eventsService.sendToUser(id_controleur,'location_en_regle',histData);
       return locations;
     } else {
-      // ⚠️ Location trouvée mais hors distribution zone → priorité HIGH
       const histData = {
         id_location: locations[0].id_location,
         id_local:locations[0].localId,
@@ -413,24 +407,6 @@ export class LocationService {
 
   }
 
-
-
-
-
-  //   async controleUser(id_user: string,id_controleur: string): Promise<Location[]> {
-  //   const today = new Date();
-
-
-  //   const distZone= await this.distZoneRepository.find()
-  //   return await this.locationRepository.find({
-  //     where: {
-  //       id_user,
-  //       date_debut_loc: Between(new Date('1900-01-01'), today),
-  //       date_fin_loc: Between(today, new Date('9999-12-31')),
-  //     },
-  //     relations: ['local', 'paiement_locations'],
-  //   });
-  // }
   async findOne(id: string, municipalityId?: string | null | undefined): Promise<Location> {
     const query = this.locationRepository
       .createQueryBuilder('location')
@@ -439,7 +415,6 @@ export class LocationService {
       .leftJoinAndSelect('local.zone', 'zone')
       .where('location.id_location = :id', { id });
 
-    // Ajoutez cette condition pour vérifier si municipalityId est fourni et n'est pas null
     if (municipalityId !== undefined && municipalityId !== null) {
       query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
@@ -453,8 +428,7 @@ export class LocationService {
     return location;
   }
 
-  // Version sécurisée sans propriétés potentiellement inexistantes
-  async findLocationWithPaymentDates(municipalityId: string, id_location: string): Promise<any> {
+  async findLocationWithPaymentDates(municipalityId: number, id_location: string): Promise<any> {
     try {
       console.log(`Recherche location ID: ${id_location}, Municipality: ${municipalityId}`);
 

@@ -33,7 +33,7 @@ export class LocalController {
   // @ApiQuery({ name: 'latitude', required: true, type: Number, description: 'Latitude du local' })
   // @ApiQuery({ name: 'longitude', required: true, type: Number, description: 'Longitude du local'})
   async getAll(
-    @Param('municipalityId', ParseIntPipe) municipalityId: string,
+    @Param('municipalityId') municipalityId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('zoneId') zoneId?: string, // ✅ Pas de ParseIntPipe pour les UUID

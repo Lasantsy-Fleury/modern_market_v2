@@ -13,7 +13,7 @@ export class PaiementLocationController {
 
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer les paiements de location pour une municipalité avec filtres' })
-  @ApiParam({ name: 'municipalityId', type: Number, description: 'ID de la municipalité' })
+  @ApiParam({ name: 'municipalityId', type: String, description: 'ID de la municipalité' })
   @ApiQuery({ name: 'locationId', required: false, type: String })
   @ApiQuery({ name: 'paiementId', required: false, type: String })
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Date de début au format YYYY-MM-DD' })
@@ -40,7 +40,7 @@ export class PaiementLocationController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un paiement de location par son ID et municipalité' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: String, description: 'ID de la municipalité' })
   async findOne(
     @Param('id') id: string,
     @Query('municipalityId') municipalityId: string,
@@ -53,7 +53,7 @@ export class PaiementLocationController {
 
   @Get(':id/qr')
   @ApiOperation({ summary: 'Récupérer un paiement de location avec QR code par son ID et municipalité' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: String, description: 'ID de la municipalité' })
   async findOneWithQr(
     @Param('id') id: string,
     @Query('municipalityId') municipalityId: string,

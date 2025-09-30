@@ -7,13 +7,9 @@ export class CreateZoneDto {
   @IsString()
   nom: string;
 
-  // @ApiProperty({ description: 'Statut de la zone (true = actif, false= inactif)' })
-  // @IsBoolean()
-  // status: boolean;
-
   @ApiProperty({ description: 'ID de la municipalité' })
-  @IsNumber()
-  fokotany_id: number;
+  @IsString()
+  formatted_id: string;
 
    @ApiProperty({
         description: 'Limite géométrique de la zone sur la carte (format GeoJSON ou WKT)',
@@ -31,8 +27,4 @@ export class CreateZoneDto {
         }
     })
     delimitation: any;
-
-  // @ApiProperty({ description: 'ID de la municipalité' })
-  // @IsNumber()
-  // zoneId: number;
 }

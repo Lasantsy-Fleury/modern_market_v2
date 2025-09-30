@@ -222,19 +222,10 @@ export class PaiementService {
     return paiement;
   }
 
-async findHistoryByUser(
-  id_user: string,
-  municipalityId?: string,   // <-- UUID string
-  page: number = 1,
-  limit: number = 10,
-) {
-  if (!id_user) {
-    throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
-  }
-
-  if (municipalityId && !/^[0-9a-fA-F-]{36}$/.test(municipalityId)) {
-    throw new BadRequestException('municipalityId doit être un UUID valide.');
-  }
+  async findHistoryByUser(id_user: string, municipalityId?: string, page: number = 1, limit: number = 10) {
+    if (!id_user) {
+      throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
+    }
 
   const query = this.paieRepository
     .createQueryBuilder('paiement')

@@ -157,10 +157,7 @@ export class NotificationController {
   @ApiResponse({ status: 404, description: 'Notification non trouvée ou non accessible dans cette municipalité' })
   async findOne(
     @Param('id') id: string,
-    @Query('municipalityId', new ParseIntPipe({
-      errorHttpStatusCode: 400,
-      exceptionFactory: () => new BadRequestException('municipalityId must be a valid number')
-    })) municipalityId: string
+    @Query('municipalityId') municipalityId: string,
   ) {
     try {
       const notification = await this.notificationService.findOneSimple(id, municipalityId);

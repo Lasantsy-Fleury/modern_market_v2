@@ -57,7 +57,7 @@ export class LocationController {
 
   @Get(':id_location/:municipalityId/location')
   @ApiOperation({ summary: 'Récupérer une location par son ID et son municipalityId' })
-  @ApiParam({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité' })
+  @ApiParam({ name: 'municipalityId', required: false, type: String, description: 'ID de la municipalité' })
   async findOne(
     @Param('id_location') id: string,
     @Param('municipalityId') municipalityId: string,

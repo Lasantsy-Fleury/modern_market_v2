@@ -74,12 +74,12 @@ export class DistributionZoneService {
   }
 
   async findAllByIdUser(id_user: string, municipalityId: string): Promise<DistributionZone[]> {
-    const distributionZones = await this.distributionZoneRepository
-      .createQueryBuilder('distributionZone')
-      .leftJoinAndSelect('distributionZone.zone', 'zone')
-      .where('distributionZone.id_user = :id_user', { id_user })
-      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-      .getMany();
+  const distributionZones = await this.distributionZoneRepository
+    .createQueryBuilder('distributionZone')
+    .leftJoinAndSelect('distributionZone.zone', 'zone')
+    .where('distributionZone.id_user = :id_user', { id_user })
+    .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+    .getMany();
 
     if (!distributionZones || distributionZones.length === 0) {
       throw new NotFoundException(`Aucune zone de distribution historique n'a été trouvée pour l'utilisateur ${id_user} dans cette municipalité.`);

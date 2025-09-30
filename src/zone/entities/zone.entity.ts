@@ -14,8 +14,8 @@ export class Zone {
     @Column({ type: 'boolean', default: true })
     status: boolean;
 
-    @Column({ type: 'int' })
-    fokotany_id: number;
+    @Column()
+    formatted_id: string;
 
     @Column()
     municipalityId: string;

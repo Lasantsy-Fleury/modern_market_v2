@@ -52,7 +52,7 @@ export class ZoneController {
     description: 'Longitude pour filtrer par position géographique',
   })
   findAll(
-    @Param('municipalityId', ParseIntPipe) municipalityId: string,
+    @Param('municipalityId') municipalityId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('keyword') keyword?: string,
@@ -74,7 +74,7 @@ export class ZoneController {
     @Param('municipalityId') municipalityId: string,
     @Param('id_zone') id_zone: string,
   ) {
-    return this.zoneService.findOne(municipalityId, id_zone); // ✅ pas de "+"
+    return this.zoneService.findOne(municipalityId, id_zone);
   }
 
   @Get('search/:municipalityId/:mot')
@@ -83,7 +83,7 @@ export class ZoneController {
     @Param('municipalityId') municipalityId: string,
     @Param('mot') mot: string,
   ) {
-    return this.zoneService.searchByName(municipalityId, mot); // ✅ pas de "+"
+    return this.zoneService.searchByName(municipalityId, mot);
   }
 
   @Patch(':municipalityId/:id_zone')
@@ -93,7 +93,7 @@ export class ZoneController {
     @Param('id_zone') id_zone: string,
     @Body() updateZoneDto: UpdateZoneDto,
   ) {
-    return this.zoneService.update(municipalityId, id_zone, updateZoneDto); // ✅ pas de "+"
+    return this.zoneService.update(municipalityId, id_zone, updateZoneDto);
   }
 
   // @Delete(':municipalityId/:id_zone')

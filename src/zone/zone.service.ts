@@ -26,21 +26,21 @@ export class ZoneService {
     return this.zoneRepository.findOne({ where: { id_zone: zoneId } });
   }
 
-  async existingFokontany(fokotanyId: number) {
-    if (!fokotanyId) {
+  async existingFokontany(formattedId: string) {
+    if (!formattedId) {
       throw new BadRequestException(`Fokontany Id manquant.`);
     }
 
     try {
       const response: AxiosResponse<any> = await firstValueFrom(
         this.httpService.get(
-          `https://gateway.tsirylab.com/serviceterritoire/fokotanys/${fokotanyId}`,
+          `https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/${formattedId}`,
         ),
       );
 
       if (!response.data) {
         throw new NotFoundException(
-          `Fokontany avec l' id '${fokotanyId}' n'existe pas`,
+          `Fokontany avec l' id '${formattedId}' n'existe pas`,
         );
       }
 
@@ -49,12 +49,12 @@ export class ZoneService {
       // Erreur côté API externe
       if (error.response?.status === 404) {
         throw new NotFoundException(
-          `Fokontany with id '${fokotanyId}' not found in gateway`,
+          `Fokontany with id '${formattedId}' not found in gateway`,
         );
       }
       if (error.response?.status === 400) {
         throw new BadRequestException(
-          `Invalid Fokontany ID '${fokotanyId}' provided`,
+          `Invalid Fokontany ID '${formattedId}' provided`,
         );
       }
 
@@ -67,26 +67,27 @@ export class ZoneService {
 
   async create(createZoneDto: CreateZoneDto) {
     // Vérifier que la fokontany existe dans le service externe
-    const fokontany = await this.existingFokontany(createZoneDto.fokotany_id);
+    const fokontany = await this.existingFokontany(createZoneDto.formatted_id);
 
-    const municipalityId = fokontany?.commune?.commune_id;
+    const municipalityId = fokontany?.commune?.formatted_id;
 
     if (!municipalityId) {
       throw new NotFoundException(
-        `Municipality not found for fokontany ${createZoneDto.fokotany_id}`,
+        `Municipality formatted_id not found for fokontany ${createZoneDto.formatted_id}`,
       );
     }
+
 
     const existingZone = await this.zoneRepository.findOne({
       where: {
         nom: createZoneDto.nom,
-        fokotany_id: createZoneDto.fokotany_id,
+        formatted_id: createZoneDto.formatted_id,
       },
     });
 
     if (existingZone) {
       throw new ConflictException(
-        `Zone '${createZoneDto.nom}' already exists in fokontany ${createZoneDto.fokotany_id}`,
+        `Zone '${createZoneDto.nom}' already exists in fokontany ${createZoneDto.formatted_id}`,
       );
     }
 
@@ -140,7 +141,7 @@ export class ZoneService {
   ) {
     try {
       // Vérifier si la municipalité existe via API externe
-      const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
+      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
       const response = await firstValueFrom(
         this.httpService.get(url, { headers: { accept: 'application/json' } }),
       );
@@ -181,7 +182,7 @@ export class ZoneService {
         nom: zone.nom,
         status: zone.status,
         geo_delimitation: zone.delimitation,
-        fokotany_id: zone.fokotany_id,
+        for: zone.formatted_id,
         municipalityId: zone.municipalityId,
         total_locaux: zone.locaux.length,
         locaux_disponibles: zone.locaux.filter(local => local.statut === 'DISPONIBLE').length
@@ -215,7 +216,7 @@ export class ZoneService {
   // Trouver une zone par son nom ou autre filtre limité à la municipalité
   async findOne(municipalityId: string, id_zone: string) {
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
+      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
       const response = await firstValueFrom(
         this.httpService.get(url, { headers: { accept: 'application/json' } })
       );
@@ -248,7 +249,7 @@ export class ZoneService {
     if (!keyword) {
       throw new BadRequestException('Le mot-clé de recherche est requis');
     }
-    const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
+    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );
@@ -284,7 +285,7 @@ export class ZoneService {
     id_zone: string,
     updateZoneDto: UpdateZoneDto,
   ) {
-    const url = `https://gateway.tsirylab.com/serviceterritoire/communes/${municipalityId}`;
+    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );

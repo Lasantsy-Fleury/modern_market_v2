@@ -246,7 +246,7 @@ export class NotificationService {
   async findAllSimple(
 
     options: {
-      municipalityId?: number,
+      municipalityId?: string,
       page?: number;
       limit?: number;
       isRead?: boolean;
