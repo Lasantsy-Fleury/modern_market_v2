@@ -108,7 +108,7 @@ export class PaiementLocationService {
   }
 
   async findAll(
-    municipalityId: number,
+    municipalityId: string,
     filters?: {
       locationId?: string;
       paiementId?: string;
@@ -157,7 +157,7 @@ export class PaiementLocationService {
     return query.getMany();
   }
 
-  async findOne(id: string, municipalityId: number): Promise<Paiementlocation> {
+  async findOne(id: string, municipalityId: string): Promise<Paiementlocation> {
     const found = await this.paiementLocationRepository
       .createQueryBuilder('paiement_location')
       .leftJoinAndSelect('paiement_location.paiement', 'paiement')
@@ -178,7 +178,7 @@ export class PaiementLocationService {
 
   async findOneWithQr(
     id: string,
-    municipalityId: number,
+    municipalityId: string,
   ): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
     const found = await this.paiementLocationRepository
       .createQueryBuilder('paiement_location')

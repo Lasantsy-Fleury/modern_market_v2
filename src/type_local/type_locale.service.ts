@@ -31,7 +31,7 @@ export class TypeLocalService {
     return await this.typeLocalRepository.save(typeLocal);
   }
 
-  async findAll(municipalityId: number, lang: 'mg' | 'fr', page: number = 1, limit: number = 10): Promise<{
+  async findAll(municipalityId: string, lang: 'mg' | 'fr', page: number = 1, limit: number = 10): Promise<{
     message: string;
     data: any[];
     pagination: { total: number; page: number; limit: number; totalPagination: number };
@@ -64,7 +64,7 @@ export class TypeLocalService {
     };
   }
 
-  async findOne(municipalityId: number, id_type_local: string): Promise<Typelocal> {
+  async findOne(municipalityId: string, id_type_local: string): Promise<Typelocal> {
     const typeLocal = await this.typeLocalRepository.findOne({
       where: { municipalityId, id_type_local: id_type_local },
       relations: ['locaux'],
@@ -75,7 +75,7 @@ export class TypeLocalService {
     return typeLocal;
   }
 
-  async update(municipalityId: number, id_type_local: string, updateDto: Partial<CreateTypeLocalDto>): Promise<Typelocal> {
+  async update(municipalityId: string, id_type_local: string, updateDto: Partial<CreateTypeLocalDto>): Promise<Typelocal> {
     const typeLocal = await this.typeLocalRepository.findOne({
       where: { municipalityId, id_type_local }
     });
@@ -87,7 +87,7 @@ export class TypeLocalService {
     return await this.typeLocalRepository.save(typeLocal);
   }
 
-  async remove(municipalityId: number, id: string): Promise<{ message: string; status: number; data: any }> {
+  async remove(municipalityId: string, id: string): Promise<{ message: string; status: number; data: any }> {
     const type = await this.typeLocalRepository.findOne({ where: { municipalityId, id_type_local: id } });
     if (!type) {
       return { message: 'Type local introuvable', status: 404, data: null };

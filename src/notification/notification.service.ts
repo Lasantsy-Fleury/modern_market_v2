@@ -246,7 +246,7 @@ export class NotificationService {
   async findAllSimple(
 
     options: {
-      municipalityId?: number,
+      municipalityId?: string,
       page?: number;
       limit?: number;
       isRead?: boolean;
@@ -358,7 +358,7 @@ export class NotificationService {
     };
   }
 
-  async findOneSimple(id: string, municipalityId: number) {
+  async findOneSimple(id: string, municipalityId: string) {
     console.log('Recherche notification:', { id, municipalityId });
 
     // D'abord, vérifions si la notification existe

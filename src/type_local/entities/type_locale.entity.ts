@@ -7,7 +7,7 @@ export class Typelocal {
     id_type_local: string;
 
     @Column()
-    municipalityId : number;
+    municipalityId : string;
 
     @Column({ type: 'jsonb', nullable: false })
     typeLoc: { mg: string; fr: string };

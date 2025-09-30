@@ -129,7 +129,7 @@ export class PaiementService {
   }
 
   async findAll(
-    municipalityId: number,
+    municipalityId: string,
     filters: {
       reference?: string;
       status?: 'success' | 'failed';
@@ -195,7 +195,7 @@ export class PaiementService {
     };
   }
 
-  async findOne(id_paiement: string, municipalityId: number) {
+  async findOne(id_paiement: string, municipalityId: string) {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
     }
@@ -217,7 +217,7 @@ export class PaiementService {
     return paiement;
   }
 
-  async findHistoryByUser(id_user: string, municipalityId?: number, page: number = 1, limit: number = 10) {
+  async findHistoryByUser(id_user: string, municipalityId?: string, page: number = 1, limit: number = 10) {
     if (!id_user) {
       throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
     }

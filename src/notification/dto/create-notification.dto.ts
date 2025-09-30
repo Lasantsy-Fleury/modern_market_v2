@@ -203,7 +203,7 @@ export class GetMunicipalityNotificationsDto {
     required: false,
   })
   @IsOptional()
-  municipalityId?: number;
+  municipalityId?: string;
 
   @ApiProperty({
     description: "L' id de l utilisateur concerne par les notifications",

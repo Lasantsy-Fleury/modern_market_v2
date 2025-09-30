@@ -90,7 +90,7 @@ export class LocalService {
 
 
   async getAll(
-    municipalityId: number,
+    municipalityId: string,
     page: number = 1,
     limit: number = 10,
     filters: {
@@ -188,7 +188,7 @@ export class LocalService {
 
 
   // Trouver un local en vérifiant la municipalité
-  async findOne(municipalityId: number, id_local: string) {
+  async findOne(municipalityId: string, id_local: string) {
     const local = await this.localRepository
       .createQueryBuilder('local')
       .leftJoinAndSelect('local.zone', 'zone')
@@ -205,7 +205,7 @@ export class LocalService {
     return local;
   }
 
-  async findLastLocationByLocal(municipalityId: number, id_local: string) {
+  async findLastLocationByLocal(municipalityId: string, id_local: string) {
     // 1️⃣ Récupération du local avec ses locations et zone
     const local = await this.localRepository
       .createQueryBuilder('local')
@@ -250,7 +250,7 @@ export class LocalService {
 
   // Mettre à jour un local
   async update(
-    municipalityId: number,
+    municipalityId: string,
     id_local: string,
     updateLocalDto: UpdateLocalDto
   ) {
@@ -262,7 +262,7 @@ export class LocalService {
   }
 
   // Supprimer un local
-  async remove(municipalityId: number, id_local: string) {
+  async remove(municipalityId: string, id_local: string) {
     const local = await this.findOne(municipalityId, id_local);
     return await this.localRepository.remove(local);
   }

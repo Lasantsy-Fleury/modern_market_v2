@@ -24,7 +24,7 @@ export class LocationController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
   async findAll(
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
     @Query('page') page: number,
     @Query('limit') limit: number,
   ) {
@@ -37,7 +37,7 @@ export class LocationController {
 
   @Get('municipality/:municipalityId/en_cours')
   @ApiOperation({ summary: 'Récupérer tous les locations en cours' })
-  findAllInProgress(@Param('municipalityId') municipalityId: number) {
+  findAllInProgress(@Param('municipalityId') municipalityId: string) {
     return this.locationService.findAllInProgress(municipalityId);
   }
 
@@ -57,10 +57,10 @@ export class LocationController {
 
   @Get(':id_location/:municipalityId/location')
   @ApiOperation({ summary: 'Récupérer une location par son ID et son municipalityId' })
-  @ApiParam({ name: 'municipalityId', required: false, type: Number, description: 'ID de la municipalité' })
+  @ApiParam({ name: 'municipalityId', required: false, type: String, description: 'ID de la municipalité' })
   async findOne(
     @Param('id_location') id: string,
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
   ) {
     if (!municipalityId) {
       throw new BadRequestException('Le paramètre "municipalityId" est obligatoire.');
@@ -243,7 +243,7 @@ ${formatDate(locationData.date_fin_loc)}
   @ApiResponse({ status: 200, description: 'La location a été mise à jour avec succès.' })
   update(
     @Param('id_location') id: string,
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Body() updateDto: CreateLocationDto
   ) {
     if (!municipalityId) {

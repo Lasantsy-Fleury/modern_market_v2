@@ -28,7 +28,7 @@ export class DistributionZoneService {
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
-  async findAll(municipalityId: number, page: number = 1, limit: number = 10): Promise<{ data: DistributionZone[], total: number }> {
+  async findAll(municipalityId: string, page: number = 1, limit: number = 10): Promise<{ data: DistributionZone[], total: number }> {
     const query = this.distributionZoneRepository
       .createQueryBuilder('distributionZone')
       .leftJoinAndSelect('distributionZone.zone', 'zone')
@@ -42,7 +42,7 @@ export class DistributionZoneService {
     return { data: result, total };
   }
 
-  async findOne(id_distribution_zone: string, municipalityId: number) {
+  async findOne(id_distribution_zone: string, municipalityId: string) {
     const distributionZone = await this.distributionZoneRepository
       .createQueryBuilder('distributionZone')
       .leftJoinAndSelect('distributionZone.zone', 'zone')
@@ -57,7 +57,7 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
-  async findAllTrueByidUser(id_user: string, municipalityId: number) {
+  async findAllTrueByidUser(id_user: string, municipalityId: string) {
     const distributionZone = await this.distributionZoneRepository
       .createQueryBuilder('distributionZone')
       .leftJoinAndSelect('distributionZone.zone', 'zone')
@@ -72,7 +72,7 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
-  async findAllByIdUser(id_user: string, municipalityId: number): Promise<DistributionZone[]> {
+  async findAllByIdUser(id_user: string, municipalityId: string): Promise<DistributionZone[]> {
   const distributionZones = await this.distributionZoneRepository
     .createQueryBuilder('distributionZone')
     .leftJoinAndSelect('distributionZone.zone', 'zone')
@@ -87,14 +87,14 @@ export class DistributionZoneService {
   return distributionZones;
 }
 
-  async update(id_distribution_zone: string, municipalityId: number, updateDistributionZoneDto: UpdateDistributionZoneDto) {
+  async update(id_distribution_zone: string, municipalityId: string, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
     this.eventsService.sendWebSocketNotification('distribution_zone_updated', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
-  async remove(id_distribution_zone: string, municipalityId: number) {
+  async remove(id_distribution_zone: string, municipalityId: string) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     return await this.distributionZoneRepository.remove(distributionZone);
   }

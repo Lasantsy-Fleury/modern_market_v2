@@ -11,7 +11,7 @@ export class CreateTypeLocalDto {
 
   @ApiProperty({ description: 'Municipalité id' })
   @IsNumber()
-  municipalityId: number;
+  municipalityId: string;
 
   @ApiProperty({
     description: 'Description traduite du type de local',

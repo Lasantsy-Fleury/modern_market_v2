@@ -52,7 +52,7 @@ export class ZoneController {
     description: 'Longitude pour filtrer par position géographique',
   })
   findAll(
-    @Param('municipalityId', ParseIntPipe) municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('keyword') keyword?: string,
@@ -71,30 +71,30 @@ export class ZoneController {
   @Get(':municipalityId/:id_zone')
   @ApiOperation({ summary: 'Récupérer une zone par son id' })
   findOne(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_zone') id_zone: string,
   ) {
-    return this.zoneService.findOne(+municipalityId, id_zone);
+    return this.zoneService.findOne(municipalityId, id_zone);
   }
 
   @Get('search/:municipalityId/:mot')
   @ApiOperation({ summary: 'Chercher une zone d une commune à partir de mot' })
   async search(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('mot') mot: string,
   ) {
-    return this.zoneService.searchByName(+municipalityId, mot);
+    return this.zoneService.searchByName(municipalityId, mot);
   }
 
 
   @Patch(':municipalityId/:id_zone')
   @ApiOperation({ summary: 'Modifier une zone' })
   update(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Param('id_zone') id_zone: string,
     @Body() updateZoneDto: UpdateZoneDto,
   ) {
-    return this.zoneService.update(+municipalityId, id_zone, updateZoneDto);
+    return this.zoneService.update(municipalityId, id_zone, updateZoneDto);
   }
 
   // @Delete(':municipalityId/:id_zone')

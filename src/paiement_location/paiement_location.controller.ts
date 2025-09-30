@@ -13,13 +13,13 @@ export class PaiementLocationController {
 
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer les paiements de location pour une municipalité avec filtres' })
-  @ApiParam({ name: 'municipalityId', type: Number, description: 'ID de la municipalité' })
+  @ApiParam({ name: 'municipalityId', type: String, description: 'ID de la municipalité' })
   @ApiQuery({ name: 'locationId', required: false, type: String })
   @ApiQuery({ name: 'paiementId', required: false, type: String })
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Date de début au format YYYY-MM-DD' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Date de fin au format YYYY-MM-DD' })
   async findAll(
-    @Param('municipalityId') municipalityId: number,
+    @Param('municipalityId') municipalityId: string,
     @Query('locationId') locationId?: string,
     @Query('paiementId') paiementId?: string,
     @Query('startDate') startDate?: string,
@@ -40,10 +40,10 @@ export class PaiementLocationController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un paiement de location par son ID et municipalité' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: String, description: 'ID de la municipalité' })
   async findOne(
     @Param('id') id: string,
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
   ): Promise<Paiementlocation> {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
@@ -53,10 +53,10 @@ export class PaiementLocationController {
 
   @Get(':id/qr')
   @ApiOperation({ summary: 'Récupérer un paiement de location avec QR code par son ID et municipalité' })
-  @ApiQuery({ name: 'municipalityId', required: true, type: Number, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: true, type: String, description: 'ID de la municipalité' })
   async findOneWithQr(
     @Param('id') id: string,
-    @Query('municipalityId') municipalityId: number,
+    @Query('municipalityId') municipalityId: string,
   ): Promise<{ paiementLocation: Paiementlocation; qrCode: string }> {
     if (!municipalityId) {
       throw new BadRequestException('Le municipalityId est obligatoire.');
