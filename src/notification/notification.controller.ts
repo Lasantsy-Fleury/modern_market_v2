@@ -301,7 +301,7 @@ export class NotificationController {
     );
   }
 
-  @Get('stats')
+  @Get('controle/stats')
   @ApiOperation({ summary: 'Obtenir le nombre de locaux par zone avec option de dates' })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })

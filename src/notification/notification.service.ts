@@ -544,6 +544,9 @@ export class NotificationService {
     // Récupérer tous les locaux avec leur zone
     const locaux = await this.localRepository.find({ relations: ['zone'] });
 
+    if (!locaux){
+      
+    }
     // Récupérer les notifications groupées par zone
     const notifQuery = this.notifRepository
       .createQueryBuilder('n')
@@ -597,7 +600,7 @@ export class NotificationService {
     return Object.values(result);
   }
 
-  
+
   async getRapport(
     userId: string,
     filters?: { from?: Date; to?: Date }
