@@ -73,7 +73,7 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
-  async findAllByIdUser(id_user: string, municipalityId: number): Promise<DistributionZone[]> {
+  async findAllByIdUser(id_user: string, municipalityId: string): Promise<DistributionZone[]> {
   const distributionZones = await this.distributionZoneRepository
     .createQueryBuilder('distributionZone')
     .leftJoinAndSelect('distributionZone.zone', 'zone')
