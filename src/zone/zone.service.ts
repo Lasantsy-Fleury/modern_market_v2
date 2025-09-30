@@ -117,7 +117,7 @@ export class ZoneService {
         municipalityId,
       });
 
-      this.eventsService.sendWebSocketNotification('zone_created', zone);
+     this.eventsService.broadcastToAll('zone_created', zone);
 
       return await this.zoneRepository.save(zone);
     } catch (error) {
@@ -298,7 +298,7 @@ export class ZoneService {
       const zone = await this.findOne(municipalityId, id_zone);
 
       Object.assign(zone, updateZoneDto);
-
+      this.eventsService.broadcastToAll('zone_upated', zone);
       return await this.zoneRepository.save(zone);
     } catch (error) {
       // Vérifier si l'erreur vient de l'API (404)

@@ -24,7 +24,8 @@ export class DistributionZoneService {
     }
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
-    this.eventsService.sendWebSocketNotification('distribution_zone_created', distributionZone);
+    this.eventsService.broadcastToAll('distribution_zone_created', distributionZone);
+    this.eventsService.sendToUser(createDistributionZoneDto.id_user, 'vous_avez_une_zone', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 
@@ -38,7 +39,7 @@ export class DistributionZoneService {
       .take(limit);
 
     const [result, total] = await query.getManyAndCount();
-
+  
     return { data: result, total };
   }
 
@@ -72,7 +73,7 @@ export class DistributionZoneService {
     return distributionZone;
   }
 
-  async findAllByIdUser(id_user: string, municipalityId: string): Promise<DistributionZone[]> {
+  async findAllByIdUser(id_user: string, municipalityId: number): Promise<DistributionZone[]> {
   const distributionZones = await this.distributionZoneRepository
     .createQueryBuilder('distributionZone')
     .leftJoinAndSelect('distributionZone.zone', 'zone')
@@ -80,17 +81,17 @@ export class DistributionZoneService {
     .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
     .getMany();
 
-  if (!distributionZones || distributionZones.length === 0) {
-    throw new NotFoundException(`Aucune zone de distribution historique n'a été trouvée pour l'utilisateur ${id_user} dans cette municipalité.`);
-  }
+    if (!distributionZones || distributionZones.length === 0) {
+      throw new NotFoundException(`Aucune zone de distribution historique n'a été trouvée pour l'utilisateur ${id_user} dans cette municipalité.`);
+    }
 
-  return distributionZones;
-}
+    return distributionZones;
+  }
 
   async update(id_distribution_zone: string, municipalityId: string, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
-    this.eventsService.sendWebSocketNotification('distribution_zone_updated', distributionZone);
+    this.eventsService.broadcastToAll('distribution_zone_updated', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan } from 'typeorm';
 import { Location } from './entities/location.entity';
@@ -100,7 +100,7 @@ export class LocationService {
             local.statut = 'DISPONIBLE';
             await this.localRepository.save(local);
 
-            this.eventsService.sendWebSocketNotification('local_updated', local);
+            this.eventsService.broadcastToAll('local_updated', local);
           }
         }
         // S'il y a une location active, le local doit être LOUÉ
@@ -111,7 +111,7 @@ export class LocationService {
             local.statut = 'LOUE';
             await this.localRepository.save(local);
 
-            this.eventsService.sendWebSocketNotification('local_updated', local);
+            this.eventsService.broadcastToAll('local_updated', local);
           }
         }
       }
@@ -245,7 +245,7 @@ export class LocationService {
       localId: location.localId
     }
 
-    this.eventsService.sendWebSocketNotification('location_created', location);
+    this.eventsService.broadcastToAll('location_created', location);
     this.notificationService.createLocationNotification(location.id_user, "CONFIRMED", notifData);
 
     return await this.locationRepository.save(location);
@@ -271,7 +271,7 @@ export class LocationService {
     const local = location.local;
     local.statut = 'LOUE';
     await this.localRepository.save(local);
-    this.eventsService.sendWebSocketNotification('local_updated', local);
+    this.eventsService.broadcastToAll('local_updated', local);
   }
 
   async findAllInProgress(municipalityId: string): Promise<Location[]> {
@@ -307,10 +307,10 @@ export class LocationService {
     });
   }
 
- async findInProgressByUserByControlleur(
+  async findInProgressByUserByControlleur(
     id_user: string,
     id_controleur: string
-  ): Promise<Location[]> {
+  ): Promise<any> {
     const today = new Date();
 
     // Récupérer les locations en cours
@@ -329,7 +329,7 @@ export class LocationService {
       relations: ['zone'],
     });
 
-    console.log("location",locations.length)
+    console.log("location", locations.length)
     // 🔥 CORRECTION : Vérifier si locations est vide ou null
     if (!locations || locations.length == 0) {
       // 🚨 Aucun location trouvé → priorité URGENT
@@ -339,9 +339,16 @@ export class LocationService {
         zoneName: null, // pas de zone
       };
 
+      // await this.notificationService.CreateHistorique(
+      //   id_controleur,
+      //   histData,
+      //   'URGENT'
+      // );
+
+      // 🔥 CORRECTION : Appel correct du WebSocket
       this.eventsService.sendWebSocketNotification('location_inexistante', histData);
 
-      return [];
+      return []; // 🔥 Retourner un tableau vide
     }
 
     let inDistributionZone = false;
@@ -362,6 +369,7 @@ export class LocationService {
     if (inDistributionZone) {
       const histData = {
         id_location: locations[0].id_location,
+        id_local:locations[0].localId,
         resultat: 'Location valide dans la zone',
         id_contribuable: id_user,
         zoneName,
@@ -372,9 +380,12 @@ export class LocationService {
         histData,
         'MEDIUM'
       );
+      this.eventsService.sendToUser(id_controleur,'location_en_regle',histData);
+      return locations;
     } else {
       const histData = {
         id_location: locations[0].id_location,
+        id_local:locations[0].localId,
         resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
         zoneName: locations[0].local?.zone?.nom || null,
@@ -386,10 +397,14 @@ export class LocationService {
         'HIGH'
       );
 
-      this.eventsService.sendWebSocketNotification('Mauvais_controlleur', histData);
+      this.eventsService.sendToUser(id_user,'ce_n_est_pas_votre_controlleur', histData);
+      this.eventsService.broadcastToAll('controlleur_hors_zone',histData);
+      throw new ForbiddenException(
+        `La location ${locations[0].id_location} n'est pas rattachée à une zone valide.`,
+      );
     }
 
-    return [];
+
   }
 
   async findOne(id: string, municipalityId?: string | null | undefined): Promise<Location> {
@@ -576,7 +591,7 @@ export class LocationService {
       local.statut = 'DISPONIBLE';
       await this.localRepository.save(local);
 
-      this.eventsService.sendWebSocketNotification('local_updated', local);
+      this.eventsService.broadcastToAll('local_updated', local);
     }
 
     await this.locationRepository.remove(location);

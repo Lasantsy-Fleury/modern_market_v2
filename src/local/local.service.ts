@@ -78,7 +78,7 @@ export class LocalService {
 
     try {
       const local = this.localRepository.create(createLocalDto);
-      this.eventsService.sendWebSocketNotification('local_created', local);
+      this.eventsService.broadcastToAll('local_created', local);
       return await this.localRepository.save(local)
     } catch (error) {
       throw new BadRequestException(
@@ -257,7 +257,7 @@ export class LocalService {
     const local = await this.findOne(municipalityId, id_local);
 
     Object.assign(local, updateLocalDto);
-    this.eventsService.sendWebSocketNotification('local_updated', local);
+    this.eventsService.broadcastToAll('local_updated', local);
     return await this.localRepository.save(local);
   }
 

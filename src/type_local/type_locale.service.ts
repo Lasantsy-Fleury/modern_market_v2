@@ -27,7 +27,7 @@ export class TypeLocalService {
     }
 
     const typeLocal = this.typeLocalRepository.create(createTypeLocalDto);
-    this.eventsService.sendWebSocketNotification('type_local_created', typeLocal);
+    this.eventsService.broadcastToAll('type_local_created', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 

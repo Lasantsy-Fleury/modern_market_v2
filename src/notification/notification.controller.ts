@@ -24,11 +24,17 @@ import {
 import {
   ApiTags, ApiOperation, ApiBody, ApiQuery, ApiResponse, ApiParam
 } from '@nestjs/swagger';
+import { EventsService } from 'src/events/events.service';
 
 @ApiTags('notifications')
 @Controller('notifications')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) { }
+  constructor(private readonly notificationService: NotificationService,
+    private readonly eventsService: EventsService
+  ) { }
+
+
+
 
   // -----------------------
   // Créer une notification de location
@@ -187,5 +193,62 @@ export class NotificationController {
     };
 
     return this.notificationService.getRapport(userId, filters);
+  }
+
+  @Get('historique/:userId/:municipalityId')
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de la page (par défaut 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Nombre d’éléments par page (par défaut 20)',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    required: false,
+    type: String,
+    description: 'Date de début (format ISO : YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)',
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    required: false,
+    type: String,
+    description: 'Date de fin (format ISO : YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)',
+  })
+  async getHistorique(
+    @Param('userId') userId: string,
+    @Param('municipalityId') municipalityId: string, // converti en number après
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    if (!userId || userId.trim() === '') {
+      throw new BadRequestException('Le paramètre userId est obligatoire.');
+    }
+
+    if (!municipalityId || isNaN(Number(municipalityId))) {
+      throw new BadRequestException(
+        'Le paramètre municipalityId est obligatoire et doit être un nombre valide.',
+      );
+    }
+
+    const options = {
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      dateTo: dateTo ? new Date(dateTo) : undefined,
+    };
+
+    return this.notificationService.getHistorique(
+      Number(municipalityId),
+      userId,
+      options,
+    );
   }
 }

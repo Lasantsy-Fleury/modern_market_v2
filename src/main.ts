@@ -4,17 +4,19 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-   app.setGlobalPrefix('servicemodernmarket');
+  app.setGlobalPrefix('servicemodernmarket', {
+    exclude: ['socket.io'] // Exclure les routes WebSocket
+  });
   const config = new DocumentBuilder()
-  .setTitle(' Modern Market')
-  .setDescription('Documentation microservice du Modern Market du recette local ')
-  .setVersion('1.0')
-  .addBearerAuth()
-  .build();
-  
+    .setTitle(' Modern Market')
+    .setDescription('Documentation microservice du Modern Market du recette local ')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
   const document = SwaggerModule.createDocument(app, config);
-  
-  SwaggerModule.setup('servicemodernmarket/docs', app, document ,{
+
+  SwaggerModule.setup('servicemodernmarket/docs', app, document, {
     swaggerOptions: { persistAuthorization: true },
     customSiteTitle: 'Documentation API - Service Modern Market',
   });

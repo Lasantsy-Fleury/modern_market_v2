@@ -20,12 +20,23 @@ export class EventsService {
     }
   }
 
-  // 🔥 Optionnel : autres méthodes utilitaires
+  // 🔥 Envoyer à un utilisateur spécifique
   sendToUser(userId: string, event: string, data: any) {
-    this.eventsGateway.server?.to(userId).emit(event, data);
+    try {
+      this.eventsGateway.sendToUser(userId, event, data);
+      console.log(`WebSocket event "${event}" sent to user ${userId}`);
+    } catch (error) {
+      console.error('Error sending WebSocket event to user:', error);
+    }
   }
 
+  // 🔥 Diffuser à tous les utilisateurs
   broadcastToAll(event: string, data: any) {
-    this.eventsGateway.server?.emit(event, data);
+    try {
+      this.eventsGateway.broadcastToAll(event, data);
+      console.log(`WebSocket event "${event}" broadcasted to all users`);
+    } catch (error) {
+      console.error('Error broadcasting WebSocket event:', error);
+    }
   }
 }
