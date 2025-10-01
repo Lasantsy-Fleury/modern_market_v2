@@ -182,7 +182,7 @@ export class ZoneService {
         nom: zone.nom,
         status: zone.status,
         geo_delimitation: zone.delimitation,
-        for: zone.formatted_id,
+        formatted_Id: zone.formatted_id,
         municipalityId: zone.municipalityId,
         total_locaux: zone.locaux.length,
         locaux_disponibles: zone.locaux.filter(local => local.statut === 'DISPONIBLE').length
