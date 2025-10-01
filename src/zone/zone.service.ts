@@ -313,10 +313,22 @@ export class ZoneService {
     }
   }
   // Supprimer une zone via son nom et la municipalité
-  async remove(municipalityId: string, id_zone: string) {
-    const zone = await this.findOne(municipalityId, id_zone);
-    return await this.zoneRepository.remove(zone);
+async remove(id_zone: string) {
+  // Vérifier si la zone existe
+  const zone = await this.zoneRepository.findOne({ where: { id_zone } });
+  if (!zone) {
+    throw new NotFoundException(`Zone avec id ${id_zone} introuvable`);
   }
+
+  // Supprimer
+  await this.zoneRepository.delete(id_zone);
+
+  return {
+    message: `Zone ${id_zone} supprimée avec succès`,
+    success: true,
+  };
+}
+
 
   async findAll1(): Promise<Zone[]> {
     return this.zoneRepository.find({

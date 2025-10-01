@@ -100,11 +100,11 @@ export class ZoneController {
     return this.zoneService.update(municipalityId, id_zone, updateZoneDto);
   }
 
-  // @Delete(':municipalityId/:id_zone')
-  // remove(
-  //   @Param('municipalityId') municipalityId: string,
-  //   @Param('id_zone') id_zone: string,
-  // ) {
-  //   return this.zoneService.remove(+municipalityId, id_zone);
-  // }
+  @Delete(':id_zone')
+  remove(
+
+    @Param('id_zone') id_zone: string,
+  ) {
+    return this.zoneService.remove(id_zone);
+  }
 }
