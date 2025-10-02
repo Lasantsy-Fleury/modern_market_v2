@@ -213,15 +213,13 @@ export class ZoneService {
       );
     }
   }
-  // Trouver une zone par son nom ou autre filtre limité à la municipalité
-  async findOne(municipalityId: string, id_zone: string) {
-    try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: { accept: 'application/json' } })
-      );
 
-
+  async findOne(id_zone: string, municipalityId?: string) {
+  try {
+    // Si municipalityId est fourni, vérifier qu'il existe
+    if (municipalityId) {
+      await this.verifyMunicipalityExists(municipalityId);
+      
       const zone = await this.zoneRepository.findOne({
         where: { municipalityId, id_zone },
       });
@@ -231,20 +229,53 @@ export class ZoneService {
           `Zone avec id '${id_zone}' introuvable dans la municipalité ${municipalityId}`,
         );
       }
+      
       return zone;
-    } catch (error) {
-      // Vérifier si l'erreur vient de l'API (404)
-      if (error instanceof AxiosError && error.response?.status === 404) {
-        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-      }
+    }
 
-      // Toute autre erreur
-      throw new ServiceUnavailableException(
-        'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
+    // Recherche sans municipalityId
+    const zone = await this.zoneRepository.findOne({
+      where: { id_zone },
+    });
+    
+    if (!zone) {
+      throw new NotFoundException(`Zone avec id '${id_zone}' introuvable`);
+    }
+
+    return zone;
+  } catch (error) {
+    // Ne pas attraper les NotFoundException lancées explicitement
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
+    
+    // Gérer les autres erreurs
+    throw new ServiceUnavailableException(
+      'Impossible de récupérer la zone pour le moment. Veuillez réessayer plus tard.',
+    );
+  }
+}
+
+// Méthode auxiliaire pour vérifier l'existence de la municipalité
+private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
+  try {
+    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    await firstValueFrom(
+      this.httpService.get(url, { 
+        headers: { accept: 'application/json' } 
+      })
+    );
+  } catch (error) {
+    if (error instanceof AxiosError && error.response?.status === 404) {
+      throw new NotFoundException(
+        `Municipalité avec id ${municipalityId} introuvable`
       );
     }
+    throw new ServiceUnavailableException(
+      'Impossible de vérifier la municipalité. Veuillez réessayer plus tard.',
+    );
   }
-
+}
   async searchByName(municipalityId: string, keyword: string): Promise<Zone[]> {
     if (!keyword) {
       throw new BadRequestException('Le mot-clé de recherche est requis');
