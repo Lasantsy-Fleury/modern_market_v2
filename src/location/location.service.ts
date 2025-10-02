@@ -656,13 +656,27 @@ export class LocationService {
       .getOne();
 
     if (!lastPaiement) {
-      throw new NotFoundException(`Pas de paiement trouvé pour la location ${location.id_location}`);
+      // Juste log au lieu de throw
+      console.warn(`⚠️ Aucun paiement trouvé pour la location ${location.id_location}`);
+      await this.notificationService.scheduleReminderNotification(
+        location.id_user,
+        {
+          montant: 123,
+          locationId: location.id_location,
+        },
+        today.getDate()
+      );
+      return; // on arrête ici
     }
 
     // Calculer la prochaine échéance (date_fin du dernier paiement + 1 mois)
     const nextDueDate = new Date(lastPaiement.date_fin);
     nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-    const nextDueDateOnly = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth(), nextDueDate.getDate());
+    const nextDueDateOnly = new Date(
+      nextDueDate.getFullYear(),
+      nextDueDate.getMonth(),
+      nextDueDate.getDate()
+    );
 
     // Différence en jours entre aujourd'hui et la prochaine échéance
     const diffDays = Math.floor(
@@ -694,8 +708,9 @@ export class LocationService {
     }
   }
 
-  // 🔌 Job CRON qui vérifie tous les jours à 8h
-  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+
+  // 🔌 Job CRON qui vérifie tous les jours à 7h
+  @Cron(CronExpression.EVERY_DAY_AT_7AM)
   async handleDailyReminders() {
     const allLocations = await this.locationRepository.find();
 
@@ -703,6 +718,8 @@ export class LocationService {
       await this.checkAndSendReminders(loc);
     }
   }
+
+
 
   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
     try {
