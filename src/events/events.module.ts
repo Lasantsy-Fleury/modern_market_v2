@@ -4,8 +4,9 @@ import { EventsGateway } from './events.gateway';
 import { EventsService } from './events.service'; // 🔥 Nouveau
 ;
 
+
 @Module({
-  providers: [EventsGateway, EventsService], // 🔥 Ajouter EventsService
+  providers: [EventsGateway, EventsService,], // 🔥 Ajouter EventsService
   exports: [EventsService], // 🔥 Exporter pour utilisation ailleurs
 
 })

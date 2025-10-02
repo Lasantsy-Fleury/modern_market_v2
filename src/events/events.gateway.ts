@@ -3,6 +3,8 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDiscon
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
+  namespace: '/',
+  path: '/recettelocale',
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -17,10 +19,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
-    
+
     // 🔥 RÉCUPÉRER LE userId DEPUIS LES QUERY PARAMETERS
     const userId = client.handshake.query.userId as string;
-    
+
     if (!userId) {
       console.warn(`Client ${client.id} attempted connection without userId`);
       client.disconnect(); // Déconnecter si pas de userId
@@ -35,14 +37,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // 🔥 ENREGISTRER L'UTILISATEUR
     this.registerUser(userId, client.id);
-    
+
     console.log(`User ${userId} registered with socket ${client.id}`);
 
     // 🔥 ENVOYER UN ACCUSÉ DE RÉCEPTION
-    client.emit('connected', { 
-      success: true, 
+    client.emit('connected', {
+      success: true,
       message: 'Successfully connected to notification service',
-      userId 
+      userId
     });
 
     // Écouter les événements personnalisés
@@ -51,7 +53,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     const userId = this.socketUsers.get(client.id);
-    
+
     if (userId) {
       this.unregisterUser(userId, client.id);
       console.log(`User ${userId} disconnected (socket: ${client.id})`);

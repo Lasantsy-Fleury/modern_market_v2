@@ -15,6 +15,7 @@ import { TypeLocalModule } from './type_local/type_locale.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventsModule } from './events/events.module';
 
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -38,10 +39,11 @@ import { EventsModule } from './events/events.module';
     NotificationModule,
     TypeLocalModule,
     DistributionZoneModule,
-    EventsModule
+    EventsModule,
+
 
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService,],
 })
 export class AppModule { }

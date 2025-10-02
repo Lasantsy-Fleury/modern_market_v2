@@ -20,6 +20,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
     customSiteTitle: 'Documentation API - Service Modern Market',
   });
+  
   await app.listen(process.env.PORT ?? 3000);
 }
 
