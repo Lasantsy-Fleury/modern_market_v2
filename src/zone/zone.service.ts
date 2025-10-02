@@ -214,7 +214,7 @@ export class ZoneService {
     }
   }
 
-  async findOne(id_zone: string,municipalityId: string | undefined) {
+  async findOne(id_zone: string,municipalityId?: string) {
     try {
       let zone;
       if (municipalityId) {
@@ -248,7 +248,7 @@ export class ZoneService {
       return zone;
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 404) {
-        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+        throw new NotFoundException(`Municipality avec id ${municipalityId} not found`);
       }
 
       throw new ServiceUnavailableException(
