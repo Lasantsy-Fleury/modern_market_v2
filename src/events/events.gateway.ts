@@ -6,7 +6,7 @@ import { Server, Socket } from 'socket.io';
   namespace: '/',
   path: '/recettelocale',
   cors: {
-    origin: ["null","https://gateway.tsirylab.com/servicemodernmarket"],
+    origin: ["null","https://anjaranaka.tsirylab.com/"],
     methods: ["GET", "POST"]
   }
 })
