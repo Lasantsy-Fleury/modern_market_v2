@@ -216,13 +216,14 @@ export class ZoneService {
 
   async findOne(id_zone: string,municipalityId: string | undefined) {
     try {
+      let zone;
       if (municipalityId) {
         const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
         const response = await firstValueFrom(
           this.httpService.get(url, { headers: { accept: 'application/json' } })
         );
 
-        const zone = await this.zoneRepository.findOne({
+        zone = await this.zoneRepository.findOne({
           where: { municipalityId, id_zone },
         });
 
@@ -232,9 +233,8 @@ export class ZoneService {
           );
         }
         
-        return zone; // Don't forget to return the zone
       } else {
-        const zone = await this.zoneRepository.findOne({
+        zone = await this.zoneRepository.findOne({
           where: { id_zone },
         });
         
@@ -243,9 +243,9 @@ export class ZoneService {
             `Zone avec id '${id_zone}' introuvable`,
           );
         }
-        
-        return zone;
       }
+
+      return zone;
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 404) {
         throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
