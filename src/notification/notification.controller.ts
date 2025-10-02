@@ -314,4 +314,10 @@ export class NotificationController {
       endDate ? new Date(endDate) : undefined,
     );
   }
+
+  @Get('open/:id')
+  @ApiOperation({ summary: 'Ouvrir une notification et récupérer la cible associée' })
+  async openNotif(@Param('id') id: string) {
+    return this.notificationService.openNotification(id);
+  }
 }

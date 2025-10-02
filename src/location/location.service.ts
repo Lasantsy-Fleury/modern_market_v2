@@ -42,7 +42,7 @@ export class LocationService {
     this.logger.log('Lancement du job CRON pour vérifier les locations expirées.');
 
     const today = new Date();
-    today.setHours(23, 59, 59, 999); 
+    today.setHours(23, 59, 59, 999);
 
     try {
       const expiredLocations = await this.locationRepository.find({
@@ -240,15 +240,25 @@ export class LocationService {
       frequence,
     });
 
+    const savedLocation = await this.locationRepository.save(location);
+
+    // Maintenant l’ID existe
     const notifData = {
-      id_location: location.id_location,
-      localId: location.localId
-    }
+      id_location: savedLocation.id_location,
+      localId: savedLocation.localId,
+    };
 
-    this.eventsService.broadcastToAll('location_created', location);
-    this.notificationService.createLocationNotification(location.id_user, "CONFIRMED", notifData);
+    console.log(notifData);
 
-    return await this.locationRepository.save(location);
+    // Broadcast + Notification
+    this.eventsService.broadcastToAll('location_created', savedLocation);
+    await this.notificationService.createLocationNotification(
+      savedLocation.id_user,
+      "CONFIRMED",
+      notifData
+    );
+
+    return savedLocation;
   }
 
   async updateLocalStatusToRented(locationId: string): Promise<void> {
@@ -346,7 +356,7 @@ export class LocationService {
       // );
 
       // 🔥 CORRECTION : Appel correct du WebSocket
-      this.eventsService.sendToUser(id_controleur,'aucune_location,entrer_id_local', histData);
+      this.eventsService.sendToUser(id_controleur, 'aucune_location,entrer_id_local', histData);
 
       return []; // 🔥 Retourner un tableau vide
     }
@@ -360,7 +370,7 @@ export class LocationService {
         const dz = distributionZones.find(dz => dz.zoneId === locZoneId);
         if (dz) {
           inDistributionZone = true;
-          zoneName = dz.zone.nom; 
+          zoneName = dz.zone.nom;
           break;
         }
       }
@@ -369,7 +379,7 @@ export class LocationService {
     if (inDistributionZone) {
       const histData = {
         id_location: locations[0].id_location,
-        id_local:locations[0].localId,
+        id_local: locations[0].localId,
         resultat: 'Location valide dans la zone',
         id_contribuable: id_user,
         zoneName,
@@ -380,12 +390,12 @@ export class LocationService {
         histData,
         'MEDIUM'
       );
-      this.eventsService.sendToUser(id_controleur,'location_en_regle',histData);
+      this.eventsService.sendToUser(id_controleur, 'location_en_regle', histData);
       return locations;
     } else {
       const histData = {
         id_location: locations[0].id_location,
-        id_local:locations[0].localId,
+        id_local: locations[0].localId,
         resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
         zoneName: locations[0].local?.zone?.nom || null,
@@ -397,8 +407,8 @@ export class LocationService {
         'HIGH'
       );
 
-      this.eventsService.sendToUser(id_user,'ce_n_est_pas_votre_controlleur', histData);
-      this.eventsService.broadcastToAll('controlleur_hors_zone',histData);
+      this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
+      this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
       throw new ForbiddenException(
         `La location ${locations[0].id_location} n'est pas rattachée à une zone valide.`,
       );

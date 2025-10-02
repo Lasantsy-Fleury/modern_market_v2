@@ -91,7 +91,7 @@ export class NotificationService {
       CONFIRMED: {
         title: 'Location confirmée',
         message: `Votre location pour le local ${local.numero} est confirmée.`,
-        priority: 'HIGH',
+        priority: 'MEDIUM',
         channels: { inApp: true, email: true, sms: false, push: true },
       },
       CANCELLED: {
@@ -444,7 +444,6 @@ export class NotificationService {
       .getOne();
   }
 
-
   async CreateHistorique(
     userId: string,
     data: any,
@@ -487,10 +486,10 @@ export class NotificationService {
     }
   }
 
-    async CreateCritiqueHistorique(
+  async CreateCritiqueHistorique(
     userId: string,
     data: any,
-   
+
   ) {
     try {
       // Vérifier que l'utilisateur existe dans le service externe
@@ -515,7 +514,7 @@ export class NotificationService {
       });
 
       await this.notifRepository.save(historique);
-      this.eventsService.sendWebSocketNotification('location_critique',historique);
+      this.eventsService.sendWebSocketNotification('location_critique', historique);
       return {
         message: 'Historique enregistré avec succès',
         historique,
@@ -544,8 +543,8 @@ export class NotificationService {
     // Récupérer tous les locaux avec leur zone
     const locaux = await this.localRepository.find({ relations: ['zone'] });
 
-    if (!locaux){
-      
+    if (!locaux) {
+
     }
     // Récupérer les notifications groupées par zone
     const notifQuery = this.notifRepository
@@ -599,7 +598,6 @@ export class NotificationService {
 
     return Object.values(result);
   }
-
 
   async getRapport(
     userId: string,
@@ -705,5 +703,89 @@ export class NotificationService {
       },
     };
   }
+
+  async openNotification(id_notification: string) {
+    const notif = await this.notifRepository.findOne({ where: { id_notification } });
+    if (!notif) {
+      throw new NotFoundException("Notification not found");
+    }
+
+    // Exemple de mapping
+    let target = {};
+    switch (notif.type) {
+      case "PAIEMENT REUSSIE":
+        target = {
+         
+          page: "paiementsReussi",
+          resourceId: notif.data.id_paiement,
+
+        };
+        break;
+
+      case "PAIEMENT NON REUSSIE":
+        target = {
+          
+          page: "paiementNonReussi",
+          resourceId: notif.userId,
+
+        };
+        break;
+
+      case "LOCATION CONFIRMEE":
+        target = {
+          
+          page: "locationsConfirmed",
+          resourceId: notif.data.id_location,
+        };
+        break;
+
+      case "LOCATION ANNULEE":
+        target = {
+        
+          page: "locationsAnnulee",
+          resourceId: notif.data.id_location,
+        };
+        break;
+
+      case "LOCATION EN ATTENTE":
+        target = {
+       
+          page: "locationsEnAttente",
+          resourceId: notif.data.localId,
+        };
+        break;
+
+      case "RAPPELLE DE PAIEMENT":
+        target = {
+         
+          page: "locations",
+          resourceId: notif.data.id_location,
+        };
+        break;
+
+      case "HISTORIQUE CONTROLLEUR":
+        target = {
+         
+          page: "local",
+          resourceId: notif.data.localId,
+        };
+        break;
+
+      default:
+        target = { page: "home", url: "/" };
+    }
+
+    // Marquer comme lue
+    notif.isRead = true;
+    notif.readAt = new Date();
+    await this.notifRepository.save(notif);
+
+    return {
+      notificationId: id_notification,
+      type: notif.type,
+      ...target
+    };
+  }
+
 
 }
