@@ -3,7 +3,7 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDiscon
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
-  path: '/',
+  path: '/servicemodernmarket',
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],

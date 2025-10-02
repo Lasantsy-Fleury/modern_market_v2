@@ -4,7 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('servicemodernmarket');
+  app.setGlobalPrefix('servicemodernmarket', {
+    exclude: ['socket.io'] // Exclure les routes WebSocket
+  });
   const config = new DocumentBuilder()
     .setTitle(' Modern Market')
     .setDescription('Documentation microservice du Modern Market du recette local ')
