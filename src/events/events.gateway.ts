@@ -9,8 +9,6 @@ import { Server, Socket } from 'socket.io';
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  transports: ['websocket', 'polling'], // Important: ajouter les deux transports
-  allowEIO3: true, // Compatibilité avec les anciennes versions
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
