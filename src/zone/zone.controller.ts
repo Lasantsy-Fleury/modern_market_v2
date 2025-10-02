@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Delete, Param, Query, ParseIntPipe,
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
-import { ApiResponse, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 
 
 @ApiTags('Zones')
@@ -72,11 +72,13 @@ export class ZoneController {
     return this.zoneService.findAll1();
   }
 
-  @Get(':municipalityId/:id_zone')
+  @Get(':id_zone/:municipalityId')
+  @ApiParam({ name: 'id_zone', required: true, description: 'ID de la zone' })
+  @ApiQuery({ name: 'municipalityId', required: false, description: 'ID de la municipalité' })
   @ApiOperation({ summary: 'Récupérer une zone par son id' })
   findOne(
-    @Param('municipalityId') municipalityId: string,
     @Param('id_zone') id_zone: string,
+    @Query('municipalityId') municipalityId?: string,
   ) {
     return this.zoneService.findOne(municipalityId, id_zone);
   }

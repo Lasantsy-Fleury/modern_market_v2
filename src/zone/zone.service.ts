@@ -213,32 +213,44 @@ export class ZoneService {
       );
     }
   }
-  // Trouver une zone par son nom ou autre filtre limité à la municipalité
-  async findOne(municipalityId: string, id_zone: string) {
+
+  async findOne(municipalityId: string | undefined, id_zone: string) {
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: { accept: 'application/json' } })
-      );
-
-
-      const zone = await this.zoneRepository.findOne({
-        where: { municipalityId, id_zone },
-      });
-
-      if (!zone) {
-        throw new NotFoundException(
-          `Zone avec id '${id_zone}' introuvable dans la municipalité ${municipalityId}`,
+      if (municipalityId) {
+        const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+        const response = await firstValueFrom(
+          this.httpService.get(url, { headers: { accept: 'application/json' } })
         );
+
+        const zone = await this.zoneRepository.findOne({
+          where: { municipalityId, id_zone },
+        });
+
+        if (!zone) {
+          throw new NotFoundException(
+            `Zone avec id '${id_zone}' introuvable dans la municipalité ${municipalityId}`,
+          );
+        }
+        
+        return zone; // Don't forget to return the zone
+      } else {
+        const zone = await this.zoneRepository.findOne({
+          where: { id_zone },
+        });
+        
+        if (!zone) {
+          throw new NotFoundException(
+            `Zone avec id '${id_zone}' introuvable`,
+          );
+        }
+        
+        return zone;
       }
-      return zone;
     } catch (error) {
-      // Vérifier si l'erreur vient de l'API (404)
       if (error instanceof AxiosError && error.response?.status === 404) {
         throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
       }
 
-      // Toute autre erreur
       throw new ServiceUnavailableException(
         'Impossible de récupérer les zones pour le moment. Veuillez réessayer plus tard.',
       );
