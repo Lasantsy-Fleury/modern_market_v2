@@ -80,7 +80,7 @@ export class ZoneController {
     @Param('id_zone') id_zone: string,
     @Param('municipalityId') municipalityId?: string,
   ) {
-    return this.zoneService.findOne(municipalityId, id_zone);
+    return this.zoneService.findOne(id_zone,municipalityId);
   }
 
   @Get('search/:municipalityId/:mot')
