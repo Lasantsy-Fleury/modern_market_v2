@@ -63,7 +63,4 @@ export class PaiementLocationController {
     }
     return this.paiementLocationService.findOneWithQr(id, municipalityId);
   }
-
-
-
 }
