@@ -658,14 +658,14 @@ export class LocationService {
     if (!lastPaiement) {
       // Juste log au lieu de throw
       console.warn(`⚠️ Aucun paiement trouvé pour la location ${location.id_location}`);
-      await this.notificationService.scheduleReminderNotification(
-        location.id_user,
-        {
-          montant: 123,
-          locationId: location.id_location,
-        },
-        today.getDate()
-      );
+      // await this.notificationService.scheduleReminderNotification(
+      //   location.id_user,
+      //   {
+      //     montant: 123,
+      //     locationId: location.id_location,
+      //   },
+      //   today.getDate()
+      // );
       return; // on arrête ici
     }
 
@@ -686,7 +686,7 @@ export class LocationService {
     // Préparer les données pour la notification
     const reminderData = {
       montant: lastPaiement.montant_paye,
-      locationId: location.id_location,
+      id_location: location.id_location,
     };
 
     // J-5 ou J-2 avant la prochaine échéance
@@ -696,6 +696,8 @@ export class LocationService {
         reminderData,
         nextDueDateOnly.getDate()
       );
+
+      this.eventsService.sendToUser(location.id_user,"rappelle_de_paiemnt",reminderData)
     }
 
     // Après échéance, tous les jours si pas encore payé
@@ -705,6 +707,7 @@ export class LocationService {
         reminderData,
         nextDueDateOnly.getDate()
       );
+      this.eventsService.sendToUser(location.id_user,"rappelle_de_paiemnt",reminderData)
     }
   }
 
