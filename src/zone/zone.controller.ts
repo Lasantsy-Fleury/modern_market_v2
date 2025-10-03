@@ -73,13 +73,13 @@ export class ZoneController {
   }
 
 
-  @Get('edit/:id_zone/:municipalityId')
+  @Get('edit/:id_zone/')
   @ApiParam({ name: 'id_zone', required: true, description: 'ID de la zone' })
-  @ApiParam({ name: 'municipalityId', required: false, description: 'ID de la municipalité' })
+  @ApiQuery({ name: 'municipalityId', required: false, description: 'ID de la municipalité' })
   @ApiOperation({ summary: 'Récupérer une zone par son id dans une municipalité' })
   findOneByIdAndMunicipality(
     @Param('id_zone') id_zone: string,
-    @Param('municipalityId') municipalityId: string,
+    @Query('municipalityId') municipalityId: string,
   ) {
     return this.zoneService.findOne(id_zone, municipalityId);
   }
