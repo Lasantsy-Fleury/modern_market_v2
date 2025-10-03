@@ -220,8 +220,8 @@ export class ZoneService {
       .leftJoinAndSelect('zone.locaux', 'locaux')
       .where('zone.id_zone = :id_zone', { id_zone });
 
-    if (municipalityId) {
-      return municipalityId;
+    if (municipalityId !== undefined && municipalityId !== null) {
+      await this.verifyMunicipalityExists(municipalityId);
       query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
 
@@ -306,9 +306,9 @@ private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
     try {
       const zone = await this.findOne(id_zone,municipalityId);
 
-      // Object.assign(zone, updateZoneDto);
-      // this.eventsService.broadcastToAll('zone_upated', zone);
-      // return await this.zoneRepository.save(zone);
+      Object.assign(zone, updateZoneDto);
+      this.eventsService.broadcastToAll('zone_upated', zone);
+      return await this.zoneRepository.save(zone);
     } catch (error) {
       // Vérifier si l'erreur vient de l'API (404)
       if (error instanceof AxiosError && error.response?.status === 404) {
