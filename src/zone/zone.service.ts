@@ -221,7 +221,7 @@ export class ZoneService {
       .where('zone.id_zone = :id_zone', { id_zone });
 
     if (municipalityId) {
-      await this.verifyMunicipalityExists(municipalityId);
+      return municipalityId;
       query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
 
