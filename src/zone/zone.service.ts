@@ -215,46 +215,24 @@ export class ZoneService {
   }
 
   async findOne(id_zone: string, municipalityId?: string) {
-  try {
-    // Si municipalityId est fourni, vérifier qu'il existe
-    if (municipalityId) {
+    const query = this.zoneRepository
+      .createQueryBuilder('zone')
+      .leftJoinAndSelect('zone.locaux', 'locaux')
+      .where('zone.id_zone = :id_zone', { id_zone });
+
+    if (municipalityId !== undefined && municipalityId !== null &&  municipalityId !== "{municipalityId}") {
       await this.verifyMunicipalityExists(municipalityId);
-      
-      const zone = await this.zoneRepository.findOne({
-        where: { municipalityId, id_zone },
-      });
-
-      if (!zone) {
-        throw new NotFoundException(
-          `Zone avec id '${id_zone}' introuvable dans la municipalité ${municipalityId}`,
-        );
-      }
-      
-      return zone;
+      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
 
-    // Recherche sans municipalityId
-    const zone = await this.zoneRepository.findOne({
-      where: { id_zone },
-    });
-    
+    const zone = await query.getOne();
+
     if (!zone) {
-      throw new NotFoundException(`Zone avec id '${id_zone}' introuvable`);
+      throw new NotFoundException(`Zone with id ${id_zone} not found`);
     }
 
-    return zone;
-  } catch (error) {
-    // Ne pas attraper les NotFoundException lancées explicitement
-    if (error instanceof NotFoundException) {
-      throw error;
-    }
-    
-    // Gérer les autres erreurs
-    throw new ServiceUnavailableException(
-      'Impossible de récupérer la zone pour le moment. Veuillez réessayer plus tard.',
-    );
+    return zone;  
   }
-}
 
 // Méthode auxiliaire pour vérifier l'existence de la municipalité
 private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
@@ -326,7 +304,7 @@ private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
     }
 
     try {
-      const zone = await this.findOne(municipalityId, id_zone);
+      const zone = await this.findOne(id_zone,municipalityId);
 
       Object.assign(zone, updateZoneDto);
       this.eventsService.broadcastToAll('zone_upated', zone);
