@@ -722,8 +722,6 @@ export class LocationService {
     }
   }
 
-
-
   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
     try {
       // Vérifier que l'utilisateur existe
@@ -760,4 +758,32 @@ export class LocationService {
     });
     return occupiedPeriods;
   }
+
+  async getVerificationUserLocal(municipalityId: string , id_user: string, id_local: string): Promise<any> {
+    const today = new Date();
+    // Normaliser 'today' à minuit pour une comparaison de date pure si location.date_debut_loc/fin_loc sont des dates sans heure.
+    // Si elles incluent l'heure, votre code actuel est correct.
+    
+    const location = await this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.id_user = :id_user', { id_user })
+      .andWhere('location.localId = :id_local', { id_local })
+      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
+      // La vérification est ici : la date d'aujourd'hui doit être comprise dans la période de location
+      .andWhere('location.date_debut_loc <= :today', { today })
+      .andWhere('location.date_fin_loc >= :today', { today })
+      .getOne();
+
+    if (!location) {
+      // Si la requête ne trouve rien, cela signifie que la location n'est pas active aujourd'hui pour cet utilisateur/local/municipalité.
+      throw new NotFoundException(`No active location found for user ID "${id_user}" and local ID "${id_local}" in municipality "${municipalityId}".`);
+    }
+    
+    // Si la location est trouvée, la vérification est réussie.
+    // Il est plus logique de retourner l'objet trouvé ou un simple 'true'.
+    // Je retourne l'objet car il contient toutes les données de la location.
+    return true; 
+}
 }

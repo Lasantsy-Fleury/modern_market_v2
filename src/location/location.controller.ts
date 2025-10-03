@@ -271,4 +271,17 @@ ${formatDate(locationData.date_fin_loc)}
   async getUserQrCode(@Param('id') id: string) {
     return await this.locationService.generateUserQrCode(id);
   }
+
+  @Get('verification/:municipalityId/:id_user/:id_local')
+  @ApiParam({ name: 'municipalityId', required: false, type: 'string', description: "ID de la municipalité" })
+  @ApiParam({ name: 'id_user', required: false, type: 'string', description: "ID de l'utilisateur" })
+  @ApiParam({ name: 'id_local', required: false, type: 'string', description: "ID du local" })
+  @ApiOperation({ summary: 'Vérifier l\'existence d\'une location active pour un utilisateur et un local dans une municipalité' })
+  async verifyUserLocal(
+    @Param('municipalityId') municipalityId: string,
+    @Param('id_user') id_user: string,
+    @Param('id_local') id_local: string
+  ) {
+    return this.locationService.getVerificationUserLocal(municipalityId, id_user, id_local);
+  }
 }
