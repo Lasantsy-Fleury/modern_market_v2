@@ -220,7 +220,7 @@ export class ZoneService {
       .leftJoinAndSelect('zone.locaux', 'locaux')
       .where('zone.id_zone = :id_zone', { id_zone });
 
-    if (municipalityId !== undefined && municipalityId !== null) {
+    if (municipalityId !== undefined && municipalityId !== null &&  municipalityId !== "{municipalityId}") {
       await this.verifyMunicipalityExists(municipalityId);
       query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
     }
