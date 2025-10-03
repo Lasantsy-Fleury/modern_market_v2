@@ -218,10 +218,10 @@ export class ZoneService {
   try {
     // Si municipalityId est fourni, vérifier qu'il existe
     if (municipalityId) {
-      await this.verifyMunicipalityExists(municipalityId);
+      // await this.verifyMunicipalityExists(municipalityId);
       
       const zone = await this.zoneRepository.findOne({
-        where: { municipalityId, id_zone },
+        where: {municipalityId: municipalityId, id_zone },
       });
 
       if (!zone) {
@@ -230,7 +230,7 @@ export class ZoneService {
         );
       }
       
-      return zone;
+      return municipalityId;
     }
 
     // Recherche sans municipalityId
@@ -242,7 +242,7 @@ export class ZoneService {
       throw new NotFoundException(`Zone avec id '${id_zone}' introuvable`);
     }
 
-    return zone;
+    return id_zone;
   } catch (error) {
     // Ne pas attraper les NotFoundException lancées explicitement
     if (error instanceof NotFoundException) {
@@ -326,11 +326,11 @@ private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
     }
 
     try {
-      const zone = await this.findOne(municipalityId, id_zone);
+      // const zone = await this.findOne(municipalityId, id_zone);
 
-      Object.assign(zone, updateZoneDto);
-      this.eventsService.broadcastToAll('zone_upated', zone);
-      return await this.zoneRepository.save(zone);
+      // Object.assign(zone, updateZoneDto);
+      // this.eventsService.broadcastToAll('zone_upated', zone);
+      // return await this.zoneRepository.save(zone);
     } catch (error) {
       // Vérifier si l'erreur vient de l'API (404)
       if (error instanceof AxiosError && error.response?.status === 404) {
