@@ -4,10 +4,13 @@ import { Namespace, Server, Socket } from 'socket.io';
 @WebSocketGateway({
   namespace: 'servicemodernmarket',
   cors: {
-    origin: '*',
+    origin: '*', // 🔥 Déjà OK, mais vérifiez que c'est bien présent
     methods: ['GET', 'POST'],
+    credentials: false, // 🔥 IMPORTANT : Mettre à false si origin: '*'
+    allowedHeaders: ['*']
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  path: '/socket.io', // 🔥 AJOUTER ceci explicitement
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
