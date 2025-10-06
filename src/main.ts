@@ -20,6 +20,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
     customSiteTitle: 'Documentation API - Service Modern Market',
   });
+app.useWebSocketAdapter(new IoAdapter(app)); // Utilisez l'adaptateur de base
 
   app.useWebSocketAdapter(new IoAdapter(app));
   await app.listen(process.env.PORT ?? 3000);
