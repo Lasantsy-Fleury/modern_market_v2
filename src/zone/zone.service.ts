@@ -340,6 +340,7 @@ async remove(id_zone: string) {
 
 
   async findAll1(): Promise<Zone[]> {
+      this.eventsService.broadcastToAll('zone_find', {"nom":"lala"});
     return this.zoneRepository.find({
       relations: ['locaux', 'distributionZones'], // si tu veux récupérer les relations
     });

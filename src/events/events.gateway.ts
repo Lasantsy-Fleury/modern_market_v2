@@ -1,9 +1,9 @@
 // events.gateway.ts
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
-  path: '',
+  namespace: 'servicemodernmarket',
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
