@@ -14,6 +14,7 @@ import { DistributionZoneModule } from './distribution_zone/distribution_zone.mo
 import { TypeLocalModule } from './type_local/type_locale.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventsModule } from './events/events.module';
+import { EventsGateway } from './events/events.gateway';
 
 
 @Module({
@@ -44,6 +45,6 @@ import { EventsModule } from './events/events.module';
 
   ],
   controllers: [AppController],
-  providers: [AppService,],
+  providers: [AppService,EventsGateway],
 })
 export class AppModule { }

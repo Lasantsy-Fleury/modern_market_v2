@@ -1,19 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   app.setGlobalPrefix('servicemodernmarket');
 
-  // Configuration CORS étendue pour WebSocket
+  // Configuration CORS étendue
   app.enableCors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true
   });
+
+  // 🔥 IMPORTANT : Configurer l'adaptateur WebSocket
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Configuration Swagger
   const config = new DocumentBuilder()
@@ -29,11 +33,8 @@ async function bootstrap() {
     customSiteTitle: 'Documentation API - Service Modern Market',
   });
 
-  // 🔥 SUPPRIMÉ : app.useWebSocketAdapter(new IoAdapter(app));
-  // NestJS gère automatiquement WebSocket via le gateway
-
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0'); // 🔥 Écouter sur toutes les interfaces
   
   console.log(`🚀 Serveur démarré sur le port ${port}`);
   console.log(`📡 WebSocket disponible sur ws://localhost:${port}/servicemodernmarket`);
