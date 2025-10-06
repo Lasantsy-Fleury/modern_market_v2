@@ -815,7 +815,7 @@ export class LocationService {
     const fin = location.date_fin_loc ? new Date(location.date_fin_loc) : null;
 
 
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
     const response = await lastValueFrom(this.httpService.get(url));
     const commune = response.data;
 
@@ -829,9 +829,9 @@ export class LocationService {
     doc.moveDown(2);
 
     // 🔹 Informations sur le bailleur (commune)
-    doc.fontSize(12).text(`Bailleur : Commune de ${commune.nom}`);
-    doc.text(`Adresse : ${commune.adresse}`);
-    doc.text(`Téléphone : ${commune.telephone}`);
+    doc.fontSize(12).text(`Bailleur : Commune de ${commune.name}`);
+    doc.text(`Code postal : ${commune.code}`);
+    doc.text(`Téléphone : ${commune.phone_number}`);
     doc.moveDown();
 
     // 🔹 Informations sur le locataire
