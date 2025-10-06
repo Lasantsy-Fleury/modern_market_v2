@@ -212,8 +212,4 @@ export class PaiementLocationService {
 
     return parseFloat(result.total) || 0;
   }
-  //  async remove(id_paiement_location: number): Promise<void> {
-  //     const typeLocal = await this.findOne(id_paiement_location);
-  //     await this.paiementLocationRepository.remove(typeLocal);
-  //   }
 }

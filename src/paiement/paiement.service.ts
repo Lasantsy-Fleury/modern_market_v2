@@ -263,7 +263,6 @@ export class PaiementService {
   };
 }
 
-
   async remove(id: string): Promise<{ message: string }> {
     const paiement = await this.paieRepository.findOne({
       where: { id_paiement: id },

@@ -537,20 +537,23 @@ export class NotificationService {
       totalLocaux: number;
       totalLoues: number;
       totalScannes: number;
+      scannedLocalNumeros: string[]; 
       totalNonScannes: number;
+      nonScannedLocalNumeros: string[]; 
     }[]
   > {
-    // Récupérer tous les locaux avec leur zone
+    // 1. Récupérer tous les locaux avec leur zone
     const locaux = await this.localRepository.find({ relations: ['zone'] });
 
-    if (!locaux) {
-
+    if (!locaux || locaux.length === 0) {
+      return [];
     }
-    // Récupérer les notifications groupées par zone
+    
     const notifQuery = this.notifRepository
       .createQueryBuilder('n')
       .select('n.data ->> \'zoneName\'', 'zoneName')
-      .addSelect('COUNT(DISTINCT n.data ->> \'localId\')', 'totalScannes')
+      .addSelect('ARRAY_AGG(DISTINCT n.data ->> \'localId\')', 'scannedLocalIds') 
+      .addSelect('COUNT(DISTINCT n.data ->> \'localId\')', 'totalScannes') 
       .groupBy('n.data ->> \'zoneName\'');
 
     if (startDate && endDate) {
@@ -566,34 +569,50 @@ export class NotificationService {
 
     const notifStats = await notifQuery.getRawMany();
 
-    // Mapper les résultats
-    const statsMap = new Map<string, number>();
+    const scannedMap = new Map<string, { count: number; ids: string[] }>();
     notifStats.forEach((n) => {
-      statsMap.set(n.zoneName, Number(n.totalScannes));
+        const ids = Array.isArray(n.scannedLocalIds) ? n.scannedLocalIds : [];
+        scannedMap.set(n.zoneName, {
+            count: Number(n.totalScannes),
+            ids: ids, 
+        });
     });
 
-    // Construire résultat final
     const result = locaux.reduce((acc, local) => {
+      const localId = local.id_local; 
+      const localNumero = local.numero;
+
       const zoneName = local.zone?.nom || 'Inconnue';
+      const zoneData = scannedMap.get(zoneName);
+
+      const isScanned = zoneData ? zoneData.ids.includes(localId) : false;
+
       if (!acc[zoneName]) {
         acc[zoneName] = {
           zoneName,
           totalLocaux: 0,
           totalLoues: 0,
-          totalScannes: statsMap.get(zoneName) || 0,
-          totalNonScannes: 0,
+          totalScannes: zoneData?.count || 0,
+          scannedLocalNumeros: [], 
+          totalNonScannes: 0, 
+          nonScannedLocalNumeros: [], 
         };
       }
 
       acc[zoneName].totalLocaux += 1;
       if (local.statut === 'LOUE') acc[zoneName].totalLoues += 1;
 
+      if (isScanned) {
+        acc[zoneName].scannedLocalNumeros.push(localNumero);
+      } else {
+        acc[zoneName].nonScannedLocalNumeros.push(localNumero);
+      }
+
       return acc;
     }, {} as Record<string, any>);
 
-    // Calcul des non scannés
     Object.values(result).forEach((r: any) => {
-      r.totalNonScannes = r.totalLocaux - r.totalScannes;
+      r.totalNonScannes = r.nonScannedLocalNumeros.length;
     });
 
     return Object.values(result);

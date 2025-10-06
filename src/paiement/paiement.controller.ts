@@ -1,9 +1,6 @@
-// src/paiement/paiement.controller.ts
-
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
 import { PaiementService } from './paiement.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
-import { UpdatePaiementDto } from './dto/update-paiement.dto';
 import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 
 
@@ -61,7 +58,6 @@ export class PaiementController {
     );
   }
 
-
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un paiement par son id et municipalityId' })
   @ApiQuery({
@@ -88,20 +84,8 @@ export class PaiementController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
   ) {
-    // Conversion manuelle du municipalityId si présent
-    // let parsedMunicipalityId: string | undefined = undefined;
-
-    // if (municipalityId) {
-    //   parsedMunicipalityId = parseInt(municipalityId, 10);
-    //   if (isNaN(parsedMunicipalityId)) {
-    //     throw new BadRequestException('municipalityId doit être un nombre valide');
-    //   }
-    // }
-
     return this.paiementService.findHistoryByUser(id_user, municipalityId, page, limit);
   }
-
-
 
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un paiement par son ID (et ses paiements_location associés)' })
