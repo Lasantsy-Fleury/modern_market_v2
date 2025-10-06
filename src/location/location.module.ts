@@ -10,6 +10,7 @@ import { PaiementLocationModule } from 'src/paiement_location/paiement_location.
 import { NotificationModule } from 'src/notification/notification.module';
 import { EventsModule } from 'src/events/events.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     forwardRef(() => NotificationModule),
     forwardRef(() => EventsModule),
     ScheduleModule.forRoot(),
+    HttpModule
   ],
   controllers: [LocationController],
   providers: [LocationService],

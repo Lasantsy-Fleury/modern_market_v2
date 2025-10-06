@@ -13,6 +13,10 @@ import * as QRCode from 'qrcode';
 import axios from 'axios';
 import { EventsService } from 'src/events/events.service';
 import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
+import { WritableStreamBuffer } from 'stream-buffers';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class LocationService {
@@ -31,7 +35,7 @@ export class LocationService {
     private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly notificationService: NotificationService,
     private readonly eventsService: EventsService,
-
+    private readonly httpService: HttpService,
   ) { }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
@@ -697,7 +701,7 @@ export class LocationService {
         nextDueDateOnly.getDate()
       );
 
-      this.eventsService.sendToUser(location.id_user,"rappelle_de_paiemnt",reminderData)
+      this.eventsService.sendToUser(location.id_user, "rappelle_de_paiemnt", reminderData)
     }
 
     // Après échéance, tous les jours si pas encore payé
@@ -707,10 +711,22 @@ export class LocationService {
         reminderData,
         nextDueDateOnly.getDate()
       );
-      this.eventsService.sendToUser(location.id_user,"rappelle_de_paiemnt",reminderData)
+      this.eventsService.sendToUser(location.id_user, "rappelle_de_paiemnt", reminderData)
     }
   }
 
+  async findById(id: string): Promise<Location> {
+    const location = await this.locationRepository.findOne({
+      where: { id_location: id },
+      relations: ['local'], // récupère les infos du local associé
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location avec id ${id} introuvable`);
+    }
+
+    return location;
+  }
 
   // 🔌 Job CRON qui vérifie tous les jours à 7h
   @Cron(CronExpression.EVERY_DAY_AT_7AM)
@@ -759,7 +775,7 @@ export class LocationService {
     return occupiedPeriods;
   }
 
-  async getVerificationUserLocal(municipalityId: string , id_user: string, id_local: string): Promise<any> {
+  async getVerificationUserLocal(municipalityId: string, id_user: string, id_local: string): Promise<any> {
     const today = new Date();
     const location = await this.locationRepository
       .createQueryBuilder('location')
@@ -775,6 +791,90 @@ export class LocationService {
     if (!location) {
       return false;
     }
-    return true; 
-}
+    return true;
+  }
+
+  async generateContratBail(locationId: string): Promise<Buffer> {
+
+    const location = await this.locationRepository.findOne({
+      where: { id_location: locationId },
+      relations: ['local', 'local.zone'], // 🔹 charger la zone
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location ${locationId} introuvable`);
+    }
+
+    if (!location.local || !location.local.zone || !location.local.zone.municipalityId) {
+      throw new NotFoundException(`Le local ou la zone associée avec municipalityId est introuvable pour la location ${locationId}`);
+    }
+
+    const municipalityId = location.local.zone.municipalityId;
+
+    const debut = location.date_debut_loc ? new Date(location.date_debut_loc) : null;
+    const fin = location.date_fin_loc ? new Date(location.date_fin_loc) : null;
+
+
+    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    const response = await lastValueFrom(this.httpService.get(url));
+    const commune = response.data;
+
+    // 🔹 Création du PDF en mémoire
+    const bufferStream = new WritableStreamBuffer();
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    doc.pipe(bufferStream);
+
+    // 🔹 En-tête
+    doc.fontSize(18).text('CONTRAT DE BAIL', { align: 'center', underline: true });
+    doc.moveDown(2);
+
+    // 🔹 Informations sur le bailleur (commune)
+    doc.fontSize(12).text(`Bailleur : Commune de ${commune.nom}`);
+    doc.text(`Adresse : ${commune.adresse}`);
+    doc.text(`Téléphone : ${commune.telephone}`);
+    doc.moveDown();
+
+    // 🔹 Informations sur le locataire
+    doc.text(`Locataire : ${location.id_user}`); // tu peux enrichir avec le nom si tu as
+    doc.text(`NIF : ${location.nif}`);
+    doc.moveDown();
+
+    // 🔹 Informations sur le local
+    doc.text(`Local : ${location.local.numero || location.localId}`);
+    doc.text(`Usage prévu : ${location.usage || 'Non précisé'}`);
+    doc.text(`Périodicité : ${location.periodicite}`);
+    doc.text(
+      `Durée du bail : du ${debut ? debut.toLocaleDateString() : '-'} au ${fin ? fin.toLocaleDateString() : '-'}`
+    );
+    doc.moveDown();
+
+    // 🔹 Clause exemple (tu peux compléter avec un vrai modèle)
+    doc.text('Article 1 : Objet du bail');
+    doc.text(`Le présent contrat a pour objet la location du local ci-dessus désigné pour l’usage indiqué.`);
+    doc.moveDown();
+
+    doc.text('Article 2 : Loyers et paiements');
+    doc.text(`Le locataire s’engage à payer le loyer selon la périodicité définie : ${location.periodicite.toLowerCase()}.`);
+    doc.moveDown();
+
+    doc.text('Article 3 : Obligations des parties');
+    doc.text('Le bailleur et le locataire s’engagent à respecter les obligations légales et contractuelles en vigueur.');
+    doc.moveDown(2);
+
+    // 🔹 Signatures
+    doc.text('Fait à la commune, le ' + new Date().toLocaleDateString());
+    doc.moveDown(2);
+    doc.text('Signature du bailleur : ____________________');
+    doc.moveDown();
+    doc.text('Signature du locataire : ____________________');
+
+    doc.end();
+
+    return new Promise((resolve) => {
+      bufferStream.on('finish', () => {
+        const pdfBuffer = bufferStream.getContents();
+        resolve(pdfBuffer);
+      });
+    });
+  }
 }

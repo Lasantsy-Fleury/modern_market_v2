@@ -284,4 +284,33 @@ ${formatDate(locationData.date_fin_loc)}
   ) {
     return this.locationService.getVerificationUserLocal(municipalityId, id_user, id_local);
   }
+
+   @Get('contrat-bail/:id')
+@ApiOperation({ summary: 'Télécharger le contrat de bail PDF pour une location donnée' })
+@ApiResponse({ status: 200, description: 'Contrat de bail généré et envoyé avec succès.' })
+@ApiResponse({ status: 404, description: 'Location introuvable.' })
+async downloadContratBail(
+  @Param('id') id: string,
+  @Res() res: Response,
+) {
+  // 🔹 Récupérer la location
+  const location = await this.locationService.findById(id);
+  if (!location) {
+    throw new NotFoundException(`Location ${id} introuvable`);
+  }
+
+  // 🔹 Générer le PDF en mémoire (Buffer)
+  const pdfBuffer = await this.locationService.generateContratBail(location.id_location);
+
+  // 🔹 Envoyer le PDF au frontend pour téléchargement
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename=contrat_bail_${location.id_location}.pdf`,
+  );
+  res.setHeader('Content-Length', pdfBuffer.length);
+
+  res.send(pdfBuffer);
+}
+
 }

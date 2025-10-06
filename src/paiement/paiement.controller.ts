@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Res, Delete, Query, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
 import { PaiementService } from './paiement.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { ApiResponse, ApiTags, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
-
+import { Response } from 'express';
 
 @ApiTags('Paiement')
 @Controller('paiement')
@@ -86,6 +86,42 @@ export class PaiementController {
   ) {
     return this.paiementService.findHistoryByUser(id_user, municipalityId, page, limit);
   }
+
+  @Get('recu/:reference')
+  @ApiOperation({ summary: 'Télécharger le reçu PDF pour un paiement' })
+  @ApiResponse({ status: 200, description: 'Reçu généré et téléchargé.' })
+  async downloadRecu(
+    @Param('reference') ref: string,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.paiementService.generateRecuPaiement(ref);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="recu_paiement_${ref}.pdf"`,
+    );
+
+    res.end(pdfBuffer);
+  }
+  @Get('recu-regisseur/:reference')
+  @ApiOperation({ summary: 'Télécharger le reçu PDF avec régisseur pour un paiement donné' })
+  @ApiResponse({ status: 200, description: 'Reçu régisseur généré et envoyé avec succès.' })
+  @ApiResponse({ status: 404, description: 'Paiement introuvable pour cette municipalité.' })
+  async downloadRecuRegisseur(
+    @Param('reference') ref: string,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.paiementService.generateRecuPaiementRegisseur(ref);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="recu_regisseur_${ref}.pdf"`,
+    });
+
+    res.send(pdfBuffer);
+  }
+
 
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un paiement par son ID (et ses paiements_location associés)' })

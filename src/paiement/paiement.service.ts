@@ -7,7 +7,15 @@ import { LocationService } from 'src/location/location.service';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { NotificationService } from 'src/notification/notification.service';
+import * as PDFDocument from 'pdfkit';
+import * as fs from 'fs';
+import { join } from 'path';
 import { EventsService } from 'src/events/events.service';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+
+import { WritableStreamBuffer } from 'stream-buffers';
+
 @Injectable()
 export class PaiementService {
   constructor(
@@ -16,7 +24,8 @@ export class PaiementService {
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
     private readonly eventsService: EventsService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly httpService: HttpService
   ) { }
 
   async create(createPaiementDto: CreatePaiementDto): Promise<any> {
@@ -47,7 +56,7 @@ export class PaiementService {
 
       if (savedPaiement) {
         this.eventsService.broadcastToAll('paiement_created', newPaiement);
-        
+
         console.log("envoie");
       }
 
@@ -227,41 +236,41 @@ export class PaiementService {
       throw new BadRequestException('L\'ID de l\'utilisateur est obligatoire.');
     }
 
-  const query = this.paieRepository
-    .createQueryBuilder('paiement')
-    .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
-    .leftJoinAndSelect('paiement_location.location', 'location')
-    .leftJoinAndSelect('location.local', 'local')
-    .leftJoinAndSelect('local.zone', 'zone')
-    .where('location.id_user = :id_user', { id_user });
+    const query = this.paieRepository
+      .createQueryBuilder('paiement')
+      .leftJoinAndSelect('paiement.paiement_locations', 'paiement_location')
+      .leftJoinAndSelect('paiement_location.location', 'location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('local.zone', 'zone')
+      .where('location.id_user = :id_user', { id_user });
 
-  if (municipalityId) {
-    query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+    if (municipalityId) {
+      query.andWhere('zone.municipalityId = :municipalityId', { municipalityId });
+    }
+
+    query
+      .orderBy('paiement.date_creation', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    const message = municipalityId
+      ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
+      : `Historique des paiements pour l'utilisateur ${id_user}`;
+
+    return {
+      message,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      status: 200,
+    };
   }
-
-  query
-    .orderBy('paiement.date_creation', 'DESC')
-    .skip((page - 1) * limit)
-    .take(limit);
-
-  const [data, total] = await query.getManyAndCount();
-
-  const message = municipalityId
-    ? `Historique des paiements pour l'utilisateur ${id_user} dans la municipalité ${municipalityId}`
-    : `Historique des paiements pour l'utilisateur ${id_user}`;
-
-  return {
-    message,
-    data,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-    status: 200,
-  };
-}
 
   async remove(id: string): Promise<{ message: string }> {
     const paiement = await this.paieRepository.findOne({
@@ -276,5 +285,93 @@ export class PaiementService {
     await this.paieRepository.remove(paiement);
 
     return { message: `Paiement avec l'ID "${id}" supprimé avec succès.` };
+  }
+
+  async generateRecuPaiement(referencePaiement: string): Promise<Buffer> {
+    const paiement = await this.findByReference(referencePaiement);
+    if (!paiement) throw new NotFoundException(`Paiement ${referencePaiement} introuvable`);
+
+    const bufferStream = new WritableStreamBuffer();
+    const doc = new PDFDocument();
+    doc.pipe(bufferStream);
+
+    doc.fontSize(18).text('🧾 Reçu de Paiement', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Référence : ${paiement.reference}`);
+    doc.text(`Date : ${new Date(paiement.date_paiement).toLocaleDateString()}`);
+    doc.text(`Montant payé : ${paiement.montant_paye} Ar`);
+    doc.text(`Client : ${paiement.nom_client}`);
+    doc.text(`Mode de paiement : ${paiement.mode_paiement}`);
+    doc.moveDown();
+    doc.text('Merci pour votre paiement.', { align: 'center' });
+
+    doc.end();
+
+    return new Promise((resolve) => {
+      bufferStream.on('finish', () => {
+        const pdfBuffer = bufferStream.getContents();
+        resolve(pdfBuffer);
+      });
+    });
+  }
+
+  async generateRecuPaiementRegisseur(referencePaiement: string): Promise<Buffer> {
+    // 🔹 Récupérer le paiement
+    const paiement = await this.findByReference(referencePaiement);
+    if (!paiement) {
+      throw new NotFoundException(`Paiement ${referencePaiement} introuvable`);
+    }
+
+    // 🔹 Récupérer les infos du régisseur depuis le microservice
+    const url = `https://gateway.tsirylab.com/serviceregis/regisseur-by-reference/${referencePaiement}`;
+    const response = await lastValueFrom(this.httpService.get(url));
+    const regisseur = response.data;
+
+    // 🔹 Création du PDF en mémoire
+    const bufferStream = new WritableStreamBuffer();
+    const doc = new PDFDocument();
+    doc.pipe(bufferStream);
+
+    // Titre
+    doc.fontSize(18).text('🧾 Reçu de paiement (avec régisseur)', { align: 'center' });
+    doc.moveDown();
+
+    // Infos du paiement
+    doc.fontSize(12).text(`Référence : ${paiement.reference}`);
+    doc.text(`Date : ${new Date(paiement.date_paiement).toLocaleDateString()}`);
+    doc.text(`Montant payé : ${paiement.montant_paye} Ar`);
+    doc.text(`Client : ${paiement.nom_client}`);
+    doc.text(`Mode de paiement : ${paiement.mode_paiement}`);
+    doc.moveDown();
+
+    // Infos du régisseur
+    doc.fontSize(14).text('Informations du régisseur :', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(12).text(`Nom : ${regisseur.nom}`);
+    doc.text(`Email : ${regisseur.email}`);
+    doc.text(`Téléphone : ${regisseur.telephone}`);
+    doc.text(`Service : ${regisseur.service}`);
+
+    doc.end();
+
+    return new Promise((resolve) => {
+      bufferStream.on('finish', () => {
+        const pdfBuffer = bufferStream.getContents();
+        resolve(pdfBuffer);
+      });
+    });
+  }
+
+
+  // Exemple de récupération d’un paiement (à adapter à ton repo réel)
+  private async findByReference(reference: string) {
+    // ici tu fais un appel à ton repository
+    return {
+      reference,
+      date_paiement: new Date(),
+      montant_paye: 125000,
+      nom_client: 'Rakoto Jean',
+      mode_paiement: 'Espèces',
+    };
   }
 }
