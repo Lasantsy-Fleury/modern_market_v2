@@ -7,6 +7,7 @@ import { Location, Periodicite } from 'src/location/entities/location.entity';
 import * as QRCode from 'qrcode';
 import { EventsService } from 'src/events/events.service';
 
+
 @Injectable()
 export class PaiementLocationService {
   constructor(
@@ -15,6 +16,7 @@ export class PaiementLocationService {
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
     private readonly eventsService: EventsService,
+ 
   ) { }
 
   async create(
@@ -100,6 +102,7 @@ export class PaiementLocationService {
     };
 
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
+
 
     this.eventsService.broadcastToAll('paiement_location_created', savedPaiementLocation);
     this.eventsService.sendToUser(location.id_user, 'votre_paiement_location_reussi', savedPaiementLocation);

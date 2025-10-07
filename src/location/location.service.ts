@@ -301,31 +301,31 @@ export class LocationService {
       .getMany();
   }
 
-async findByUser(id_user: string, page?: number, limit?: number): Promise<any> {
-  const query = this.locationRepository.createQueryBuilder('location')
-    .leftJoinAndSelect('location.local', 'local')
-    .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
-    .where('location.id_user = :id_user', { id_user })
-    .orderBy('location.date_debut_loc', 'DESC');
+  async findByUser(id_user: string, page?: number, limit?: number): Promise<any> {
+    const query = this.locationRepository.createQueryBuilder('location')
+      .leftJoinAndSelect('location.local', 'local')
+      .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
+      .where('location.id_user = :id_user', { id_user })
+      .orderBy('location.date_debut_loc', 'DESC');
 
-  // 🔹 Si pagination demandée
-  if (page && limit) {
-    const [result, total] = await query
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+    // 🔹 Si pagination demandée
+    if (page && limit) {
+      const [result, total] = await query
+        .skip((page - 1) * limit)
+        .take(limit)
+        .getManyAndCount();
 
-    return {
-      data: result,
-      total,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-    };
+      return {
+        data: result,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
+    // 🔹 Sinon, retourner toutes les locations
+    return await query.getMany();
   }
-
-  // 🔹 Sinon, retourner toutes les locations
-  return await query.getMany();
-}
 
 
 
@@ -815,60 +815,63 @@ async findByUser(id_user: string, page?: number, limit?: number): Promise<any> {
   }
 
   async generateContratBail(locationId: string): Promise<Buffer> {
-
     const location = await this.locationRepository.findOne({
       where: { id_location: locationId },
-      relations: ['local', 'local.zone'], // 🔹 charger la zone
+      relations: ['local', 'local.zone','local.typelocal'],
     });
 
     if (!location) {
       throw new NotFoundException(`Location ${locationId} introuvable`);
     }
 
-    if (!location.local || !location.local.zone || !location.local.zone.municipalityId) {
-      throw new NotFoundException(`Le local ou la zone associée avec municipalityId est introuvable pour la location ${locationId}`);
+    if (!location.local || !location.local.zone) {
+      throw new NotFoundException(`Le local ou la zone associée est introuvable pour la location ${locationId}`);
     }
 
     const municipalityId = location.local.zone.municipalityId;
 
-    const debut = location.date_debut_loc ? new Date(location.date_debut_loc) : null;
-    const fin = location.date_fin_loc ? new Date(location.date_fin_loc) : null;
+    let commune: any = {
+      name: "Inconnue",
+      code: "-",
+      phone_number: "-"
+    };
 
+    // 🔹 Tenter de récupérer la commune, mais ignorer si erreur
+    try {
+      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
+      const response = await lastValueFrom(this.httpService.get(url));
+      commune = response.data;
+    } catch (error) {
+      console.error("⚠️ Impossible d'obtenir les données de la commune :", error.message);
+      // On continue avec des données par défaut
+    }
 
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
-    const response = await lastValueFrom(this.httpService.get(url));
-    const commune = response.data;
-
-    // 🔹 Création du PDF en mémoire
+    // 🔹 Création du PDF
     const bufferStream = new WritableStreamBuffer();
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     doc.pipe(bufferStream);
 
-    // 🔹 En-tête
     doc.fontSize(18).text('CONTRAT DE BAIL', { align: 'center', underline: true });
     doc.moveDown(2);
 
-    // 🔹 Informations sur le bailleur (commune)
     doc.fontSize(12).text(`Bailleur : Commune de ${commune.name}`);
     doc.text(`Code postal : ${commune.code}`);
     doc.text(`Téléphone : ${commune.phone_number}`);
     doc.moveDown();
 
-    // 🔹 Informations sur le locataire
-    doc.text(`Locataire : ${location.id_user}`); // tu peux enrichir avec le nom si tu as
-    doc.text(`NIF : ${location.nif}`);
+    doc.text(`Locataire : ${location.id_user}`);
+    doc.text(`NIF : ${location.nif || '-'}`);
     doc.moveDown();
 
-    // 🔹 Informations sur le local
     doc.text(`Local : ${location.local.numero || location.localId}`);
     doc.text(`Usage prévu : ${location.usage || 'Non précisé'}`);
+    doc.text(`Loyer :${location.local?.typelocal?.tarif ?? 'Non précisé'}`);
     doc.text(`Périodicité : ${location.periodicite}`);
     doc.text(
-      `Durée du bail : du ${debut ? debut.toLocaleDateString() : '-'} au ${fin ? fin.toLocaleDateString() : '-'}`
+      `Durée du bail : du ${location.date_debut_loc ? new Date(location.date_debut_loc).toLocaleDateString() : '-'} au ${location.date_fin_loc ? new Date(location.date_fin_loc).toLocaleDateString() : '-'}`
     );
     doc.moveDown();
 
-    // 🔹 Clause exemple (tu peux compléter avec un vrai modèle)
     doc.text('Article 1 : Objet du bail');
     doc.text(`Le présent contrat a pour objet la location du local ci-dessus désigné pour l’usage indiqué.`);
     doc.moveDown();
@@ -881,20 +884,13 @@ async findByUser(id_user: string, page?: number, limit?: number): Promise<any> {
     doc.text('Le bailleur et le locataire s’engagent à respecter les obligations légales et contractuelles en vigueur.');
     doc.moveDown(2);
 
-    // 🔹 Signatures
-    doc.text('Fait à la commune, le ' + new Date().toLocaleDateString());
-    doc.moveDown(2);
-    doc.text('Signature du bailleur : ____________________');
-    doc.moveDown();
-    doc.text('Signature du locataire : ____________________');
-
     doc.end();
 
     return new Promise((resolve) => {
       bufferStream.on('finish', () => {
-        const pdfBuffer = bufferStream.getContents();
-        resolve(pdfBuffer);
+        resolve(bufferStream.getContents());
       });
     });
   }
+
 }

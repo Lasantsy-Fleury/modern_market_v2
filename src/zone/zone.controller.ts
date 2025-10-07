@@ -84,14 +84,14 @@ export class ZoneController {
     return this.zoneService.findOne(id_zone, municipalityId);
   }
 
-  @Get('search/:municipalityId/:mot')
-  @ApiOperation({ summary: 'Chercher une zone d une commune à partir de mot' })
-  async search(
-    @Param('municipalityId') municipalityId: string,
-    @Param('mot') mot: string,
-  ) {
-    return this.zoneService.searchByName(municipalityId, mot);
-  }
+  // @Get('search/:municipalityId/:mot')
+  // @ApiOperation({ summary: 'Chercher une zone d une commune à partir de mot' })
+  // async search(
+  //   @Param('municipalityId') municipalityId: string,
+  //   @Param('mot') mot: string,
+  // ) {
+  //   return this.zoneService.searchByName(municipalityId, mot);
+  // }
 
   @Patch(':municipalityId/:id_zone')
   @ApiOperation({ summary: 'Modifier une zone' })

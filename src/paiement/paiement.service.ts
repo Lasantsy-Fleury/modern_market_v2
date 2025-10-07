@@ -60,8 +60,8 @@ export class PaiementService {
         console.log("envoie");
       }
 
-      const qrCodes: { id_paiement_location: string; qrCode: string }[] = [];
       const createdPaiementLocations: Paiementlocation[] = [];
+      let contratPdf: Buffer | null = null;
 
       if (savedPaiement.status === 'success') {
         const montant_total_paye = paiement_locations.reduce((total, loc) => total + loc.montant_paye, 0);
@@ -88,12 +88,17 @@ export class PaiementService {
           }
 
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
-          qrCodes.push({ id_paiement_location: paiementLocation.id_paiement_location, qrCode });
+       
           createdPaiementLocations.push(paiementLocation);
         }
-
-        // Mise à jour du statut du local uniquement après la validation
-        await this.locationService.updateLocalStatusToRented(locationId);
+        if (location.local.statut == 'DISPONIBLE') {
+          await this.locationService.updateLocalStatusToRented(locationId);
+          console.log(`🏠 Local ${location.local.numero || location.localId} marqué comme LOUE.`);
+          contratPdf = await this.locationService.generateContratBail(locationId);
+          console.log('📄 Contrat de bail généré (car le local vient d’être loué)');
+        } else {
+          console.log(`ℹ️ Local ${location.local.numero || location.localId} déjà marqué comme LOUE, aucune mise à jour.`);
+        }
 
         // Création de la notification de succès
         const userId = location.id_user;
@@ -131,7 +136,7 @@ export class PaiementService {
       return {
         message: 'Paiement créé avec succès.',
         paiement: savedPaiement,
-        qrCodes: qrCodes,
+        contratBail: contratPdf ? contratPdf.toString('base64') : null,
       };
 
     } catch (error) {
@@ -323,9 +328,15 @@ export class PaiementService {
     }
 
     // 🔹 Récupérer les infos du régisseur depuis le microservice
-    const url = `https://gateway.tsirylab.com/serviceregis/regisseur-by-reference/${referencePaiement}`;
-    const response = await lastValueFrom(this.httpService.get(url));
-    const regisseur = response.data;
+    let regiInfo: any = null;
+    try {
+      const url = `https://gateway.tsirylab.com/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
+      const response = await lastValueFrom(this.httpService.get(url));
+      regiInfo = response.data;
+    } catch (error: any) {
+      console.warn(`Impossible de récupérer le régisseur pour ${referencePaiement}: ${error?.response?.data?.message || error.message}`);
+      // On continue quand même, le PDF sera généré sans info régisseur
+    }
 
     // 🔹 Création du PDF en mémoire
     const bufferStream = new WritableStreamBuffer();
@@ -344,13 +355,18 @@ export class PaiementService {
     doc.text(`Mode de paiement : ${paiement.mode_paiement}`);
     doc.moveDown();
 
-    // Infos du régisseur
-    doc.fontSize(14).text('Informations du régisseur :', { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(12).text(`Nom : ${regisseur.nom}`);
-    doc.text(`Email : ${regisseur.email}`);
-    doc.text(`Téléphone : ${regisseur.telephone}`);
-    doc.text(`Service : ${regisseur.service}`);
+    // Infos du régisseur (si disponibles)
+    if (regiInfo) {
+      doc.fontSize(14).text('Informations du régisseur :', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(12).text(`Nom : ${regiInfo.user_pseudo || 'Non disponible'}`);
+      doc.text(`Email : ${regiInfo.user_email || 'Non disponible'}`);
+      doc.text(`Téléphone : ${regiInfo.user_phone || 'Non disponible'}`);
+      doc.text(`Service : ${regiInfo.service_name || 'Non disponible'}`);
+      doc.text(`Poste : ${regiInfo.nom_regi || 'Non disponible'}`);
+    } else {
+      doc.fontSize(12).text('Aucune information régisseur disponible pour cette référence.');
+    }
 
     doc.end();
 
@@ -361,6 +377,7 @@ export class PaiementService {
       });
     });
   }
+
 
 
   // Exemple de récupération d’un paiement (à adapter à ton repo réel)
