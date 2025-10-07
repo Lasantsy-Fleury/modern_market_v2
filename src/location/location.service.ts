@@ -301,13 +301,33 @@ export class LocationService {
       .getMany();
   }
 
-  async findByUser(id_user: string): Promise<Location[]> {
-    return await this.locationRepository.find({
-      where: { id_user },
-      relations: ['local', 'paiement_locations'],
-      order: { date_debut_loc: 'DESC' },
-    });
+async findByUser(id_user: string, page?: number, limit?: number): Promise<any> {
+  const query = this.locationRepository.createQueryBuilder('location')
+    .leftJoinAndSelect('location.local', 'local')
+    .leftJoinAndSelect('location.paiement_locations', 'paiement_locations')
+    .where('location.id_user = :id_user', { id_user })
+    .orderBy('location.date_debut_loc', 'DESC');
+
+  // 🔹 Si pagination demandée
+  if (page && limit) {
+    const [result, total] = await query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: result,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
+
+  // 🔹 Sinon, retourner toutes les locations
+  return await query.getMany();
+}
+
+
 
   async findInProgressByUser(id_user: string): Promise<Location[]> {
     const today = new Date();

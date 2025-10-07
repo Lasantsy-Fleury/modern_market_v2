@@ -2,12 +2,14 @@
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Namespace, Server, Socket } from 'socket.io';
 @WebSocketGateway({
-  namespace: 'servicemodernmarket',
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
-  transports: ['websocket', 'polling']
+ // transports: ['websocket', 'polling'],
+  namespace: 'servicemodernmarket',
+  path: '/servicemodernmarket/socket.io',
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

@@ -41,11 +41,25 @@ export class LocationController {
     return this.locationService.findAllInProgress(municipalityId);
   }
 
-  // Toutes les locations d'un utilisateur
   @Get('userLocations/:id_user')
-  @ApiOperation({ summary: 'Récupérer toutes les locations d un user en cours ou pas' })
-  findByUser(@Param('id_user') id_user: string) {
-    return this.locationService.findByUser(id_user);
+  @ApiOperation({ summary: 'Récupérer toutes les locations d’un utilisateur (avec pagination optionnelle)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
+  async findByUser(
+    @Param('id_user') id_user: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    // Si page et limit ne sont pas fournis, renvoyer tout
+    if (!page || !limit) {
+      return await this.locationService.findByUser(id_user);
+    }
+
+    // Sinon, appliquer la pagination
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+
+    return await this.locationService.findByUser(id_user, pageNumber, limitNumber);
   }
 
   // Locations en cours d'un utilisateur
@@ -70,63 +84,63 @@ export class LocationController {
 
   @Get('locationQrCode/:id/municipality/:municipalityId')
   @ApiOperation({ summary: 'Récupérer le QR Code contenant les infos d\'une location par son id-location' })
-async findOneWithQrcode(
-  @Param('id') id: string,
-  @Param('municipalityId') municipalityId: string,
-  @Res() res: Response
-) {
-  try {
-    // Validation des paramètres
-    if (!id || !id.trim()) {
-      throw new BadRequestException('Le paramètre "id" est requis.');
-    }
-
-    if (!municipalityId || !municipalityId.trim()) {
-      throw new BadRequestException('Le paramètre "municipalityId" est requis.');
-    }
-
-    // Récupérer les données de location
-    const locationData = await this.locationService.findLocationWithPaymentDates(
-      municipalityId,
-      id
-    );
-
-    if (!locationData) {
-      throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
-    }
-
-    // Fonction pour formater les dates
-    const formatDate = (date: string | Date) => {
-      if (!date) return 'Non définie';
-      const d = new Date(date);
-      return d.toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    };
-
-    // Fonction pour formater la périodicité
-    const formatPeriodicite = (periodicite: string) => {
-      switch (periodicite) {
-        case 'MENSUEL': return 'Mensuelle';
-        case 'JOURNALIER': return 'Journalière';
-        case 'HEBDOMADAIRE': return 'Hebdomadaire';
-        default: return periodicite;
+  async findOneWithQrcode(
+    @Param('id') id: string,
+    @Param('municipalityId') municipalityId: string,
+    @Res() res: Response
+  ) {
+    try {
+      // Validation des paramètres
+      if (!id || !id.trim()) {
+        throw new BadRequestException('Le paramètre "id" est requis.');
       }
-    };
 
-    // Fonction pour formater le montant
-    const formatAmount = (amount: number) => {
-      return new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'MGA',
-        minimumFractionDigits: 0
-      }).format(amount);
-    };
+      if (!municipalityId || !municipalityId.trim()) {
+        throw new BadRequestException('Le paramètre "municipalityId" est requis.');
+      }
 
-    // Texte lisible
-    const readableText = `
+      // Récupérer les données de location
+      const locationData = await this.locationService.findLocationWithPaymentDates(
+        municipalityId,
+        id
+      );
+
+      if (!locationData) {
+        throw new NotFoundException(`Location avec l'ID "${id}" non trouvée.`);
+      }
+
+      // Fonction pour formater les dates
+      const formatDate = (date: string | Date) => {
+        if (!date) return 'Non définie';
+        const d = new Date(date);
+        return d.toLocaleDateString('fr-FR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      // Fonction pour formater la périodicité
+      const formatPeriodicite = (periodicite: string) => {
+        switch (periodicite) {
+          case 'MENSUEL': return 'Mensuelle';
+          case 'JOURNALIER': return 'Journalière';
+          case 'HEBDOMADAIRE': return 'Hebdomadaire';
+          default: return periodicite;
+        }
+      };
+
+      // Fonction pour formater le montant
+      const formatAmount = (amount: number) => {
+        return new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency: 'MGA',
+          minimumFractionDigits: 0
+        }).format(amount);
+      };
+
+      // Texte lisible
+      const readableText = `
       CONTRAT DE LOCATION
 
 NIF :
@@ -153,51 +167,51 @@ Contrat valide jusqu'au
 ${formatDate(locationData.date_fin_loc)}
 `.trim();
 
-    const qrContent = readableText;
+      const qrContent = readableText;
 
-    // Générer le QR code
-    const qrCodeBuffer = await QRCode.toBuffer(qrContent, {
-      type: 'png',
-      width: 400,
-      margin: 4,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      },
-      errorCorrectionLevel: 'H'
-    });
+      // Générer le QR code
+      const qrCodeBuffer = await QRCode.toBuffer(qrContent, {
+        type: 'png',
+        width: 400,
+        margin: 4,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H'
+      });
 
-    // Envoyer la réponse
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
-    res.send(qrCodeBuffer);
+      // Envoyer la réponse
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `inline; filename="contrat-location-${id}.png"`);
+      res.send(qrCodeBuffer);
 
-  } catch (error) {
-    console.error('Erreur lors de la génération du QR code:', error);
+    } catch (error) {
+      console.error('Erreur lors de la génération du QR code:', error);
 
-    if (error instanceof NotFoundException) {
-      return res.status(404).json({
-        message: error.message,
-        error: 'Not Found',
-        statusCode: 404
+      if (error instanceof NotFoundException) {
+        return res.status(404).json({
+          message: error.message,
+          error: 'Not Found',
+          statusCode: 404
+        });
+      }
+
+      if (error instanceof BadRequestException) {
+        return res.status(400).json({
+          message: error.message,
+          error: 'Bad Request',
+          statusCode: 400
+        });
+      }
+
+      return res.status(500).json({
+        message: 'Erreur lors de la génération du QR code',
+        error: 'Internal Server Error',
+        statusCode: 500
       });
     }
-
-    if (error instanceof BadRequestException) {
-      return res.status(400).json({
-        message: error.message,
-        error: 'Bad Request',
-        statusCode: 400
-      });
-    }
-
-    return res.status(500).json({
-      message: 'Erreur lors de la génération du QR code',
-      error: 'Internal Server Error',
-      statusCode: 500
-    });
   }
-}
 
 
   @Get('in-progress/:id_user/:id_controleur')
@@ -285,32 +299,32 @@ ${formatDate(locationData.date_fin_loc)}
     return this.locationService.getVerificationUserLocal(municipalityId, id_user, id_local);
   }
 
-   @Get('contrat-bail/:id')
-@ApiOperation({ summary: 'Télécharger le contrat de bail PDF pour une location donnée' })
-@ApiResponse({ status: 200, description: 'Contrat de bail généré et envoyé avec succès.' })
-@ApiResponse({ status: 404, description: 'Location introuvable.' })
-async downloadContratBail(
-  @Param('id') id: string,
-  @Res() res: Response,
-) {
-  // 🔹 Récupérer la location
-  const location = await this.locationService.findById(id);
-  if (!location) {
-    throw new NotFoundException(`Location ${id} introuvable`);
+  @Get('contrat-bail/:id')
+  @ApiOperation({ summary: 'Télécharger le contrat de bail PDF pour une location donnée' })
+  @ApiResponse({ status: 200, description: 'Contrat de bail généré et envoyé avec succès.' })
+  @ApiResponse({ status: 404, description: 'Location introuvable.' })
+  async downloadContratBail(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    // 🔹 Récupérer la location
+    const location = await this.locationService.findById(id);
+    if (!location) {
+      throw new NotFoundException(`Location ${id} introuvable`);
+    }
+
+    // 🔹 Générer le PDF en mémoire (Buffer)
+    const pdfBuffer = await this.locationService.generateContratBail(location.id_location);
+
+    // 🔹 Envoyer le PDF au frontend pour téléchargement
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=contrat_bail_${location.id_location}.pdf`,
+    );
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
   }
-
-  // 🔹 Générer le PDF en mémoire (Buffer)
-  const pdfBuffer = await this.locationService.generateContratBail(location.id_location);
-
-  // 🔹 Envoyer le PDF au frontend pour téléchargement
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename=contrat_bail_${location.id_location}.pdf`,
-  );
-  res.setHeader('Content-Length', pdfBuffer.length);
-
-  res.send(pdfBuffer);
-}
 
 }
