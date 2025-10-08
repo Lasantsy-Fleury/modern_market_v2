@@ -517,6 +517,7 @@ export class NotificationService {
       });
 
       await this.notifRepository.save(historique);
+      this.localService.updateDateScan(data.local_id);
       this.eventsService.sendWebSocketNotification('location_critique', historique);
       return {
         message: 'Historique enregistré avec succès',
@@ -531,117 +532,118 @@ export class NotificationService {
     }
   }
 
-async getStatsByZone(
-  municipalityId: string,
-  options:{
-  startDate?: Date,
-  endDate?: Date,}
-): Promise<any[]> {
+  async getStatsByZone(
+    municipalityId: string,
+    options: {
+      startDate?: Date,
+      endDate?: Date,
+    }
+  ): Promise<any[]> {
 
-  const { startDate, endDate } = options;
-  // 1️⃣ Récupérer tous les locaux de la commune
-  const locaux = await this.localRepository.find({
-    relations: ['zone', 'locations'],
-    where: { zone: { municipalityId } },
-  });
+    const { startDate, endDate } = options;
+    // 1️⃣ Récupérer tous les locaux de la commune
+    const locaux = await this.localRepository.find({
+      relations: ['zone', 'locations'],
+      where: { zone: { municipalityId } },
+    });
 
-  if (!locaux.length) {
-    return [];
-  }
-
-  // 2️⃣ Récupérer les scans via la table de notifications
-  const notifQuery = this.notifRepository
-    .createQueryBuilder('n')
-    .select('n.data ->> \'zoneName\'', 'zoneName')
-    .addSelect('ARRAY_AGG(DISTINCT n.data ->> \'localId\')', 'scannedLocalIds')
-    .groupBy('n.data ->> \'zoneName\'');
-
-  if (startDate && endDate) {
-    notifQuery.where('n.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate });
-  } else if (startDate) {
-    notifQuery.where('n.createdAt >= :start', { start: startDate });
-  } else if (endDate) {
-    notifQuery.where('n.createdAt <= :end', { end: endDate });
-  }
-
-  const notifStats = await notifQuery.getRawMany();
-  const scannedMap = new Map<string, string[]>();
-
-  notifStats.forEach((n) => {
-    const ids = typeof n.scannedLocalIds === 'string'
-      ? n.scannedLocalIds.replace(/[{}]/g, '').split(',')
-      : [];
-    scannedMap.set(n.zoneName, ids);
-  });
-
-  // 3️⃣ Calculs par zone
-  const statsByZone = {};
-
-  for (const local of locaux) {
-    const zoneName = local.zone?.nom || 'Inconnue';
-    const scannedIds = scannedMap.get(zoneName) || [];
-    const isScanned = scannedIds.includes(local.id_local);
-
-    // Dernière location (si existe)
-    const lastLocation = local.locations.sort(
-      (a, b) => new Date(b.date_debut_loc).getTime() - new Date(a.date_debut_loc).getTime(),
-    )[0];
-
-    const periodicite = lastLocation?.periodicite ?? null;
-    const isLoued = local.statut === 'LOUE';
-
-    if (!statsByZone[zoneName]) {
-      statsByZone[zoneName] = {
-        zoneName,
-        totalLocaux: 0,
-        louesMensuels: { scanned: [], nonScanned: [] },
-        louesJournaliers: { scanned: [], nonScanned: [] },
-        scannedNonLoues: [],
-      };
+    if (!locaux.length) {
+      return [];
     }
 
-    const zoneStats = statsByZone[zoneName];
-    zoneStats.totalLocaux++;
+    // 2️⃣ Récupérer les scans via la table de notifications
+    const notifQuery = this.notifRepository
+      .createQueryBuilder('n')
+      .select('n.data ->> \'zoneName\'', 'zoneName')
+      .addSelect('ARRAY_AGG(DISTINCT n.data ->> \'localId\')', 'scannedLocalIds')
+      .groupBy('n.data ->> \'zoneName\'');
 
-    // 🔹 Cas 1 : local loué
-    if (isLoued) {
-      if (periodicite === 'MENSUEL') {
-        if (isScanned) zoneStats.louesMensuels.scanned.push(local.numero);
-        else zoneStats.louesMensuels.nonScanned.push(local.numero);
-      } else if (periodicite === 'JOURNALIER') {
-        if (isScanned) zoneStats.louesJournaliers.scanned.push(local.numero);
-        else zoneStats.louesJournaliers.nonScanned.push(local.numero);
+    if (startDate && endDate) {
+      notifQuery.where('n.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate });
+    } else if (startDate) {
+      notifQuery.where('n.createdAt >= :start', { start: startDate });
+    } else if (endDate) {
+      notifQuery.where('n.createdAt <= :end', { end: endDate });
+    }
+
+    const notifStats = await notifQuery.getRawMany();
+    const scannedMap = new Map<string, string[]>();
+
+    notifStats.forEach((n) => {
+      const ids = typeof n.scannedLocalIds === 'string'
+        ? n.scannedLocalIds.replace(/[{}]/g, '').split(',')
+        : [];
+      scannedMap.set(n.zoneName, ids);
+    });
+
+    // 3️⃣ Calculs par zone
+    const statsByZone = {};
+
+    for (const local of locaux) {
+      const zoneName = local.zone?.nom || 'Inconnue';
+      const scannedIds = scannedMap.get(zoneName) || [];
+      const isScanned = scannedIds.includes(local.id_local);
+
+      // Dernière location (si existe)
+      const lastLocation = local.locations.sort(
+        (a, b) => new Date(b.date_debut_loc).getTime() - new Date(a.date_debut_loc).getTime(),
+      )[0];
+
+      const periodicite = lastLocation?.periodicite ?? null;
+      const isLoued = local.statut === 'LOUE';
+
+      if (!statsByZone[zoneName]) {
+        statsByZone[zoneName] = {
+          zoneName,
+          totalLocaux: 0,
+          louesMensuels: { scanned: [], nonScanned: [] },
+          louesJournaliers: { scanned: [], nonScanned: [] },
+          scannedNonLoues: [],
+        };
+      }
+
+      const zoneStats = statsByZone[zoneName];
+      zoneStats.totalLocaux++;
+
+      // 🔹 Cas 1 : local loué
+      if (isLoued) {
+        if (periodicite === 'MENSUEL') {
+          if (isScanned) zoneStats.louesMensuels.scanned.push(local.numero);
+          else zoneStats.louesMensuels.nonScanned.push(local.numero);
+        } else if (periodicite === 'JOURNALIER') {
+          if (isScanned) zoneStats.louesJournaliers.scanned.push(local.numero);
+          else zoneStats.louesJournaliers.nonScanned.push(local.numero);
+        }
+      }
+      // 🔹 Cas 2 : local scanné mais non loué
+      else if (isScanned) {
+        zoneStats.scannedNonLoues.push(local.numero);
       }
     }
-    // 🔹 Cas 2 : local scanné mais non loué
-    else if (isScanned) {
-      zoneStats.scannedNonLoues.push(local.numero);
-    }
+
+    // 4️⃣ Mise en forme finale
+    return Object.values(statsByZone).map((zone: any) => ({
+      zoneName: zone.zoneName,
+      totalLocaux: zone.totalLocaux,
+      // Mensuels
+      totalLouesMensuels: zone.louesMensuels.scanned.length + zone.louesMensuels.nonScanned.length,
+      totalScannedLouesMensuels: zone.louesMensuels.scanned.length,
+      totalNonScannedLouesMensuels: zone.louesMensuels.nonScanned.length,
+      scannedLouesMensuelsNumeros: zone.louesMensuels.scanned,
+      nonScannedLouesMensuelsNumeros: zone.louesMensuels.nonScanned,
+
+      // Journaliers
+      totalLouesJournaliers: zone.louesJournaliers.scanned.length + zone.louesJournaliers.nonScanned.length,
+      totalScannedLouesJournaliers: zone.louesJournaliers.scanned.length,
+      totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
+      scannedLouesJournaliersNumeros: zone.louesJournaliers.scanned,
+      nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
+
+      // Scannés non loués
+      totalScannedNonLoues: zone.scannedNonLoues.length,
+      scannedNonLouesNumeros: zone.scannedNonLoues,
+    }));
   }
-
-  // 4️⃣ Mise en forme finale
-  return Object.values(statsByZone).map((zone: any) => ({
-    zoneName: zone.zoneName,
-    totalLocaux: zone.totalLocaux,
-    // Mensuels
-    totalLouesMensuels: zone.louesMensuels.scanned.length + zone.louesMensuels.nonScanned.length,
-    totalScannedLouesMensuels: zone.louesMensuels.scanned.length,
-    totalNonScannedLouesMensuels: zone.louesMensuels.nonScanned.length,
-    scannedLouesMensuelsNumeros: zone.louesMensuels.scanned,
-    nonScannedLouesMensuelsNumeros: zone.louesMensuels.nonScanned,
-
-    // Journaliers
-    totalLouesJournaliers: zone.louesJournaliers.scanned.length + zone.louesJournaliers.nonScanned.length,
-    totalScannedLouesJournaliers: zone.louesJournaliers.scanned.length,
-    totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
-    scannedLouesJournaliersNumeros: zone.louesJournaliers.scanned,
-    nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
-
-    // Scannés non loués
-    totalScannedNonLoues: zone.scannedNonLoues.length,
-    scannedNonLouesNumeros: zone.scannedNonLoues,
-  }));
-}
 
 
   async getRapport(
