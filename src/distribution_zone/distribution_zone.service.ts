@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { CreateDistributionZoneDto } from './dto/create-distribution_zone.dto';
 import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -7,6 +7,9 @@ import { DistributionZone } from './entities/distribution_zone.entity';
 import { ZoneService } from 'src/zone/zone.service';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { EventsService } from 'src/events/events.service';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import { IsNull } from 'typeorm';
 
 
 
@@ -17,6 +20,7 @@ export class DistributionZoneService {
     private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly zoneService: ZoneService,
     private readonly eventsService: EventsService,
+    private readonly httpService: HttpService,
   ) { }
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
@@ -24,10 +28,38 @@ export class DistributionZoneService {
     if (!zone) {
       throw new NotFoundException(`Zone ${createDistributionZoneDto.zoneId} introuvable`);
     }
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${createDistributionZoneDto.id_user}`)
+      );
+
+      const userData = response.data;
+
+      if (!userData || !userData.appUserRoles) {
+        throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
+      }
+
+      const isControlleur = userData.appUserRoles.some(
+        (roleEntry: any) => roleEntry.role?.role_id === 22);
+      if (!isControlleur) {
+        throw new ForbiddenException(`L’utilisateur ${createDistributionZoneDto.id_user} n’a pas le rôle "controlleur".`);
+      }
+    } catch (error: any) {
+      // Gestion spécifique pour AxiosError
+      if (error.response?.status === 404) {
+        throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable.`);
+      }
+      if (error.response?.status === 403) {
+        throw new ForbiddenException(`Accès refusé pour l’utilisateur ${createDistributionZoneDto.id_user}.`);
+      }
+      console.error('Erreur HTTP lors de la vérification du rôle:', error.response?.data || error.message);
+      throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
+    }
+
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     this.eventsService.broadcastToAll('distribution_zone_created', distributionZone);
-   
+
     this.eventsService.sendToUser(createDistributionZoneDto.id_user, 'vous_avez_une_zone', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }

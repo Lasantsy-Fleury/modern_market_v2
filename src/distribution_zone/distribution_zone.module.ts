@@ -6,12 +6,13 @@ import { DistributionZone } from './entities/distribution_zone.entity';
 import { ZoneModule } from 'src/zone/zone.module';
 import { Zone } from 'luxon';
 import { EventsModule } from 'src/events/events.module';
-
+import { HttpModule } from '@nestjs/axios';
 @Module({
   imports: [
     TypeOrmModule.forFeature([DistributionZone , Zone]),
     ZoneModule
-   ,EventsModule
+   ,EventsModule,
+   HttpModule
   ],
   controllers: [DistributionZoneController],
   providers: [DistributionZoneService],

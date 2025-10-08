@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan,MoreThan } from 'typeorm';
 import { Location } from './entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { Periodicite } from './entities/location.entity';
@@ -331,17 +331,17 @@ export class LocationService {
 
 
 
-  async findInProgressByUser(id_user: string): Promise<Location[]> {
-    const today = new Date();
-    return await this.locationRepository.find({
-      where: {
-        id_user,
-        date_debut_loc: Between(new Date('1900-01-01'), today),
-        date_fin_loc: Between(today, new Date('9999-12-31')),
-      },
-      relations: ['local', 'paiement_locations'],
-    });
-  }
+async findInProgressByUser(id_user: string): Promise<Location[]> {
+  const today = new Date();
+  return await this.locationRepository.find({
+    where: {
+      id_user,
+      date_debut_loc: MoreThan(today), // 👉 date début supérieure à aujourd’hui
+    },
+    relations: ['local', 'paiement_locations'],
+  });
+}
+
 
   async findInProgressByUserByControlleur(
     id_user: string,
