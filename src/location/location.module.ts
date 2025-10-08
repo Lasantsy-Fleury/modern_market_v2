@@ -11,13 +11,17 @@ import { NotificationModule } from 'src/notification/notification.module';
 import { EventsModule } from 'src/events/events.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HttpModule } from '@nestjs/axios';
-
+import { LocalService } from 'src/local/local.service';
+import { Zone } from 'src/zone/entities/zone.entity';
+import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Location,
       Local,
       Paiementlocation,
+      Zone,
+      Typelocal,
       DistributionZone, // ⚡ Ajout du repository manquant
     ]),
     forwardRef(() => PaiementLocationModule),
@@ -27,7 +31,7 @@ import { HttpModule } from '@nestjs/axios';
     HttpModule
   ],
   controllers: [LocationController],
-  providers: [LocationService],
+  providers: [LocationService,LocalService],
   exports: [LocationService],
 })
 export class LocationModule {}

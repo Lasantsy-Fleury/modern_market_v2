@@ -260,6 +260,20 @@ export class LocalService {
     this.eventsService.broadcastToAll('local_updated', local);
     return await this.localRepository.save(local);
   }
+  
+  async updateDateScan(id_local: string) {
+    const local = await this.localRepository.findOne({
+      where: { id_local: id_local },
+    });
+
+    if (!local) {
+      throw new NotFoundException('Local introuvable');
+    }
+
+    local.date_derniere_scan = new Date();
+
+    return await this.localRepository.save(local);
+  }
 
   // Supprimer un local
   async remove(municipalityId: string, id_local: string) {

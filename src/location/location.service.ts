@@ -17,6 +17,7 @@ import { WritableStreamBuffer } from 'stream-buffers';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import * as PDFDocument from 'pdfkit';
+import { LocalService } from 'src/local/local.service';
 
 @Injectable()
 export class LocationService {
@@ -36,6 +37,7 @@ export class LocationService {
     private readonly notificationService: NotificationService,
     private readonly eventsService: EventsService,
     private readonly httpService: HttpService,
+    private readonly localService: LocalService,
   ) { }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
@@ -414,6 +416,7 @@ export class LocationService {
         histData,
         'MEDIUM'
       );
+      this.localService.updateDateScan(locations[0].localId);
       this.eventsService.sendToUser(id_controleur, 'location_en_regle', histData);
       return locations;
     } else {

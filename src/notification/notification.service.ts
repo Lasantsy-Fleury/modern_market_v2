@@ -9,7 +9,9 @@ import axios from 'axios';
 import { Brackets } from 'typeorm';
 import { EventsService } from 'src/events/events.service';
 import { Between } from 'typeorm';
+import { start } from 'repl';
 
+import { LocalService } from 'src/local/local.service';
 
 @Injectable()
 export class NotificationService {
@@ -27,6 +29,7 @@ export class NotificationService {
     private readonly localRepository: Repository<Local>,
 
     private readonly eventsService: EventsService,
+    private readonly localService: LocalService,
 
   ) { }
 
@@ -528,95 +531,118 @@ export class NotificationService {
     }
   }
 
-  async getStatsByZone(
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<
-    {
-      zoneName: string;
-      totalLocaux: number;
-      totalLoues: number;
-      totalScannes: number;
-      scannedLocalNumeros: string[]; 
-      totalNonScannes: number;
-      nonScannedLocalNumeros: string[]; 
-    }[]
-  > {
-    // 1. Récupérer tous les locaux avec leur zone
-    const locaux = await this.localRepository.find({ relations: ['zone'] });
+async getStatsByZone(
+  municipalityId: string,
+  options:{
+  startDate?: Date,
+  endDate?: Date,}
+): Promise<any[]> {
 
-    if (!locaux || locaux.length === 0) {
-      return [];
-    }
-    
-    const notifQuery = this.notifRepository
-      .createQueryBuilder('n')
-      .select('n.data ->> \'zoneName\'', 'zoneName')
-      .addSelect('ARRAY_AGG(DISTINCT n.data ->> \'localId\')', 'scannedLocalIds') 
-      .addSelect('COUNT(DISTINCT n.data ->> \'localId\')', 'totalScannes') 
-      .groupBy('n.data ->> \'zoneName\'');
+  const { startDate, endDate } = options;
+  // 1️⃣ Récupérer tous les locaux de la commune
+  const locaux = await this.localRepository.find({
+    relations: ['zone', 'locations'],
+    where: { zone: { municipalityId } },
+  });
 
-    if (startDate && endDate) {
-      notifQuery.where('n.createdAt BETWEEN :start AND :end', {
-        start: startDate,
-        end: endDate,
-      });
-    } else if (startDate) {
-      notifQuery.where('n.createdAt >= :start', { start: startDate });
-    } else if (endDate) {
-      notifQuery.where('n.createdAt <= :end', { end: endDate });
-    }
-
-    const notifStats = await notifQuery.getRawMany();
-
-    const scannedMap = new Map<string, { count: number; ids: string[] }>();
-    notifStats.forEach((n) => {
-        const ids = Array.isArray(n.scannedLocalIds) ? n.scannedLocalIds : [];
-        scannedMap.set(n.zoneName, {
-            count: Number(n.totalScannes),
-            ids: ids, 
-        });
-    });
-
-    const result = locaux.reduce((acc, local) => {
-      const localId = local.id_local; 
-      const localNumero = local.numero;
-
-      const zoneName = local.zone?.nom || 'Inconnue';
-      const zoneData = scannedMap.get(zoneName);
-
-      const isScanned = zoneData ? zoneData.ids.includes(localId) : false;
-
-      if (!acc[zoneName]) {
-        acc[zoneName] = {
-          zoneName,
-          totalLocaux: 0,
-          totalLoues: 0,
-          totalScannes: zoneData?.count || 0,
-          scannedLocalNumeros: [], 
-          totalNonScannes: 0, 
-          nonScannedLocalNumeros: [], 
-        };
-      }
-
-      acc[zoneName].totalLocaux += 1;
-      if (local.statut === 'LOUE') acc[zoneName].totalLoues += 1;
-
-      if (isScanned) {
-        acc[zoneName].scannedLocalNumeros.push(localNumero);
-      } else {
-        acc[zoneName].nonScannedLocalNumeros.push(localNumero);
-      }
-
-      return acc;
-    }, {} as Record<string, any>);
-
-    Object.values(result).forEach((r: any) => {
-      r.totalNonScannes = r.nonScannedLocalNumeros.length;
-    });
-
-    return Object.values(result);
+  if (!locaux.length) {
+    return [];
   }
+
+  // 2️⃣ Récupérer les scans via la table de notifications
+  const notifQuery = this.notifRepository
+    .createQueryBuilder('n')
+    .select('n.data ->> \'zoneName\'', 'zoneName')
+    .addSelect('ARRAY_AGG(DISTINCT n.data ->> \'localId\')', 'scannedLocalIds')
+    .groupBy('n.data ->> \'zoneName\'');
+
+  if (startDate && endDate) {
+    notifQuery.where('n.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate });
+  } else if (startDate) {
+    notifQuery.where('n.createdAt >= :start', { start: startDate });
+  } else if (endDate) {
+    notifQuery.where('n.createdAt <= :end', { end: endDate });
+  }
+
+  const notifStats = await notifQuery.getRawMany();
+  const scannedMap = new Map<string, string[]>();
+
+  notifStats.forEach((n) => {
+    const ids = typeof n.scannedLocalIds === 'string'
+      ? n.scannedLocalIds.replace(/[{}]/g, '').split(',')
+      : [];
+    scannedMap.set(n.zoneName, ids);
+  });
+
+  // 3️⃣ Calculs par zone
+  const statsByZone = {};
+
+  for (const local of locaux) {
+    const zoneName = local.zone?.nom || 'Inconnue';
+    const scannedIds = scannedMap.get(zoneName) || [];
+    const isScanned = scannedIds.includes(local.id_local);
+
+    // Dernière location (si existe)
+    const lastLocation = local.locations.sort(
+      (a, b) => new Date(b.date_debut_loc).getTime() - new Date(a.date_debut_loc).getTime(),
+    )[0];
+
+    const periodicite = lastLocation?.periodicite ?? null;
+    const isLoued = local.statut === 'LOUE';
+
+    if (!statsByZone[zoneName]) {
+      statsByZone[zoneName] = {
+        zoneName,
+        totalLocaux: 0,
+        louesMensuels: { scanned: [], nonScanned: [] },
+        louesJournaliers: { scanned: [], nonScanned: [] },
+        scannedNonLoues: [],
+      };
+    }
+
+    const zoneStats = statsByZone[zoneName];
+    zoneStats.totalLocaux++;
+
+    // 🔹 Cas 1 : local loué
+    if (isLoued) {
+      if (periodicite === 'MENSUEL') {
+        if (isScanned) zoneStats.louesMensuels.scanned.push(local.numero);
+        else zoneStats.louesMensuels.nonScanned.push(local.numero);
+      } else if (periodicite === 'JOURNALIER') {
+        if (isScanned) zoneStats.louesJournaliers.scanned.push(local.numero);
+        else zoneStats.louesJournaliers.nonScanned.push(local.numero);
+      }
+    }
+    // 🔹 Cas 2 : local scanné mais non loué
+    else if (isScanned) {
+      zoneStats.scannedNonLoues.push(local.numero);
+    }
+  }
+
+  // 4️⃣ Mise en forme finale
+  return Object.values(statsByZone).map((zone: any) => ({
+    zoneName: zone.zoneName,
+    totalLocaux: zone.totalLocaux,
+    // Mensuels
+    totalLouesMensuels: zone.louesMensuels.scanned.length + zone.louesMensuels.nonScanned.length,
+    totalScannedLouesMensuels: zone.louesMensuels.scanned.length,
+    totalNonScannedLouesMensuels: zone.louesMensuels.nonScanned.length,
+    scannedLouesMensuelsNumeros: zone.louesMensuels.scanned,
+    nonScannedLouesMensuelsNumeros: zone.louesMensuels.nonScanned,
+
+    // Journaliers
+    totalLouesJournaliers: zone.louesJournaliers.scanned.length + zone.louesJournaliers.nonScanned.length,
+    totalScannedLouesJournaliers: zone.louesJournaliers.scanned.length,
+    totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
+    scannedLouesJournaliersNumeros: zone.louesJournaliers.scanned,
+    nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
+
+    // Scannés non loués
+    totalScannedNonLoues: zone.scannedNonLoues.length,
+    scannedNonLouesNumeros: zone.scannedNonLoues,
+  }));
+}
+
 
   async getRapport(
     userId: string,
@@ -734,7 +760,7 @@ export class NotificationService {
     switch (notif.type) {
       case "PAIEMENT REUSSIE":
         target = {
-         
+
           page: "paiementsReussi",
           resourceId: notif.data.id_paiement,
 
@@ -743,7 +769,7 @@ export class NotificationService {
 
       case "PAIEMENT NON REUSSIE":
         target = {
-          
+
           page: "paiementNonReussi",
           resourceId: notif.userId,
 
@@ -752,7 +778,7 @@ export class NotificationService {
 
       case "LOCATION CONFIRMEE":
         target = {
-          
+
           page: "locationsConfirmed",
           resourceId: notif.data.id_location,
         };
@@ -760,7 +786,7 @@ export class NotificationService {
 
       case "LOCATION ANNULEE":
         target = {
-        
+
           page: "locationsAnnulee",
           resourceId: notif.data.id_location,
         };
@@ -768,7 +794,7 @@ export class NotificationService {
 
       case "LOCATION EN ATTENTE":
         target = {
-       
+
           page: "locationsEnAttente",
           resourceId: notif.data.localId,
         };
@@ -776,7 +802,7 @@ export class NotificationService {
 
       case "RAPPELLE DE PAIEMENT":
         target = {
-         
+
           page: "locations",
           resourceId: notif.data.id_location,
         };
@@ -784,7 +810,7 @@ export class NotificationService {
 
       case "HISTORIQUE CONTROLLEUR":
         target = {
-         
+
           page: "local",
           resourceId: notif.data.localId,
         };

@@ -281,7 +281,7 @@ export class NotificationController {
       throw new BadRequestException('Le paramètre userId est obligatoire.');
     }
 
-    if (!municipalityId || isNaN(Number(municipalityId))) {
+    if (!municipalityId ) {
       throw new BadRequestException(
         'Le paramètre municipalityId est obligatoire et doit être un nombre valide.',
       );
@@ -303,15 +303,25 @@ export class NotificationController {
 
   @Get('controle/stats')
   @ApiOperation({ summary: 'Obtenir le nombre de locaux par zone avec option de dates' })
-  @ApiQuery({ name: 'startDate', required: false, type: String })
-  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String ,example:'2025-10-8'})
+  @ApiQuery({ name: 'endDate', required: false, type: String ,example:'2025-10-9'})
   async getStats(
+    @Param('municipalityId') municipalityId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    //  if (!municipalityId) {
+    //   throw new BadRequestException(
+    //     'Le paramètre municipalityId est obligatoire.',
+    //   );
+    //}
+     const options = {
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    };
     return this.notificationService.getStatsByZone(
-      startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined,
+      municipalityId,
+      options
     );
   }
 

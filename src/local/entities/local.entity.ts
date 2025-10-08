@@ -34,6 +34,9 @@ export class Local {
     @JoinColumn({ name: "typelocalId" })  // fait le lien entre TypelocalId et Typelocal
     typelocal: Typelocal;
 
+    @Column({ type: 'date', nullable:true })
+    date_derniere_scan: Date;
+
     @OneToMany(() => Location, (location) => location.local)
     locations: Location[];
 }
