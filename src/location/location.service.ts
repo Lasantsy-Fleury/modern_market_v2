@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan,MoreThan } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, LessThan, MoreThan } from 'typeorm';
 import { Location } from './entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { Periodicite } from './entities/location.entity';
@@ -179,6 +179,17 @@ export class LocationService {
     const debut = new Date(date_debut_loc);
     debut.setHours(0, 0, 0, 0);
 
+    const typeContrat = local.typelocal?.type_contrat;
+
+    if (!typeContrat) {
+      throw new BadRequestException(`Le type de contrat du local ${localId} est introuvable.`);
+    }
+    if (periodicite === Periodicite.JOURNALIER && typeContrat === 'ANNUEL') {
+      // ❌ Interdit : MENSUEL → JOURNALIER
+      throw new BadRequestException(
+        `Le local ${localId} est de type contrat MENSUEL. Impossible de le louer en JOURNALIER.`,
+      );
+    }
     // Calcul de la date de fin
     if (periodicite === Periodicite.MENSUEL) {
       date_fin_loc = new Date(debut);
@@ -331,16 +342,16 @@ export class LocationService {
 
 
 
-async findInProgressByUser(id_user: string): Promise<Location[]> {
-  const today = new Date();
-  return await this.locationRepository.find({
-    where: {
-      id_user,
-      date_debut_loc: MoreThan(today), // 👉 date début supérieure à aujourd’hui
-    },
-    relations: ['local', 'paiement_locations'],
-  });
-}
+  async findInProgressByUser(id_user: string): Promise<Location[]> {
+    const today = new Date();
+    return await this.locationRepository.find({
+      where: {
+        id_user,
+        date_debut_loc: MoreThan(today), // 👉 date début supérieure à aujourd’hui
+      },
+      relations: ['local', 'paiement_locations'],
+    });
+  }
 
 
   async findInProgressByUserByControlleur(
@@ -352,7 +363,7 @@ async findInProgressByUser(id_user: string): Promise<Location[]> {
     // Récupérer les locations en cours
     const locations = await this.locationRepository.find({
       where: {
-        id_user,
+        id_user: id_user,
         date_debut_loc: LessThanOrEqual(today),
         date_fin_loc: MoreThanOrEqual(today),
       },
@@ -384,7 +395,7 @@ async findInProgressByUser(id_user: string): Promise<Location[]> {
       // 🔥 CORRECTION : Appel correct du WebSocket
       this.eventsService.sendToUser(id_controleur, 'aucune_location,entrer_id_local', histData);
 
-      return []; // 🔥 Retourner un tableau vide
+      throw new NotFoundException('Aucune location trouvée');
     }
 
     let inDistributionZone = false;
@@ -398,6 +409,7 @@ async findInProgressByUser(id_user: string): Promise<Location[]> {
           inDistributionZone = true;
           zoneName = dz.zone.nom;
           break;
+
         }
       }
     }
@@ -820,7 +832,7 @@ async findInProgressByUser(id_user: string): Promise<Location[]> {
   async generateContratBail(locationId: string): Promise<Buffer> {
     const location = await this.locationRepository.findOne({
       where: { id_location: locationId },
-      relations: ['local', 'local.zone','local.typelocal'],
+      relations: ['local', 'local.zone', 'local.typelocal'],
     });
 
     if (!location) {

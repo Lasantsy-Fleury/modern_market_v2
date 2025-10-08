@@ -8,8 +8,9 @@ import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { EventsModule } from 'src/events/events.module';
 import { HttpModule } from '@nestjs/axios';
 import { LocationModule } from 'src/location/location.module';
+import { Location } from 'src/location/entities/location.entity';
 @Module({
-  imports: [TypeOrmModule.forFeature([Local, Zone, Typelocal]),
+  imports: [TypeOrmModule.forFeature([Local, Zone, Typelocal,Location]),
   HttpModule.register({ timeout: 5000, maxRedirects: 5 }),
   EventsModule,
   LocationModule,

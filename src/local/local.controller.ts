@@ -4,7 +4,7 @@ import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse} from '@nestjs/swagger';
 import { LocationService } from 'src/location/location.service';
-
+import { NotFoundException } from '@nestjs/common';
 @ApiTags('Local')
 @Controller('local')
 export class LocalController {
@@ -96,6 +96,24 @@ export class LocalController {
     return this.localService.findLastLocationByLocal(municipalityId, id_local);
   }
 
+   @Get('stats/municipality/:municipalityId')
+  @ApiOperation({ summary: 'Obtenir les statistiques des locaux par zone pour une municipalité' })
+  async getStatsByZone(
+    @Param('municipalityId') municipalityId: string,
+  ) {
+
+    return await this.localService.getStatsByZone(municipalityId);
+    // try {
+    //   return await this.localService.getStatsByZone(municipalityId);
+    // } catch (error) {
+    //   if (error instanceof NotFoundException) {
+    //     throw error;
+    //   }
+    //   throw new NotFoundException(
+    //     `Erreur lors de la récupération des statistiques pour la commune ${municipalityId}`,
+    //   );
+    // }
+  }
   // Supprimer un local
   @Delete('municipality/:municipalityId/:id_local')
   @ApiOperation({ summary: 'Supprimer un local d’une municipalité ' })

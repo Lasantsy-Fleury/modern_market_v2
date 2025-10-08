@@ -3,13 +3,15 @@ import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Local } from './entities/local.entity';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { EventsService } from 'src/events/events.service';
+import { Location as LocationEntity } from 'src/location/entities/location.entity';
+
 
 @Injectable()
 export class LocalService {
@@ -20,6 +22,9 @@ export class LocalService {
 
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
+
+    @InjectRepository(LocationEntity)
+    private readonly locationRepository: Repository<LocationEntity>,
 
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
@@ -260,7 +265,7 @@ export class LocalService {
     this.eventsService.broadcastToAll('local_updated', local);
     return await this.localRepository.save(local);
   }
-  
+
   async updateDateScan(id_local: string) {
     const local = await this.localRepository.findOne({
       where: { id_local: id_local },
@@ -274,6 +279,164 @@ export class LocalService {
 
     return await this.localRepository.save(local);
   }
+  private async getAllLocauxByMunicipality(municipalityId: string): Promise<Local[]> {
+    return await this.localRepository.find({
+      relations: ['zone', 'locations','typelocal'],
+      where: { zone: { municipalityId } },
+    });
+  }
+
+  /** Retourne la dernière location d’un local (par date de début) */
+  private getCurrentLocation(local: Local): LocationEntity | null {
+    if (!local.locations?.length) return null;
+
+    const today = new Date();
+
+    // Filtrer les locations actives (en cours)
+    const ongoing = local.locations.filter(
+      (loc) =>
+        new Date(loc.date_debut_loc) <= today &&
+        (!loc.date_fin_loc || new Date(loc.date_fin_loc) >= today)
+    );
+
+    // Si plusieurs locations en cours, on prend celle qui a commencé le plus récemment
+    if (ongoing.length > 0) {
+      return ongoing.sort(
+        (a, b) => new Date(b.date_debut_loc).getTime() - new Date(a.date_debut_loc).getTime(),
+      )[0];
+    }
+
+    // Aucune location en cours
+    return null;
+  }
+
+
+  /** Vérifie si le local a été scanné aujourd’hui (journalier) ou ce mois-ci (mensuel) */
+  private isLocalScanned(local: Local, periodicite: string | null): boolean {
+    const now = new Date();
+
+    // Si la date de dernier scan est absente, ce local n’a pas été scanné
+    if (!local.date_derniere_scan) {
+      return false;
+    }
+
+    const dateScan = new Date(local.date_derniere_scan);
+
+    // 📅 Cas 1 : Périodicité journalière
+    if (periodicite === 'JOURNALIER') {
+      // Le local est considéré comme scanné si la date du jour correspond
+      return (
+        dateScan.getFullYear() === now.getFullYear() &&
+        dateScan.getMonth() === now.getMonth() &&
+        dateScan.getDate() === now.getDate()
+      );
+    }
+
+    // 📆 Cas 2 : Périodicité mensuelle
+    if (periodicite === 'MENSUEL') {
+      // Le local est considéré comme scanné si c’est le même mois et la même année
+      return (
+        dateScan.getFullYear() === now.getFullYear() &&
+        dateScan.getMonth() === now.getMonth()
+      );
+    }
+
+    // ❌ Si aucune périodicité correspond, on considère non scanné
+    return false;
+  }
+
+  /** Initialise la structure de stats d’une zone */
+  private initZoneStats(zoneName: string) {
+    return {
+      zoneName,
+      totalLocaux: 0,
+      louesMensuels: { scanned: [], nonScanned: [] },
+      louesJournaliers: { scanned: [], nonScanned: [] },
+      scannedNonLoues: [],
+    };
+  }
+
+  /** Ajoute un local à la bonne catégorie (scanné / non scanné) */
+  private addLocalToStats(group: { scanned: string[]; nonScanned: string[] }, local: Local, isScanned: boolean) {
+    if (isScanned) group.scanned.push(local.numero);
+    else group.nonScanned.push(local.numero);
+  }
+
+  /** Met en forme le résultat final */
+  private formatStats(statsByZone: Record<string, any>): any[] {
+    return Object.values(statsByZone).map((zone: any) => ({
+      zoneName: zone.zoneName,
+      totalLocaux: zone.totalLocaux,
+
+      // Mensuels
+      totalLouesMensuels: zone.louesMensuels.scanned.length + zone.louesMensuels.nonScanned.length,
+      totalScannedLouesMensuels: zone.louesMensuels.scanned.length,
+      scannedLouesMensuelsNumeros: zone.louesMensuels.scanned,
+
+      totalNonScannedLouesMensuels: zone.louesMensuels.nonScanned.length,
+      nonScannedLouesMensuelsNumeros: zone.louesMensuels.nonScanned,
+
+      // Journaliers
+      totalLouesJournaliers: zone.louesJournaliers.scanned.length + zone.louesJournaliers.nonScanned.length,
+      totalScannedLouesJournaliers: zone.louesJournaliers.scanned.length,
+      scannedLouesJournaliersNumeros: zone.louesJournaliers.scanned,
+
+      totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
+      nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
+
+      // Scannés non loués
+      totalScannedNonLoues: zone.scannedNonLoues.length,
+      scannedNonLouesNumeros: zone.scannedNonLoues,
+    }));
+  }
+
+  async getStatsByZone(municipalityId: string): Promise<any[]> {
+    const locaux = await this.getAllLocauxByMunicipality(municipalityId);
+    if (!locaux.length) {
+      throw new NotFoundException(`Aucun local trouvé pour la commune ${municipalityId}`);
+    }
+
+    const statsByZone: Record<string, any> = {};
+
+    for (const local of locaux) {
+      const zoneName = local.zone?.nom || 'Inconnue';
+      const currentLocation = this.getCurrentLocation(local);
+      let periodicite;
+      if (currentLocation) {
+        periodicite = currentLocation.periodicite;
+      }
+      else {
+        periodicite = local.typelocal.type_contrat;
+      }
+      const isLoued = local.statut === 'LOUE';
+      const isScanned = this.isLocalScanned(local, periodicite);
+
+      if (!statsByZone[zoneName]) {
+        statsByZone[zoneName] = this.initZoneStats(zoneName);
+      }
+
+      const zoneStats = statsByZone[zoneName];
+      zoneStats.totalLocaux++;
+
+
+
+      // 🟢 Locaux loués
+      if (isLoued) {
+        if (periodicite === 'MENSUEL') {
+          this.addLocalToStats(zoneStats.louesMensuels, local, isScanned);
+        } else if (periodicite === 'JOURNALIER') {
+          this.addLocalToStats(zoneStats.louesJournaliers, local, isScanned);
+        }
+      }
+      // 🔵 Locaux scannés mais non loués
+      else if (isScanned) {
+        zoneStats.scannedNonLoues.push(local.numero);
+      }
+    }
+
+    return this.formatStats(statsByZone);
+  }
+
 
   // Supprimer un local
   async remove(municipalityId: string, id_local: string) {
