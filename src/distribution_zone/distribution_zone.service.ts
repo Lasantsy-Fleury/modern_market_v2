@@ -35,14 +35,8 @@ export class DistributionZoneService {
 
       const userData = response.data;
 
-      if (!userData || !userData.appUserRoles) {
+      if (!userData) {
         throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
-      }
-
-      const isControlleur = userData.appUserRoles.some(
-        (roleEntry: any) => roleEntry.role?.role_id === 22);
-      if (!isControlleur) {
-        throw new ForbiddenException(`L’utilisateur ${createDistributionZoneDto.id_user} n’a pas le rôle "controlleur".`);
       }
     } catch (error: any) {
       // Gestion spécifique pour AxiosError
