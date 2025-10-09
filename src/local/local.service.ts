@@ -11,7 +11,8 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { EventsService } from 'src/events/events.service';
 import { Location as LocationEntity } from 'src/location/entities/location.entity';
-
+import { DistributionZoneService } from 'src/distribution_zone/distribution_zone.service';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class LocalService {
@@ -31,7 +32,8 @@ export class LocalService {
     private readonly httpService: HttpService,
 
     private readonly eventsService: EventsService,
-
+    private readonly distZoneService: DistributionZoneService,
+    private readonly notifService: NotificationService,
   ) { }
 
   async existingLocalTest(createLocalDto: CreateLocalDto) {
@@ -281,7 +283,7 @@ export class LocalService {
   }
   private async getAllLocauxByMunicipality(municipalityId: string): Promise<Local[]> {
     return await this.localRepository.find({
-      relations: ['zone', 'locations','typelocal'],
+      relations: ['zone', 'locations', 'typelocal'],
       where: { zone: { municipalityId } },
     });
   }
@@ -389,53 +391,157 @@ export class LocalService {
       scannedNonLouesNumeros: zone.scannedNonLoues,
     }));
   }
+  private async getUserNameById(id_user: string): Promise<string> {
+    const user = await firstValueFrom(
+      this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`)
+    );
+    return user ? user.data.user_pseudo : 'Inconnu';
+  }
 
-  async getStatsByZone(municipalityId: string): Promise<any[]> {
+
+  async getStatsByZone(
+    municipalityId: string,
+    options?: { id_user?: string; id_typelocal?: string }
+  ): Promise<any[]> {
     const locaux = await this.getAllLocauxByMunicipality(municipalityId);
     if (!locaux.length) {
       throw new NotFoundException(`Aucun local trouvé pour la commune ${municipalityId}`);
     }
 
-    const statsByZone: Record<string, any> = {};
+    const statsByZone: Record<string, Record<string, any>> = {};
 
     for (const local of locaux) {
       const zoneName = local.zone?.nom || 'Inconnue';
-      const currentLocation = this.getCurrentLocation(local);
-      let periodicite;
-      if (currentLocation) {
-        periodicite = currentLocation.periodicite;
-      }
-      else {
-        periodicite = local.typelocal.type_contrat;
-      }
+      const typeLocalName = local.typelocal?.typeLoc?.fr || 'Inconnu';
       const isLoued = local.statut === 'LOUE';
+      const currentLocation = this.getCurrentLocation(local);
+      const periodicite = currentLocation
+        ? currentLocation.periodicite
+        : local.typelocal?.type_contrat;
+
+      // ✅ VÉRIFICATION D'ABORD SI LE LOCAL EST SCANNÉ
       const isScanned = this.isLocalScanned(local, periodicite);
 
+      // Initialisation de la zone
       if (!statsByZone[zoneName]) {
-        statsByZone[zoneName] = this.initZoneStats(zoneName);
+        statsByZone[zoneName] = {};
       }
 
-      const zoneStats = statsByZone[zoneName];
+      // 🔴 CAS 1 : Local NON scanné → ajout direct dans "Non Scanned"
+      if (!isScanned) {
+        const key = 'Non Scanned';
+        if (!statsByZone[zoneName][key]) {
+          statsByZone[zoneName][key] = this.initZoneStats(zoneName);
+        }
+
+        const zoneStats = statsByZone[zoneName][key];
+        zoneStats.totalLocaux++;
+
+        // Ajouter dans la bonne catégorie selon location et périodicité
+        if (isLoued) {
+          if (periodicite === 'MENSUEL') {
+            zoneStats.louesMensuels.nonScanned.push(local.numero);
+          } else if (periodicite === 'JOURNALIER') {
+            zoneStats.louesJournaliers.nonScanned.push(local.numero);
+          }
+        }
+
+        continue; // ⚠️ Passer au local suivant SANS chercher le contrôleur
+      }
+
+      // 🟢 CAS 2 : Local SCANNÉ → récupérer le contrôleur
+      const controllerId = await this.notifService.findUserIdByLocalId(local.id_local);
+      const key = controllerId ?? 'Non Scanned';
+
+      // Filtrage par options (uniquement pour les locaux scannés)
+      if (options?.id_user && controllerId !== options.id_user) continue;
+      if (options?.id_typelocal && local.typelocal?.id_type_local !== options.id_typelocal) continue;
+
+      // Initialisation de la structure pour ce type de local
+      if (!statsByZone[zoneName][key]) {
+        statsByZone[zoneName][key] = this.initZoneStats(zoneName);
+      }
+
+      const zoneStats = statsByZone[zoneName][key];
       zoneStats.totalLocaux++;
 
-
-
-      // 🟢 Locaux loués
+      // Ajouter dans la bonne catégorie (scanné)
       if (isLoued) {
         if (periodicite === 'MENSUEL') {
-          this.addLocalToStats(zoneStats.louesMensuels, local, isScanned);
+          zoneStats.louesMensuels.scanned.push(local.numero);
         } else if (periodicite === 'JOURNALIER') {
-          this.addLocalToStats(zoneStats.louesJournaliers, local, isScanned);
+          zoneStats.louesJournaliers.scanned.push(local.numero);
         }
-      }
-      // 🔵 Locaux scannés mais non loués
-      else if (isScanned) {
+      } else {
+        // Local non loué mais scanné
         zoneStats.scannedNonLoues.push(local.numero);
       }
     }
 
-    return this.formatStats(statsByZone);
+    // 🔁 Reformater le résultat en tableau structuré GROUPÉ PAR ZONE
+    const result: any[] = [];
+
+    for (const [zoneName, controllers] of Object.entries(statsByZone)) {
+      const zoneData: any = {
+        zoneName,
+        controllers: [],
+        totalLocaux: 0,
+        totalLouesMensuels: 0,
+        totalScannedLouesMensuels: 0,
+        totalNonScannedLouesMensuels: 0,
+        totalLouesJournaliers: 0,
+        totalScannedLouesJournaliers: 0,
+        totalNonScannedLouesJournaliers: 0,
+        totalScannedNonLoues: 0,
+      };
+
+      for (const [ctrlId, data] of Object.entries(controllers)) {
+        // Gérer le cas "Non Scanned" qui n'a pas besoin d'appel API
+        const controlleurName = ctrlId === 'Non Scanned'
+          ? 'Non Scanned'
+          : await this.getUserNameById(ctrlId);
+
+        // Ajouter les données du contrôleur
+        zoneData.controllers.push({
+          controlleur: controlleurName,
+          totalLocaux: data.totalLocaux,
+
+          // Mensuels
+          totalLouesMensuels: data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length,
+          totalScannedLouesMensuels: data.louesMensuels.scanned.length,
+          scannedLouesMensuelsNumeros: data.louesMensuels.scanned,
+          totalNonScannedLouesMensuels: data.louesMensuels.nonScanned.length,
+          nonScannedLouesMensuelsNumeros: data.louesMensuels.nonScanned,
+
+          // Journaliers
+          totalLouesJournaliers: data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length,
+          totalScannedLouesJournaliers: data.louesJournaliers.scanned.length,
+          scannedLouesJournaliersNumeros: data.louesJournaliers.scanned,
+          totalNonScannedLouesJournaliers: data.louesJournaliers.nonScanned.length,
+          nonScannedLouesJournaliersNumeros: data.louesJournaliers.nonScanned,
+
+          // Scannés non loués
+          totalScannedNonLoues: data.scannedNonLoues.length,
+          scannedNonLouesNumeros: data.scannedNonLoues,
+        });
+
+        // Agréger les totaux de la zone
+        zoneData.totalLocaux += data.totalLocaux;
+        zoneData.totalLouesMensuels += data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length;
+        zoneData.totalScannedLouesMensuels += data.louesMensuels.scanned.length;
+        zoneData.totalNonScannedLouesMensuels += data.louesMensuels.nonScanned.length;
+        zoneData.totalLouesJournaliers += data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length;
+        zoneData.totalScannedLouesJournaliers += data.louesJournaliers.scanned.length;
+        zoneData.totalNonScannedLouesJournaliers += data.louesJournaliers.nonScanned.length;
+        zoneData.totalScannedNonLoues += data.scannedNonLoues.length;
+      }
+
+      result.push(zoneData);
+    }
+
+    return result;
   }
+
 
 
   // Supprimer un local

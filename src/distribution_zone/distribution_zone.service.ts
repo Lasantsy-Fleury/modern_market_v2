@@ -123,12 +123,28 @@ export class DistributionZoneService {
     return distributionZones;
   }
 
+  async findCurrentUserByZone(id_zone): Promise<string[]> {
+    const distributions = await this.distributionZoneRepository.find({
+      where: { zoneId:id_zone, status: true },
+      select: ['id_user'],
+    });
+
+    if (!distributions.length) {
+     return [];
+    }
+
+    // On retourne uniquement les id_user sous forme de tableau
+    return distributions.map((dist) => dist.id_user);
+  }
+
+
   async update(id_distribution_zone: string, municipalityId: string, updateDistributionZoneDto: UpdateDistributionZoneDto) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);
     Object.assign(distributionZone, updateDistributionZoneDto);
     this.eventsService.broadcastToAll('distribution_zone_updated', distributionZone);
     return await this.distributionZoneRepository.save(distributionZone);
   }
+
 
   async remove(id_distribution_zone: string, municipalityId: string) {
     const distributionZone = await this.findOne(id_distribution_zone, municipalityId);

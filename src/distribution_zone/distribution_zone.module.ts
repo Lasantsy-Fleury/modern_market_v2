@@ -9,12 +9,13 @@ import { EventsModule } from 'src/events/events.module';
 import { HttpModule } from '@nestjs/axios';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DistributionZone , Zone]),
-    ZoneModule
-   ,EventsModule,
-   HttpModule
+    TypeOrmModule.forFeature([DistributionZone, Zone]),
+    ZoneModule,
+    EventsModule,
+    HttpModule
   ],
   controllers: [DistributionZoneController],
   providers: [DistributionZoneService],
+  exports: [DistributionZoneService]
 })
-export class DistributionZoneModule {}
+export class DistributionZoneModule { }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { Notification } from './entities/notification.entity';
@@ -8,14 +8,20 @@ import { Location } from 'src/location/entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { Local } from 'src/local/entities/local.entity';
 import { EventsModule } from 'src/events/events.module';
-import { LocalService } from 'src/local/local.service';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
+import { LocalModule } from 'src/local/local.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification,Location,Paiementlocation,Local,Zone,Typelocal]),HttpModule,EventsModule],
+  imports: [
+    // ✅ ajoute `Local` ici
+    TypeOrmModule.forFeature([Notification, Location, Paiementlocation, Zone, Typelocal, Local]),
+    HttpModule,
+    EventsModule,
+    forwardRef(() => LocalModule),
+  ],
   controllers: [NotificationController],
-  providers: [NotificationService,LocalService],
+  providers: [NotificationService],
   exports: [NotificationService],
 })
 export class NotificationModule {}

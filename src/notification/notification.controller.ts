@@ -93,7 +93,7 @@ export class NotificationController {
             resultat: 'Aucune location trouvée',
             id_contribuable: '123456',
             zoneName: null,
-            local_id: 'loc-789',
+            localId: 'loc-789',
           },
         }
       },
@@ -301,29 +301,7 @@ export class NotificationController {
     );
   }
 
-  // @Get('controle/stats')
-  // @ApiOperation({ summary: 'Obtenir le nombre de locaux par zone avec option de dates' })
-  // @ApiQuery({ name: 'startDate', required: false, type: String ,example:'2025-10-8'})
-  // @ApiQuery({ name: 'endDate', required: false, type: String ,example:'2025-10-9'})
-  // async getStats(
-  //   @Param('municipalityId') municipalityId: string,
-  //   @Query('startDate') startDate?: string,
-  //   @Query('endDate') endDate?: string,
-  // ) {
-  //   //  if (!municipalityId) {
-  //   //   throw new BadRequestException(
-  //   //     'Le paramètre municipalityId est obligatoire.',
-  //   //   );
-  //   //}
-  //    const options = {
-  //     startDate: startDate ? new Date(startDate) : undefined,
-  //     endDate: endDate ? new Date(endDate) : undefined,
-  //   };
-  //   return this.notificationService.getStatsByZone(
-  //     municipalityId,
-  //     options
-  //   );
-  // }
+
 
   @Get('open/:id')
   @ApiOperation({ summary: 'Ouvrir une notification et récupérer la cible associée' })

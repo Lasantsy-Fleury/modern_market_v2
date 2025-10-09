@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException, } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
@@ -12,6 +12,7 @@ import { Between } from 'typeorm';
 import { start } from 'repl';
 
 import { LocalService } from 'src/local/local.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class NotificationService {
@@ -29,7 +30,8 @@ export class NotificationService {
     private readonly localRepository: Repository<Local>,
 
     private readonly eventsService: EventsService,
-    private readonly localService: LocalService,
+    @Inject(forwardRef(() => LocalService)) // ✅ utilise forwardRef pour briser le cercle
+    private localService: LocalService,
 
   ) { }
 
@@ -532,119 +534,21 @@ export class NotificationService {
     }
   }
 
-  // async getStatsByZone(
-  //   municipalityId: string,
-  //   options: {
-  //     startDate?: Date,
-  //     endDate?: Date,
-  //   }
-  // ): Promise<any[]> {
+  async findUserIdByLocalId(id_local: string): Promise<string | null> {
+    const notification = await this.notifRepository
+      .createQueryBuilder('notif')
+      .select('notif.userId')
+      .where('notif.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
+      .andWhere("notif.data->>'localId' = :localId", { localId: id_local })
+      .getOne();
 
-  //   const { startDate, endDate } = options;
-  //   // 1️⃣ Récupérer tous les locaux de la commune
-  //   const locaux = await this.localRepository.find({
-  //     relations: ['zone', 'locations'],
-  //     where: { zone: { municipalityId } },
-  //   });
+    console.log("cont trouve:", notification);
 
-  //   if (!locaux.length) {
-  //     return [];
-  //   }
+    if (!notification) return null;
 
-  //   // 2️⃣ Récupérer les scans via la table de notifications
-  //   const notifQuery = this.localRepository
-  //     .createQueryBuilder('local')
-  //     .innerJoinAndSelect('local.zone', 'zone')
-  //     .select('zone.nom', 'zoneName')
-  //     .addSelect('ARRAY_AGG(DISTINCT local.data ->> \'id_local\')', 'scannedLocalIds')
-  //     .groupBy('local.data ->> \'zoneName\'');
+    return notification.userId;
+  }
 
-  //   if (startDate && endDate) {
-  //     notifQuery.where('n.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate });
-  //   } else if (startDate) {
-  //     notifQuery.where('n.createdAt >= :start', { start: startDate });
-  //   } else if (endDate) {
-  //     notifQuery.where('n.createdAt <= :end', { end: endDate });
-  //   }
-
-  //   const notifStats = await notifQuery.getRawMany();
-  //   const scannedMap = new Map<string, string[]>();
-
-  //   notifStats.forEach((n) => {
-  //     const ids = typeof n.scannedLocalIds === 'string'
-  //       ? n.scannedLocalIds.replace(/[{}]/g, '').split(',')
-  //       : [];
-  //     scannedMap.set(n.zoneName, ids);
-  //   });
-
-  //   // 3️⃣ Calculs par zone
-  //   const statsByZone = {};
-
-  //   for (const local of locaux) {
-  //     const zoneName = local.zone?.nom || 'Inconnue';
-  //     const scannedIds = scannedMap.get(zoneName) || [];
-  //     const isScanned = scannedIds.includes(local.id_local);
-
-  //     // Dernière location (si existe)
-  //     const lastLocation = local.locations.sort(
-  //       (a, b) => new Date(b.date_debut_loc).getTime() - new Date(a.date_debut_loc).getTime(),
-  //     )[0];
-
-  //     const periodicite = lastLocation?.periodicite ?? null;
-  //     const isLoued = local.statut === 'LOUE';
-
-  //     if (!statsByZone[zoneName]) {
-  //       statsByZone[zoneName] = {
-  //         zoneName,
-  //         totalLocaux: 0,
-  //         louesMensuels: { scanned: [], nonScanned: [] },
-  //         louesJournaliers: { scanned: [], nonScanned: [] },
-  //         scannedNonLoues: [],
-  //       };
-  //     }
-
-  //     const zoneStats = statsByZone[zoneName];
-  //     zoneStats.totalLocaux++;
-
-  //     // 🔹 Cas 1 : local loué
-  //     if (isLoued) {
-  //       if (periodicite === 'MENSUEL') {
-  //         if (isScanned) zoneStats.louesMensuels.scanned.push(local.numero);
-  //         else zoneStats.louesMensuels.nonScanned.push(local.numero);
-  //       } else if (periodicite === 'JOURNALIER') {
-  //         if (isScanned) zoneStats.louesJournaliers.scanned.push(local.numero);
-  //         else zoneStats.louesJournaliers.nonScanned.push(local.numero);
-  //       }
-  //     }
-  //     // 🔹 Cas 2 : local scanné mais non loué
-  //     else if (isScanned) {
-  //       zoneStats.scannedNonLoues.push(local.numero);
-  //     }
-  //   }
-
-  //   // 4️⃣ Mise en forme finale
-  //   return Object.values(statsByZone).map((zone: any) => ({
-  //     zoneName: zone.zoneName,
-  //     totalLocaux: zone.totalLocaux,
-  //     // Mensuels
-  //     totalLouesMensuels: zone.louesMensuels.scanned.length + zone.louesMensuels.nonScanned.length,
-  //     totalScannedLouesMensuels: zone.louesMensuels.scanned.length,
-  //     totalNonScannedLouesMensuels: zone.louesMensuels.nonScanned.length,
-  //     scannedLouesMensuelsNumeros: zone.louesMensuels.scanned,
-  //     nonScannedLouesMensuelsNumeros: zone.louesMensuels.nonScanned,
-
-  //     // Journaliers
-  //     totalLouesJournaliers: zone.louesJournaliers.scanned.length + zone.louesJournaliers.nonScanned.length,
-  //     totalScannedLouesJournaliers: zone.louesJournaliers.scanned.length,
-  //     totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
-  //     scannedLouesJournaliersNumeros: zone.louesJournaliers.scanned,
-  //     nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
-
-  //     // Scannés non loués
-  //     totalScannedNonLoues: zone.scannedNonLoues.length,
-  //     scannedNonLouesNumeros: zone.scannedNonLoues,
-  //   }));
-  // }
 
 
   async getRapport(

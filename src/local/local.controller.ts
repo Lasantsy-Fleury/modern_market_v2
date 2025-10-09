@@ -2,14 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe,
 import { LocalService } from './local.service';
 import { CreateLocalDto } from './dto/create-local.dto';
 import { UpdateLocalDto } from './dto/update-local.dto';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { LocationService } from 'src/location/location.service';
 import { NotFoundException } from '@nestjs/common';
 @ApiTags('Local')
 @Controller('local')
 export class LocalController {
   constructor(
-    private readonly localService: LocalService , 
+    private readonly localService: LocalService,
     private readonly locationService: LocationService
   ) { }
 
@@ -96,15 +96,19 @@ export class LocalController {
     return this.localService.findLastLocationByLocal(municipalityId, id_local);
   }
 
-   @Get('stats/municipality/:municipalityId')
+
+  @Get('stats/municipality/:municipalityId')
   @ApiOperation({ summary: 'Obtenir les statistiques des locaux par zone pour une municipalité' })
+  @ApiQuery({ name: 'id_user', required: false, type: String })
+  @ApiQuery({ name: 'id_typelocal', required: false, type: String })
   async getStatsByZone(
     @Param('municipalityId') municipalityId: string,
+    @Query('id_user') id_user?: string,
+    @Query('id_typelocal') id_typelocal?: string,
   ) {
-
-    return await this.localService.getStatsByZone(municipalityId);
+     return await this.localService.getStatsByZone(municipalityId, { id_user, id_typelocal });
     // try {
-    //   return await this.localService.getStatsByZone(municipalityId);
+    //   return await this.localService.getStatsByZone(municipalityId, { id_user, id_typelocal });
     // } catch (error) {
     //   if (error instanceof NotFoundException) {
     //     throw error;

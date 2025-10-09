@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { LocalService } from './local.service';
 import { LocalController } from './local.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,13 +9,32 @@ import { EventsModule } from 'src/events/events.module';
 import { HttpModule } from '@nestjs/axios';
 import { LocationModule } from 'src/location/location.module';
 import { Location } from 'src/location/entities/location.entity';
+import { DistributionZoneModule } from 'src/distribution_zone/distribution_zone.module';
+import { NotificationModule } from 'src/notification/notification.module';
+import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
+import { LocationService } from 'src/location/location.service';
+import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
+import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Local, Zone, Typelocal,Location]),
-  HttpModule.register({ timeout: 5000, maxRedirects: 5 }),
-  EventsModule,
-  LocationModule,
+  imports: [
+    TypeOrmModule.forFeature([
+      Location,
+      Local,
+      Paiementlocation,
+      Zone,
+      Typelocal,
+      DistributionZone,
+    ]),
+
+    forwardRef(() => NotificationModule),
+    forwardRef(() => EventsModule),
+    forwardRef(() => DistributionZoneModule), // ✅ ajout important ici
+
+    HttpModule,
   ],
   controllers: [LocalController],
-  providers: [LocalService],
+  providers: [LocalService, LocationService, PaiementLocationService],
+  exports: [LocalService], // facultatif, mais utile si NotificationService l'utilise
 })
 export class LocalModule { }

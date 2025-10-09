@@ -417,7 +417,7 @@ export class LocationService {
     if (inDistributionZone) {
       const histData = {
         id_location: locations[0].id_location,
-        id_local: locations[0].localId,
+        localId: locations[0].localId,
         resultat: 'Location valide dans la zone',
         id_contribuable: id_user,
         zoneName,
@@ -434,7 +434,7 @@ export class LocationService {
     } else {
       const histData = {
         id_location: locations[0].id_location,
-        id_local: locations[0].localId,
+        localId: locations[0].localId,
         resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
         zoneName: locations[0].local?.zone?.nom || null,
