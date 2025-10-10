@@ -377,7 +377,7 @@ export class LocationService {
       );
 
       const userData = response.data;
-      userNom=userData.user_pseudo;
+      userNom = userData.user_pseudo;
 
       if (!userData || !userData.appUserRoles) {
         throw new NotFoundException(`Utilisateur ${id_user} introuvable.`);
@@ -408,84 +408,16 @@ export class LocationService {
         resultat: 'Aucune location trouvée',
         id_contribuable: id_user,
         nom_contribuable: userNom,
-        zoneName: null, // pas de zone
+
 
       };
 
-      // await this.notificationService.CreateHistorique(
-      //   id_controleur,
-      //   histData,
-      //   'URGENT'
-      // );
-
-      // 🔥 CORRECTION : Appel correct du WebSocket
       this.eventsService.sendToUser(id_controleur, 'aucune_location,entrer_id_local', histData);
 
-      throw new NotFoundException('Aucune location trouvée');
+      return [];
     }
 
-    let inDistributionZone = false;
-    let zoneName: string | null = null;
-
-    for (const loc of locations) {
-      const locZoneId = loc.local?.zone?.id_zone;
-      if (locZoneId) {
-        const dz = distributionZones.find(dz => dz.zoneId === locZoneId);
-        if (dz) {
-          inDistributionZone = true;
-          zoneName = dz.zone.nom;
-          break;
-
-        }
-      }
-    }
-
-    if (inDistributionZone) {
-      const histData = {
-        id_location: locations[0].id_location,
-        localId: locations[0].localId,
-        numero_local: locations[0].local.numero,
-        type_local: locations[0].local.typelocal.typeLoc?.fr,
-        resultat: 'Location valide dans la zone',
-        id_contribuable: id_user,
-        nom_contribuable: userNom,
-        zoneName,
-      };
-
-      await this.notificationService.CreateHistorique(
-        id_controleur,
-        histData,
-        'MEDIUM'
-      );
-      this.localService.updateDateScan(locations[0].localId);
-      this.eventsService.sendToUser(id_controleur, 'location_en_regle', histData);
-      return locations;
-    } else {
-      const histData = {
-        id_location: locations[0].id_location,
-        localId: locations[0].localId,
-        numero_local: locations[0].local.numero,
-        type_local: locations[0].local.typelocal.typeLoc?.fr,
-        resultat: 'Location trouvée mais hors distribution zone',
-        id_contribuable: id_user,
-        nom_contribuable: userNom,
-        zoneName: locations[0].local?.zone?.nom || null,
-      };
-
-      await this.notificationService.CreateHistorique(
-        id_controleur,
-        histData,
-        'HIGH'
-      );
-
-      this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
-      this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
-      throw new ForbiddenException(
-        `La location ${locations[0].id_location} n'est pas rattachée à une zone valide.`,
-      );
-    }
-
-
+    return locations;
   }
 
   async findOne(id: string, municipalityId?: string | null | undefined): Promise<Location> {
@@ -842,27 +774,127 @@ export class LocationService {
     return occupiedPeriods;
   }
 
-  async getVerificationUserLocal(municipalityId: string, id_user: string, id_local: string): Promise<any> {
+  async getVerificationUserLocal(
+    municipalityId: string,
+    id_controleur: string,
+    id_user: string,
+    id_local: string,
+  ): Promise<any> {
     const today = new Date();
-    const result = await this.locationRepository.find({
+    let userNom: string;
+
+    // 🔹 Récupération du local + zone
+    const local = await this.localRepository.findOne({
+      where: { id_local },
+      relations: ['zone', 'typelocal'],
+    });
+
+    if (!local) {
+      throw new NotFoundException(`Local ${id_local} introuvable`);
+    }
+
+    const zoneId = local.zone?.id_zone;
+    const zoneName = local.zone?.nom || null;
+
+    // 🔹 Récupérer la location en cours pour ce local + contribuable
+    const location = await this.locationRepository.findOne({
       where: {
         id_user: id_user,
         date_debut_loc: LessThanOrEqual(today),
         date_fin_loc: MoreThanOrEqual(today),
         local: {
           id_local: id_local,
-          zone: {
-            municipalityId: municipalityId,
-          },
+          zone: { municipalityId: municipalityId, },
         },
-      }
-
+      },
+      relations: ['local', 'local.zone', 'local.typelocal'],
     });
 
-    if (result.length > 0) return true;
+    // 🔹 Récupération du pseudo du contribuable via API externe
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`),
+      );
+      const userData = response.data;
+      userNom = userData?.user_pseudo || 'Inconnu';
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new NotFoundException(`Utilisateur ${id_user} introuvable.`);
+      }
+      if (error.response?.status === 403) {
+        throw new ForbiddenException(`Accès refusé pour l’utilisateur ${id_user}.`);
+      }
+      console.error('Erreur HTTP lors de la vérification du rôle:', error.response?.data || error.message);
+      throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
+    }
 
-    return false
+    // 🔹 Vérification si une location est en cours
+    if (location) {
+      // Récupérer les zones de distribution du contrôleur
+      const distributionZones = await this.distributionZoneRepository.find({
+        where: { id_user: id_controleur },
+        relations: ['zone'],
+      });
+
+      // Vérifier si le local est dans une zone du contrôleur
+      const inDistributionZone = distributionZones.some(
+        (dz) => dz.zone.id_zone === zoneId,
+      );
+
+      if (inDistributionZone) {
+        const histData = {
+          id_location: location.id_location,
+          localId: local.id_local,
+          numero_local: local.numero,
+          type_local: local.typelocal?.typeLoc?.fr || null,
+          resultat: 'Location valide dans la zone',
+          id_contribuable: id_user,
+          nom_contribuable: userNom,
+          zoneName,
+        };
+
+        await this.notificationService.CreateHistorique(id_controleur, histData, 'MEDIUM');
+        await this.localService.updateDateScan(id_local);
+        this.eventsService.sendToUser(id_controleur, 'location_en_regle', histData);
+
+        return true;
+      } else {
+        const histData = {
+          id_location: location.id_location,
+          localId: local.id_local,
+          numero_local: local.numero,
+          type_local: local.typelocal?.typeLoc?.fr || null,
+          resultat: 'Location trouvée mais hors distribution zone',
+          id_contribuable: id_user,
+          nom_contribuable: userNom,
+          zoneName,
+        };
+
+        await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
+        this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
+        this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
+
+        throw new ForbiddenException(
+          `Location trouvée pour le local mais pas dans la distributionZone du contrôleur.`,
+        );
+      }
+    }
+
+    // 🔹 Aucun location trouvée → URGENT
+    const histData = {
+      resultat: 'Place occupée mais aucune location trouvée',
+      id_contribuable: id_user,
+      nom_contribuable: userNom,
+      zoneName,
+      localId: id_local,
+    };
+
+    await this.notificationService.CreateCritiqueHistorique(id_controleur, histData);
+    this.eventsService.sendToUser(id_controleur, 'aucune_location_trouvee', histData);
+
+    return false;
   }
+
 
   async generateContratBail(locationId: string): Promise<Buffer> {
     const location = await this.locationRepository.findOne({

@@ -286,18 +286,21 @@ ${formatDate(locationData.date_fin_loc)}
     return await this.locationService.generateUserQrCode(id);
   }
 
-  @Get('verification/:municipalityId/:id_user/:id_local')
-  @ApiParam({ name: 'municipalityId',  type: 'string', description: "ID de la municipalité" })
-  @ApiParam({ name: 'id_user', type: 'string', description: "ID de l'utilisateur" })
-  @ApiParam({ name: 'id_local',  type: 'string', description: "ID du local" })
-  @ApiOperation({ summary: 'Vérifier l\'existence d\'une location active pour un utilisateur et un local dans une municipalité' })
+  @Get('verification/:municipalityId/:id_controleur/:id_user/:id_local')
+  @ApiParam({ name: 'municipalityId', type: 'string', description: "ID de la municipalité" })
+  @ApiParam({ name: 'id_controleur', type: 'string', description: "ID du contrôleur" })
+  @ApiParam({ name: 'id_user', type: 'string', description: "ID du contribuable" })
+  @ApiParam({ name: 'id_local', type: 'string', description: "ID du local" })
+  @ApiOperation({ summary: 'Vérifier l’existence d’une location active pour un utilisateur et un local dans une municipalité' })
   async verifyUserLocal(
     @Param('municipalityId') municipalityId: string,
+    @Param('id_controleur') id_controleur: string,
     @Param('id_user') id_user: string,
-    @Param('id_local') id_local: string
+    @Param('id_local') id_local: string,
   ) {
-    return this.locationService.getVerificationUserLocal(municipalityId, id_user, id_local);
+    return this.locationService.getVerificationUserLocal(municipalityId, id_controleur, id_user, id_local);
   }
+
 
   @Get('contrat-bail/:id')
   @ApiOperation({ summary: 'Télécharger le contrat de bail PDF pour une location donnée' })
