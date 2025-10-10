@@ -811,22 +811,7 @@ export class LocationService {
   }
 
   async getVerificationUserLocal(municipalityId: string, id_user: string, id_local: string): Promise<any> {
-    const today = new Date();
-    const location = await this.locationRepository
-      .createQueryBuilder('location')
-      .leftJoinAndSelect('location.local', 'local')
-      .leftJoinAndSelect('local.zone', 'zone')
-      .where('location.id_user = :id_user', { id_user })
-      .andWhere('location.localId = :id_local', { id_local })
-      .andWhere('zone.municipalityId = :municipalityId', { municipalityId })
-      .andWhere('location.date_debut_loc <= :today', { today })
-      .andWhere('location.date_fin_loc >= :today', { today })
-      .getOne();
-
-    if (!location) {
-      return false;
-    }
-    return true;
+   
   }
 
   async generateContratBail(locationId: string): Promise<Buffer> {

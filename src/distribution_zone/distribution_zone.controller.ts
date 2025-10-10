@@ -2,18 +2,18 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, DefaultValuePipe, Pa
 import { DistributionZoneService } from './distribution_zone.service';
 import { CreateDistributionZoneDto } from './dto/create-distribution_zone.dto';
 import { UpdateDistributionZoneDto } from './dto/update-distribution_zone.dto';
-import { ApiResponse,ApiTags,ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { string } from 'joi';
 
 @ApiTags('Distribution-zone')
 @Controller('distribution-zone')
 export class DistributionZoneController {
-  constructor(private readonly distributionZoneService: DistributionZoneService) {}
+  constructor(private readonly distributionZoneService: DistributionZoneService) { }
 
   @Post('assign')
-  @ApiOperation({summary:'Affecter un utilisateur à une zone de distribution'})
-  @ApiResponse({status:201,description:'L\'utilisateur a été affecté à la zone de distribution avec succès.'})
-  @ApiResponse({status:400,description:'Requête invalide.'})
+  @ApiOperation({ summary: 'Affecter un utilisateur à une zone de distribution' })
+  @ApiResponse({ status: 201, description: 'L\'utilisateur a été affecté à la zone de distribution avec succès.' })
+  @ApiResponse({ status: 400, description: 'Requête invalide.' })
   async assignUserToZone(
     @Body() dto: CreateDistributionZoneDto
   ) {
@@ -21,8 +21,8 @@ export class DistributionZoneController {
   }
 
   @Get('municipalityId/:municipalityId')
-   @ApiOperation({summary:'Récupérer toutes les zones de distribution par leur municipalité'})
-  @ApiQuery({ name: 'municipalityId', required: true, type: string, description: 'ID de la municipalité' })
+  @ApiOperation({ summary: 'Récupérer toutes les zones de distribution par leur municipalité' })
+
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de la page (par défaut 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre de résultats par page (par défaut 10)' })
   async findAll(
@@ -37,31 +37,31 @@ export class DistributionZoneController {
   }
 
   @Get('municipalityId/:municipalityId/id/:id')
-  @ApiOperation({summary:'Récupérer une zone de distribution par son id'})
+  @ApiOperation({ summary: 'Récupérer une zone de distribution par son id' })
   findOne(@Param('id') id: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findOne(id, municipalityId);
   }
 
   @Get('municipalityId/:municipalityId/id_user/:id_user')
-  @ApiOperation({summary:'Récupérer une zone qui est affectée par l\'id utilisateur et qui a le status true'})
+  @ApiOperation({ summary: 'Récupérer une zone qui est affectée par l\'id utilisateur et qui a le status true' })
   findOneByidUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findAllTrueByidUser(id_user, municipalityId);
   }
 
   @Get('history/municipalityId/:municipalityId/id_user/:id_user')
-  @ApiOperation({summary:'Récupérer tous les zones historiques qui sont affectées par l\'id utilisateur'})
+  @ApiOperation({ summary: 'Récupérer tous les zones historiques qui sont affectées par l\'id utilisateur' })
   findAllByIdUser(@Param('id_user') id_user: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.findAllByIdUser(id_user, municipalityId);
   }
 
   @Patch('municipalityId/:municipalityId/id/:id')
-  @ApiOperation({summary:'Modifier une zone de distribution'})
+  @ApiOperation({ summary: 'Modifier une zone de distribution' })
   update(@Param('id') id: string, @Param('municipalityId') municipalityId: string, @Body() updateDistributionZoneDto: UpdateDistributionZoneDto) {
     return this.distributionZoneService.update(id, municipalityId, updateDistributionZoneDto);
   }
 
   @Delete('municipalityId/:municipalityId/id/:id')
-  @ApiOperation({summary:'Supprimer une zone de distribution'})
+  @ApiOperation({ summary: 'Supprimer une zone de distribution' })
   remove(@Param('id') id: string, @Param('municipalityId') municipalityId: string) {
     return this.distributionZoneService.remove(id, municipalityId);
   }
