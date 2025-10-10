@@ -18,6 +18,7 @@ import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import * as PDFDocument from 'pdfkit';
 import { LocalService } from 'src/local/local.service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class LocationService {
@@ -359,7 +360,7 @@ export class LocationService {
     id_controleur: string
   ): Promise<any> {
     const today = new Date();
-
+    let userNom;
     // Récupérer les locations en cours
     const locations = await this.locationRepository.find({
       where: {
@@ -367,9 +368,32 @@ export class LocationService {
         date_debut_loc: LessThanOrEqual(today),
         date_fin_loc: MoreThanOrEqual(today),
       },
-      relations: ['local', 'local.zone'],
+      relations: ['local', 'local.zone', 'local.typelocal'],
     });
 
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`)
+      );
+
+      const userData = response.data;
+      userNom=userData.user_pseudo;
+
+      if (!userData || !userData.appUserRoles) {
+        throw new NotFoundException(`Utilisateur ${id_user} introuvable.`);
+      }
+
+    } catch (error: any) {
+      // Gestion spécifique pour AxiosError
+      if (error.response?.status === 404) {
+        throw new NotFoundException(`Utilisateur ${id_user} introuvable.`);
+      }
+      if (error.response?.status === 403) {
+        throw new ForbiddenException(`Accès refusé pour l’utilisateur ${id_user}.`);
+      }
+      console.error('Erreur HTTP lors de la vérification du rôle:', error.response?.data || error.message);
+      throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
+    }
     // Récupérer les distribution zones affectées au contrôleur
     const distributionZones = await this.distributionZoneRepository.find({
       where: { id_user: id_controleur },
@@ -383,7 +407,9 @@ export class LocationService {
       const histData = {
         resultat: 'Aucune location trouvée',
         id_contribuable: id_user,
+        nom_contribuable: userNom,
         zoneName: null, // pas de zone
+
       };
 
       // await this.notificationService.CreateHistorique(
@@ -418,8 +444,11 @@ export class LocationService {
       const histData = {
         id_location: locations[0].id_location,
         localId: locations[0].localId,
+        numero_local: locations[0].local.numero,
+        type_local: locations[0].local.typelocal.typeLoc?.fr,
         resultat: 'Location valide dans la zone',
         id_contribuable: id_user,
+        nom_contribuable: userNom,
         zoneName,
       };
 
@@ -435,8 +464,11 @@ export class LocationService {
       const histData = {
         id_location: locations[0].id_location,
         localId: locations[0].localId,
+        numero_local: locations[0].local.numero,
+        type_local: locations[0].local.typelocal.typeLoc?.fr,
         resultat: 'Location trouvée mais hors distribution zone',
         id_contribuable: id_user,
+        nom_contribuable: userNom,
         zoneName: locations[0].local?.zone?.nom || null,
       };
 
@@ -812,7 +844,7 @@ export class LocationService {
 
   async getVerificationUserLocal(municipalityId: string, id_user: string, id_local: string): Promise<any> {
     const today = new Date();
-    const result= await this.locationRepository.find({
+    const result = await this.locationRepository.find({
       where: {
         id_user: id_user,
         date_debut_loc: LessThanOrEqual(today),
