@@ -34,6 +34,15 @@ export class DistributionZoneService {
       );
 
       const userData = response.data;
+      if (!userData || !userData.appUserRoles) {
+        throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
+      }
+
+      const isControlleur = userData.appUserRoles.some(
+        (roleEntry: any) => roleEntry.role?.role_id === 23);
+      if (!isControlleur) {
+        throw new ForbiddenException(`L’utilisateur ${createDistributionZoneDto.id_user} n’a pas le rôle "controlleur".`);
+      }
 
       if (!userData) {
         throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
@@ -130,12 +139,12 @@ export class DistributionZoneService {
 
   async findCurrentUserByZone(id_zone): Promise<string[]> {
     const distributions = await this.distributionZoneRepository.find({
-      where: { zoneId:id_zone, status: true },
+      where: { zoneId: id_zone, status: true },
       select: ['id_user'],
     });
 
     if (!distributions.length) {
-     return [];
+      return [];
     }
 
     // On retourne uniquement les id_user sous forme de tableau
