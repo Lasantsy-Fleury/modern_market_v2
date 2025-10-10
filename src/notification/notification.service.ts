@@ -788,9 +788,6 @@ export class NotificationService {
       });
     }
 
-    // Debug: voir la query générée
-    console.log('Query SQL générée:', query.getSql());
-    console.log('Paramètres:', query.getParameters());
 
     query
       .orderBy('notification.createdAt', 'DESC')

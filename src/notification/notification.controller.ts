@@ -333,7 +333,7 @@ export class NotificationController {
     type: String,
     description: 'Date de fin (format ISO : YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)',
   })
-  @Get('infractions/zone/:municipalityId/user/:userId')
+  @Get('infractions/controlleur/:municipalityId/user/:userId')
   async getInfractionsControlleur(
     @Param('userId') userId: string,
     @Param('municipalityId') municipalityId: string, // converti en number après
@@ -343,7 +343,7 @@ export class NotificationController {
     @Query('dateTo') dateTo?: string,
   ) {
 
-     const options = {
+    const options = {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
       dateFrom: dateFrom ? new Date(dateFrom) : undefined,
