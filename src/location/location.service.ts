@@ -911,12 +911,37 @@ export class LocationService {
     }
 
     const municipalityId = location.local.zone.municipalityId;
-
+    let userData;
+    let citizenData;
     let commune: any = {
       name: "Inconnue",
       code: "-",
       phone_number: "-"
     };
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${location.id_user}`),
+      );
+      userData = response.data;
+
+      const citizen = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
+      );
+
+      citizenData = citizen.data
+
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new NotFoundException(`Utilisateur ${location.id_user} introuvable.`);
+      }
+      if (error.response?.status === 403) {
+        throw new ForbiddenException(`Accès refusé pour l’utilisateur ${location.id_user}.`);
+      }
+      console.error('Erreur HTTP lors de la vérification du rôle:', error.response?.data || error.message);
+      throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
+    }
+
 
     // 🔹 Tenter de récupérer la commune, mais ignorer si erreur
     try {
@@ -928,43 +953,150 @@ export class LocationService {
       // On continue avec des données par défaut
     }
 
-    // 🔹 Création du PDF
+
     const bufferStream = new WritableStreamBuffer();
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     doc.pipe(bufferStream);
 
-    doc.fontSize(18).text('CONTRAT DE BAIL', { align: 'center', underline: true });
+    // En-tête
+    doc.fontSize(18).font('Helvetica-Bold').text('CONTRAT DE BAIL', { align: 'center', underline: true });
+    doc.fontSize(11).font('Helvetica').text('Location de place au Marché Communal', { align: 'center' });
     doc.moveDown(2);
 
-    doc.fontSize(12).text(`Bailleur : Commune de ${commune.name}`);
+    // Informations du Bailleur
+    doc.fontSize(13).font('Helvetica-Bold').text('LE BAILLEUR', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Commune Urbaine de ${commune.name}`);
     doc.text(`Code postal : ${commune.code}`);
     doc.text(`Téléphone : ${commune.phone_number}`);
+
     doc.moveDown();
 
-    doc.text(`Locataire : ${location.id_user}`);
-    doc.text(`NIF : ${location.nif || '-'}`);
+    // Informations du Locataire
+    doc.fontSize(13).font('Helvetica-Bold').text('LE PRENEUR', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Nom : ${userData.user_pseudo}`);
+    doc.text(`NIF : ${location.nif || 'Non renseigné'}`);
+    doc.text(`CIN : ${citizenData.citizen_national_card_number || 'Non renseigné'}`);
+    doc.text(`Numéro de téléphone : ${userData.user_phone || 'Non renseigné'}`);
     doc.moveDown();
 
-    doc.text(`Local : ${location.local.numero || location.localId}`);
-    doc.text(`Usage prévu : ${location.usage || 'Non précisé'}`);
-    doc.text(`Loyer :${location.local?.typelocal?.tarif ?? 'Non précisé'}`);
+    // Informations sur le local
+    doc.fontSize(13).font('Helvetica-Bold').text('OBJET DE LA LOCATION', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Place N° : ${location.local.numero || location.localId}`);
+    doc.text(`Zone de Marché : ${location.local.zone.nom || 'Marché Communal'}`);
+    doc.text(`Latitude : ${location.local.latitude || 'Marché Communal'}`);
+    doc.text(`Longitude : ${location.local.longitude || 'Marché Communal'}`);
+    doc.text(`Superficie : ${location.local.typelocal.largeur * location.local.typelocal.longueur || '-'} m²`);
+    doc.text(`Type de commerce : ${location.usage || 'Non précisé'}`);
+    doc.moveDown();
+
+    // Conditions financières
+    doc.fontSize(13).font('Helvetica-Bold').text('CONDITIONS FINANCIÈRES', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Loyer : ${location.local?.typelocal?.tarif ?? 'Non précisé'} Ariary`);
     doc.text(`Périodicité : ${location.periodicite}`);
+    doc.text(`Total à payer : ${location.local?.typelocal?.tarif * location.frequence || '-'} Ariary`);
+    doc.moveDown();
+
+    // Durée du bail
+    doc.fontSize(13).font('Helvetica-Bold').text('DURÉE DU BAIL', { underline: true });
+    doc.fontSize(11).font('Helvetica');
     doc.text(
-      `Durée du bail : du ${location.date_debut_loc ? new Date(location.date_debut_loc).toLocaleDateString() : '-'} au ${location.date_fin_loc ? new Date(location.date_fin_loc).toLocaleDateString() : '-'}`
+      `Début : ${location.date_debut_loc ? new Date(location.date_debut_loc).toLocaleDateString('fr-FR') : '-'}`
     );
-    doc.moveDown();
+    doc.text(
+      `Fin : ${location.date_fin_loc ? new Date(location.date_fin_loc).toLocaleDateString('fr-FR') : '-'}`
+    );
 
-    doc.text('Article 1 : Objet du bail');
-    doc.text(`Le présent contrat a pour objet la location du local ci-dessus désigné pour l’usage indiqué.`);
-    doc.moveDown();
+    doc.text(
+      `Durée: 1 an`
+    );
+    doc.moveDown(1.5);
 
-    doc.text('Article 2 : Loyers et paiements');
-    doc.text(`Le locataire s’engage à payer le loyer selon la périodicité définie : ${location.periodicite.toLowerCase()}.`);
-    doc.moveDown();
+    // Articles du contrat
+    doc.fontSize(12).font('Helvetica-Bold').text('CLAUSES CONTRACTUELLES');
+    doc.moveDown(0.5);
 
-    doc.text('Article 3 : Obligations des parties');
-    doc.text('Le bailleur et le locataire s’engagent à respecter les obligations légales et contractuelles en vigueur.');
+    // Article 1
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 1 : Objet du bail');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le bailleur loue au preneur la place désignée ci-dessus au Marché Communal de ${commune.name}, pour l'exercice d'une activité de ${location.usage || 'commerce'}. Le preneur ne pourra utiliser cette place qu'à cet usage exclusif.`,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    // // Article 2
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 2 : Loyer et modalités de paiement');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le loyer est fixé à ${location.local?.typelocal?.tarif ?? '...'} Ariary, payable ${location.periodicite.toLowerCase()} d'avance. Le paiement peut être effectué directement via l'application officielle du service de  marché ou au régisseur du service marché ou régisseur principale de la Commune de
+      ${commune.name} avant le 5 de chaque période. `,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    // Article 3
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 3 : Obligations du preneur');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le preneur s'engage à : (1) maintenir la place en bon état de propreté, (2) respecter le règlement intérieur du marché, (3) ne pas sous-louer sans autorisation écrite, (4) payer régulièrement les loyers et charges.`,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    // Article 4
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 4 : Obligations du bailleur');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le bailleur s'engage à : (1) garantir la jouissance paisible de la place, (2) assurer l'entretien des parties communes, (3) fournir les services de gardiennage et de sécurité, (4) maintenir les installations en bon état de fonctionnement.`,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    // Article 5
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 5 : Résiliation');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le bail peut être résilié par le preneur avec un préavis de 2 mois. Le bailleur peut résilier en cas de non-paiement de 2 mois de loyer consécutifs, de non-respect du règlement, ou pour motif d'intérêt public avec préavis de 3 mois.`,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    // Article 6
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 6 : Renouvellement');
+    doc.fontSize(10).font('Helvetica').text(
+      `Le bail pourra être renouvelé par accord mutuel, sous réserve du respect des obligations par le preneur et d'une demande écrite 2 mois avant l'expiration.`,
+      { align: 'justify' }
+    );
+    doc.moveDown(0.5);
+
+    //Article 7
+    doc.fontSize(10).font('Helvetica-Bold').text('Article 7 : Litiges');
+    doc.fontSize(10).font('Helvetica').text(
+      `Tout litige relatif au présent contrat sera soumis aux juridictions compétentes de ${commune.name}. Les parties s'engagent préalablement à rechercher une solution amiable.`,
+      { align: 'justify' }
+    );
     doc.moveDown(2);
+
+    // Signatures
+    // Position de départ pour les signatures (250px depuis le bas)
+    const signatureY = doc.page.height - 95;
+
+    // Date et lieu
+    doc.fontSize(10)
+      .font('Helvetica-Bold')
+      .text('Fait à ' + commune.name + ', le ' + new Date().toLocaleDateString('fr-FR'), 380, signatureY - 40); // un peu au-dessus des signatures
+    doc.moveDown();
+
+    // Deux colonnes pour les signatures
+    doc.fontSize(11).font('Helvetica-Bold');
+    doc.text('LE BAILLEUR', 50, signatureY);
+    doc.text('LE PRENEUR', 400, signatureY);
+
+    // Sous-texte pour les signatures
+    doc.fontSize(9).font('Helvetica');
+    doc.text('Signature et cachet', 50, signatureY + 30);
+    doc.text('Signature précédée de "Lu et approuvé"', 360, signatureY + 30);
+
+
 
     doc.end();
 
@@ -974,5 +1106,145 @@ export class LocationService {
       });
     });
   }
+
+  async generateContratBailApp(locationId: string): Promise<Buffer> {
+    const location = await this.locationRepository.findOne({
+      where: { id_location: locationId },
+      relations: ['local', 'local.zone', 'local.typelocal'],
+    });
+
+    if (!location) {
+      throw new NotFoundException(`Location ${locationId} introuvable`);
+    }
+
+    if (!location.local || !location.local.zone) {
+      throw new NotFoundException(`Le local ou la zone associée est introuvable pour la location ${locationId}`);
+    }
+
+    const municipalityId = location.local.zone.municipalityId;
+    let userData;
+    let citizenData;
+    let fokontany;
+    let commune: any = {
+      name: "Inconnue",
+      code: "-",
+      phone_number: "-"
+    };
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${location.id_user}`),
+      );
+      userData = response.data;
+
+      const citizen = await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
+      );
+
+      citizenData = citizen.data;
+
+      const foko= await firstValueFrom(
+        this.httpService.get(`https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/fokontanys/${location.local.zone.formatted_id}`),
+      );
+
+      fokontany = foko.data
+
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new NotFoundException(`Utilisateur ${location.id_user} introuvable.`);
+      }
+      if (error.response?.status === 403) {
+        throw new ForbiddenException(`Accès refusé pour l’utilisateur ${location.id_user}.`);
+      }
+      console.error('Erreur HTTP lors de la vérification du rôle:', error.response?.data || error.message);
+      throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
+    }
+
+
+    // 🔹 Tenter de récupérer la commune, mais ignorer si erreur
+    try {
+      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
+      const response = await lastValueFrom(this.httpService.get(url));
+      commune = response.data;
+    } catch (error) {
+      console.error("⚠️ Impossible d'obtenir les données de la commune :", error.message);
+      // On continue avec des données par défaut
+    }
+
+
+    const bufferStream = new WritableStreamBuffer();
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    doc.pipe(bufferStream);
+
+    // En-tête
+    doc.fontSize(18).font('Helvetica-Bold').text('CONTRAT DE BAIL', { align: 'center', underline: true });
+    doc.fontSize(11).font('Helvetica').text('Location de place au Marché Communal', { align: 'center' });
+    doc.moveDown(2);
+
+    // Informations du Bailleur
+    doc.fontSize(13).font('Helvetica-Bold').text('LE BAILLEUR', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Commune Urbaine de ${commune.name}`);
+    doc.text(`Code postal : ${commune.code}`);
+    doc.text(`Téléphone : ${commune.phone_number}`);
+
+    doc.moveDown();
+
+    // Informations du Locataire
+    doc.fontSize(13).font('Helvetica-Bold').text('LE PRENEUR', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Nom : ${userData.user_pseudo}`);
+    doc.text(`NIF : ${location.nif || 'Non renseigné'}`);
+    doc.text(`CIN : ${citizenData.citizen_national_card_number || 'Non renseigné'}`);
+    doc.text(`Numéro de téléphone : ${userData.user_phone || 'Non renseigné'}`);
+    doc.moveDown();
+
+    // Informations sur le local
+    doc.fontSize(13).font('Helvetica-Bold').text('OBJET DE LA LOCATION', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Place N° : ${location.local.numero || location.localId}`);
+    doc.text(`Fokontany : ${fokontany.name || 'Marché Communal'}`);
+    doc.text(`Zone de Marché : ${location.local.zone.nom || 'Marché Communal'}`);
+    doc.text(`Superficie : ${location.local.typelocal.largeur * location.local.typelocal.longueur || '-'} m²`);
+    doc.text(`Type de commerce : ${location.usage || 'Non précisé'}`);
+    doc.moveDown();
+
+    // Conditions financières
+    doc.fontSize(13).font('Helvetica-Bold').text('CONDITIONS FINANCIÈRES', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Loyer : ${location.local?.typelocal?.tarif ?? 'Non précisé'} Ariary`);
+    doc.text(`Périodicité : ${location.periodicite}`);
+    doc.text(`Total à payer : ${location.local?.typelocal?.tarif * location.frequence || '-'} Ariary`);
+    doc.moveDown();
+
+    // Durée du bail
+    doc.fontSize(13).font('Helvetica-Bold').text('DURÉE DU BAIL', { underline: true });
+    doc.fontSize(11).font('Helvetica');
+    doc.text(
+      `Début : ${location.date_debut_loc ? new Date(location.date_debut_loc).toLocaleDateString('fr-FR') : '-'}`
+    );
+    doc.text(
+      `Fin : ${location.date_fin_loc ? new Date(location.date_fin_loc).toLocaleDateString('fr-FR') : '-'}`
+    );
+
+    doc.text(
+      `Durée: 1 an`
+    );
+    doc.moveDown(1.5);
+
+    // Articles du contrat
+
+
+
+    doc.end();
+
+    return new Promise((resolve) => {
+      bufferStream.on('finish', () => {
+        resolve(bufferStream.getContents());
+      });
+    });
+  }
+
+
 
 }
