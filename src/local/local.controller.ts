@@ -101,22 +101,15 @@ export class LocalController {
   @ApiOperation({ summary: 'Obtenir les statistiques des locaux par zone pour une municipalité' })
   @ApiQuery({ name: 'id_user', required: false, type: String })
   @ApiQuery({ name: 'id_typelocal', required: false, type: String })
+  @ApiQuery({ name: 'id_zone', required: false, type: String })
   async getStatsByZone(
     @Param('municipalityId') municipalityId: string,
     @Query('id_user') id_user?: string,
     @Query('id_typelocal') id_typelocal?: string,
+    @Query('id_zone') id_zone?: string,
   ) {
-     return await this.localService.getStatsByZone(municipalityId, { id_user, id_typelocal });
-    // try {
-    //   return await this.localService.getStatsByZone(municipalityId, { id_user, id_typelocal });
-    // } catch (error) {
-    //   if (error instanceof NotFoundException) {
-    //     throw error;
-    //   }
-    //   throw new NotFoundException(
-    //     `Erreur lors de la récupération des statistiques pour la commune ${municipalityId}`,
-    //   );
-    // }
+     return await this.localService.getStatsByZone(municipalityId, { id_user, id_typelocal, id_zone });
+
   }
   // Supprimer un local
   @Delete('municipality/:municipalityId/:id_local')

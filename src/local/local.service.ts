@@ -398,10 +398,9 @@ export class LocalService {
     return user ? user.data.user_pseudo : 'Inconnu';
   }
 
-
   async getStatsByZone(
     municipalityId: string,
-    options?: { id_user?: string; id_typelocal?: string }
+    options?: { id_user?: string; id_typelocal?: string; id_zone?: string }
   ): Promise<any[]> {
     const locaux = await this.getAllLocauxByMunicipality(municipalityId);
     if (!locaux.length) {
@@ -410,8 +409,19 @@ export class LocalService {
 
     const statsByZone: Record<string, Record<string, any>> = {};
 
+    const summarizeLocal = (local: any) => ({
+      id_local: local.id_local,
+      numero: local.numero,
+      type_contrat: local.typelocal?.type_contrat || null,
+      type_local: local.typelocal?.typeLoc?.fr || 'Inconnu',
+      zoneId: local.zone?.id_zone || null,
+      zoneName: local.zone?.nom || 'Inconnue',
+      statut: local.statut,
+    });
+
     for (const local of locaux) {
       const zoneName = local.zone?.nom || 'Inconnue';
+      const zoneId = local.zone?.id_zone;
       const typeLocalName = local.typelocal?.typeLoc?.fr || 'Inconnu';
       const isLoued = local.statut === 'LOUE';
       const currentLocation = this.getCurrentLocation(local);
@@ -419,66 +429,58 @@ export class LocalService {
         ? currentLocation.periodicite
         : local.typelocal?.type_contrat;
 
-      // ✅ VÉRIFICATION D'ABORD SI LE LOCAL EST SCANNÉ
+      // Filtre par zone si fourni
+      if (options?.id_zone && zoneId !== options.id_zone) continue;
+
       const isScanned = this.isLocalScanned(local, periodicite);
 
-      // Initialisation de la zone
-      if (!statsByZone[zoneName]) {
-        statsByZone[zoneName] = {};
-      }
+      if (!statsByZone[zoneName]) statsByZone[zoneName] = {};
 
-      // 🔴 CAS 1 : Local NON scanné → ajout direct dans "Non Scanned"
+      // Cas 1 : Non scanné
       if (!isScanned) {
         const key = 'Non Scanned';
-        if (!statsByZone[zoneName][key]) {
-          statsByZone[zoneName][key] = this.initZoneStats(zoneName);
-        }
+        if (!statsByZone[zoneName][key]) statsByZone[zoneName][key] = this.initZoneStats(zoneName);
 
         const zoneStats = statsByZone[zoneName][key];
         zoneStats.totalLocaux++;
 
-        // Ajouter dans la bonne catégorie selon location et périodicité
         if (isLoued) {
           if (periodicite === 'MENSUEL') {
-            zoneStats.louesMensuels.nonScanned.push(local.numero);
+            zoneStats.louesMensuels.nonScanned.push(summarizeLocal(local));
           } else if (periodicite === 'JOURNALIER') {
-            zoneStats.louesJournaliers.nonScanned.push(local.numero);
+            zoneStats.louesJournaliers.nonScanned.push(summarizeLocal(local));
           }
         }
 
-        continue; // ⚠️ Passer au local suivant SANS chercher le contrôleur
+        continue;
       }
 
-      // 🟢 CAS 2 : Local SCANNÉ → récupérer le contrôleur
+      // Cas 2 : Scanné
       const controllerId = await this.notifService.findUserIdByLocalId(local.id_local);
       const key = controllerId ?? 'Non Scanned';
 
-      // Filtrage par options (uniquement pour les locaux scannés)
       if (options?.id_user && controllerId !== options.id_user) continue;
       if (options?.id_typelocal && local.typelocal?.id_type_local !== options.id_typelocal) continue;
 
-      // Initialisation de la structure pour ce type de local
-      if (!statsByZone[zoneName][key]) {
-        statsByZone[zoneName][key] = this.initZoneStats(zoneName);
-      }
+      if (!statsByZone[zoneName][key]) statsByZone[zoneName][key] = this.initZoneStats(zoneName);
 
       const zoneStats = statsByZone[zoneName][key];
       zoneStats.totalLocaux++;
 
-      // Ajouter dans la bonne catégorie (scanné)
+      const summarizedLocal = summarizeLocal(local);
+
       if (isLoued) {
         if (periodicite === 'MENSUEL') {
-          zoneStats.louesMensuels.scanned.push(local.numero);
+          zoneStats.louesMensuels.scanned.push(summarizedLocal);
         } else if (periodicite === 'JOURNALIER') {
-          zoneStats.louesJournaliers.scanned.push(local.numero);
+          zoneStats.louesJournaliers.scanned.push(summarizedLocal);
         }
       } else {
-        // Local non loué mais scanné
-        zoneStats.scannedNonLoues.push(local.numero);
+        zoneStats.scannedNonLoues.push(summarizedLocal);
       }
     }
 
-    // 🔁 Reformater le résultat en tableau structuré GROUPÉ PAR ZONE
+    // Reformater le résultat en tableau structuré
     const result: any[] = [];
 
     for (const [zoneName, controllers] of Object.entries(statsByZone)) {
@@ -496,36 +498,31 @@ export class LocalService {
       };
 
       for (const [ctrlId, data] of Object.entries(controllers)) {
-        // Gérer le cas "Non Scanned" qui n'a pas besoin d'appel API
         const controlleurName = ctrlId === 'Non Scanned'
           ? 'Non Scanned'
           : await this.getUserNameById(ctrlId);
 
-        // Ajouter les données du contrôleur
         zoneData.controllers.push({
           controlleur: controlleurName,
+          controlleurId: ctrlId !== 'Non Scanned' ? ctrlId : null,
           totalLocaux: data.totalLocaux,
 
-          // Mensuels
           totalLouesMensuels: data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length,
           totalScannedLouesMensuels: data.louesMensuels.scanned.length,
-          scannedLouesMensuelsNumeros: data.louesMensuels.scanned,
+          scannedLouesMensuels: data.louesMensuels.scanned,
           totalNonScannedLouesMensuels: data.louesMensuels.nonScanned.length,
-          nonScannedLouesMensuelsNumeros: data.louesMensuels.nonScanned,
+          nonScannedLouesMensuels: data.louesMensuels.nonScanned,
 
-          // Journaliers
           totalLouesJournaliers: data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length,
           totalScannedLouesJournaliers: data.louesJournaliers.scanned.length,
-          scannedLouesJournaliersNumeros: data.louesJournaliers.scanned,
+          scannedLouesJournaliers: data.louesJournaliers.scanned,
           totalNonScannedLouesJournaliers: data.louesJournaliers.nonScanned.length,
-          nonScannedLouesJournaliersNumeros: data.louesJournaliers.nonScanned,
+          nonScannedLouesJournaliers: data.louesJournaliers.nonScanned,
 
-          // Scannés non loués
           totalScannedNonLoues: data.scannedNonLoues.length,
-          scannedNonLouesNumeros: data.scannedNonLoues,
+          scannedNonLoues: data.scannedNonLoues,
         });
 
-        // Agréger les totaux de la zone
         zoneData.totalLocaux += data.totalLocaux;
         zoneData.totalLouesMensuels += data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length;
         zoneData.totalScannedLouesMensuels += data.louesMensuels.scanned.length;
