@@ -287,9 +287,9 @@ ${formatDate(locationData.date_fin_loc)}
   }
 
   @Get('verification/:municipalityId/:id_user/:id_local')
-  @ApiParam({ name: 'municipalityId', required: false, type: 'string', description: "ID de la municipalité" })
-  @ApiParam({ name: 'id_user', required: false, type: 'string', description: "ID de l'utilisateur" })
-  @ApiParam({ name: 'id_local', required: false, type: 'string', description: "ID du local" })
+  @ApiParam({ name: 'municipalityId',  type: 'string', description: "ID de la municipalité" })
+  @ApiParam({ name: 'id_user', type: 'string', description: "ID de l'utilisateur" })
+  @ApiParam({ name: 'id_local',  type: 'string', description: "ID du local" })
   @ApiOperation({ summary: 'Vérifier l\'existence d\'une location active pour un utilisateur et un local dans une municipalité' })
   async verifyUserLocal(
     @Param('municipalityId') municipalityId: string,

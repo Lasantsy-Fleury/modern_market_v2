@@ -811,7 +811,25 @@ export class LocationService {
   }
 
   async getVerificationUserLocal(municipalityId: string, id_user: string, id_local: string): Promise<any> {
-   
+    const today = new Date();
+    const result= await this.locationRepository.find({
+      where: {
+        id_user: id_user,
+        date_debut_loc: LessThanOrEqual(today),
+        date_fin_loc: MoreThanOrEqual(today),
+        local: {
+          id_local: id_local,
+          zone: {
+            municipalityId: municipalityId,
+          },
+        },
+      }
+
+    });
+
+    if (result.length > 0) return true;
+
+    return false
   }
 
   async generateContratBail(locationId: string): Promise<Buffer> {
