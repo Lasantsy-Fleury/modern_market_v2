@@ -497,7 +497,7 @@ export class NotificationService {
 
   ) {
     try {
-      // Vérifier que l'utilisateur existe dans le service externe
+      // ✅ Vérifier que l'utilisateur existe dans le service externe
       const response = await axios.get(
         `https://gateway.tsirylab.com/serviceauth/users/${userId}`
       );
@@ -505,18 +505,36 @@ export class NotificationService {
       const userData = response.data;
 
       if (!userData || !userData.user_id) {
-        throw new NotFoundException(
-          `Utilisateur avec ID ${userId} introuvable`
-        );
+        throw new NotFoundException(`Utilisateur avec ID ${userId} introuvable`);
       }
 
-      // Créer l'historique (ici enregistré dans la table notif)
+      // ✅ Récupérer le local concerné
+      const local = await this.localRepository.findOne({
+        where: { id_local: data.localId }, // data.localId doit être fourni
+        relations: ['typelocal'], // pour accéder au type et au contribuable
+      });
+
+      if (!local) {
+        throw new NotFoundException(`Local avec ID ${data.localId} introuvable`);
+      }
+
+      // ✅ Construire le data enrichi
+      const enrichedData = {
+        ...data,
+        nom_contribuable: userData.user_pseudo || 'Inconnu',
+        numero_local: local.numero || 'N/A',
+        type_local: local.typelocal?.typeLoc?.fr || 'Non défini',
+      };
+
+      // ✅ Créer et sauvegarder la notification
       const historique = this.notifRepository.create({
         userId,
         type: 'HISTORIQUE CONTROLLEUR',
-        data: data,
-        priority: 'URGENT'
+        data: enrichedData,
+        priority: 'URGENT',
       });
+
+
 
       await this.notifRepository.save(historique);
       this.localService.updateDateScan(data.local_id);
@@ -548,8 +566,6 @@ export class NotificationService {
 
     return notification.userId;
   }
-
-
 
   async getRapport(
     userId: string,
@@ -739,5 +755,59 @@ export class NotificationService {
     };
   }
 
+  async getInfractionControlleur(
+    municipalityId: string,
+    userId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      dateFrom?: Date | string;
+      dateTo?: Date | string;
+    },
+  ) {
+    const { page = 1, limit = 20, dateFrom, dateTo } = options;
+    let userNom;
+
+    let query = this.notifRepository
+      .createQueryBuilder('notification')
+      .where('notification.userId = :userId', { userId })
+      .andWhere('notification.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
+      .andWhere('notification.priority IN (:...priorities)', { priorities: ['URGENT', 'HIGH'] })
+
+
+
+    if (dateFrom) {
+      query.andWhere('notification.createdAt >= :dateFrom', {
+        dateFrom: typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom,
+      });
+    }
+
+    if (dateTo) {
+      query.andWhere('notification.createdAt <= :dateTo', {
+        dateTo: typeof dateTo === 'string' ? new Date(dateTo) : dateTo,
+      });
+    }
+
+    // Debug: voir la query générée
+    console.log('Query SQL générée:', query.getSql());
+    console.log('Paramètres:', query.getParameters());
+
+    query
+      .orderBy('notification.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [result, total] = await query.getManyAndCount();
+
+    return {
+      data: result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
 }

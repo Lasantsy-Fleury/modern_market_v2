@@ -90,7 +90,7 @@ export class NotificationController {
           type: 'object',
           description: 'Données supplémentaires de l’historique',
           example: {
-            resultat: 'Aucune location trouvée',
+            resultat: 'Place occupée mais aucune location trouvée',
             id_contribuable: '123456',
             zoneName: null,
             localId: 'loc-789',
@@ -281,7 +281,7 @@ export class NotificationController {
       throw new BadRequestException('Le paramètre userId est obligatoire.');
     }
 
-    if (!municipalityId ) {
+    if (!municipalityId) {
       throw new BadRequestException(
         'Le paramètre municipalityId est obligatoire et doit être un nombre valide.',
       );
@@ -307,5 +307,48 @@ export class NotificationController {
   @ApiOperation({ summary: 'Ouvrir une notification et récupérer la cible associée' })
   async openNotif(@Param('id') id: string) {
     return this.notificationService.openNotification(id);
+  }
+
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de la page (par défaut 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Nombre d’éléments par page (par défaut 20)',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    required: false,
+    type: String,
+    description: 'Date de début (format ISO : YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)',
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    required: false,
+    type: String,
+    description: 'Date de fin (format ISO : YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss)',
+  })
+  @Get('infractions/zone/:municipalityId/user/:userId')
+  async getInfractionsControlleur(
+    @Param('userId') userId: string,
+    @Param('municipalityId') municipalityId: string, // converti en number après
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+
+     const options = {
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      dateTo: dateTo ? new Date(dateTo) : undefined,
+    };
+    return this.notificationService.getInfractionControlleur(municipalityId, userId, options);
   }
 }
