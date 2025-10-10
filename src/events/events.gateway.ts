@@ -3,7 +3,7 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDiscon
 import { Namespace, Server, Socket } from 'socket.io';
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: ["http://192.168.10.10:8080",'*'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
