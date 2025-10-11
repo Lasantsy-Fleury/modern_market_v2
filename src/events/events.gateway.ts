@@ -13,7 +13,7 @@ import { Namespace, Server, Socket } from 'socket.io';
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server: Namespace;
 
   private userSockets: Map<string, string> = new Map(); // userId -> socketId
   private socketUsers: Map<string, string> = new Map(); // socketId -> userId
@@ -109,7 +109,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Méthode pour diffuser à tous
   broadcastToAll(event: string, data: any) {
     this.server.emit(event, data);
-    console.log(`Event "${event}" broadcasted to ${this.server.engine.clientsCount} clients`);
+    
   }
 
   // 🔥 NOUVELLE MÉTHODE : Obtenir le nombre d'utilisateurs connectés
