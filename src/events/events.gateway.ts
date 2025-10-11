@@ -4,7 +4,12 @@ import { Namespace, Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: ["http://192.168.10.10:8080", '*'],
+    origin: ["http://192.168.10.10:8080",
+      "http://localhost:8080",
+      "http://127.0.0.1:8080",
+      "http://localhost:5173",
+      "https://anjaranaka.tsirylab.com",
+      "file://",],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -110,6 +115,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Méthode pour diffuser à tous
   broadcastToAll(event: string, data: any) {
     this.server.emit(event, data);
+
   }
 
   // 🔥 NOUVELLE MÉTHODE : Obtenir le nombre d'utilisateurs connectés
