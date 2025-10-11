@@ -34,15 +34,6 @@ export class DistributionZoneService {
       );
 
       const userData = response.data;
-      if (!userData || !userData.appUserRoles) {
-        throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
-      }
-
-      const isControlleur = userData.appUserRoles.some(
-        (roleEntry: any) => roleEntry.role?.role_id === 23);
-      if (!isControlleur) {
-        throw new ForbiddenException(`L’utilisateur ${createDistributionZoneDto.id_user} n’a pas le rôle "controlleur".`);
-      }
 
       if (!userData) {
         throw new NotFoundException(`Utilisateur ${createDistributionZoneDto.id_user} introuvable ou roles manquants.`);
@@ -59,18 +50,17 @@ export class DistributionZoneService {
       throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
     }
 
-    // let verification = await this.distributionZoneRepository.findOne({
-    //   where: {
-    //     id_user: createDistributionZoneDto.id_user,
-    //     zoneId: createDistributionZoneDto.zoneId,
-    //     status: true
-    //   }
-    // });
-    // if (verification) {
-    //   throw new BadRequestException(`L'utilisateur ${createDistributionZoneDto.id_user} est déjà affecté à la zone ${createDistributionZoneDto.zoneId} avec le statut actif.`);
-    // }
+    let verification = await this.distributionZoneRepository.findOne({
+      where: {
+        id_user: createDistributionZoneDto.id_user,
+        zoneId: createDistributionZoneDto.zoneId,
+        status: true
+      }
+    });
+    if (verification) {
+      throw new BadRequestException(`L'utilisateur ${createDistributionZoneDto.id_user} est déjà affecté à la zone ${createDistributionZoneDto.zoneId} avec le statut actif.`);
+    }
 
-    // Création de la nouvelle distribution
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
     this.eventsService.broadcastToAll('distribution_zone_created', distributionZone);
 
@@ -146,6 +136,7 @@ export class DistributionZoneService {
     if (!distributions.length) {
       return [];
     }
+
 
     // On retourne uniquement les id_user sous forme de tableau
     return distributions.map((dist) => dist.id_user);

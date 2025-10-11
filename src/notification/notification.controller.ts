@@ -10,7 +10,8 @@ import {
   ParseIntPipe,
   UsePipes,
   ValidationPipe,
-  NotFoundException
+  NotFoundException,
+  Delete
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import {
@@ -351,4 +352,12 @@ export class NotificationController {
     };
     return this.notificationService.getInfractionControlleur(municipalityId, userId, options);
   }
+
+   @Delete(':id_notification')
+    remove(
+  
+      @Param('id_notification') id_zone: string,
+    ) {
+      return this.notificationService.remove(id_zone);
+    }
 }

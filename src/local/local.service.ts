@@ -13,7 +13,7 @@ import { EventsService } from 'src/events/events.service';
 import { Location as LocationEntity } from 'src/location/entities/location.entity';
 import { DistributionZoneService } from 'src/distribution_zone/distribution_zone.service';
 import { NotificationService } from 'src/notification/notification.service';
-
+import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
 @Injectable()
 export class LocalService {
   constructor(
@@ -29,6 +29,9 @@ export class LocalService {
 
     @InjectRepository(Typelocal)
     private readonly typeLocalRepository: Repository<Typelocal>,
+
+    @InjectRepository(DistributionZone)
+    private readonly distZoneRepository: Repository<DistributionZone>,
     private readonly httpService: HttpService,
 
     private readonly eventsService: EventsService,
@@ -407,6 +410,20 @@ export class LocalService {
       throw new NotFoundException(`Aucun local trouvé pour la commune ${municipalityId}`);
     }
 
+    // Si un id_user est fourni, récupérer les zones où il travaille et status=true
+    let userZones: string[] = [];
+    if (options?.id_user) {
+      const zones = await this.distZoneRepository.find({
+        where: { id_user: options.id_user },
+      });
+      userZones = zones.map((z) => z.zoneId);
+
+      if (!userZones.length) {
+        // Le contrôleur n'a aucune zone active
+        return [];
+      }
+    }
+
     const statsByZone: Record<string, Record<string, any>> = {};
 
     const summarizeLocal = (local: any) => ({
@@ -422,47 +439,32 @@ export class LocalService {
     for (const local of locaux) {
       const zoneName = local.zone?.nom || 'Inconnue';
       const zoneId = local.zone?.id_zone;
-      const typeLocalName = local.typelocal?.typeLoc?.fr || 'Inconnu';
+
+      // Filtrer par zone et par user
+      if (options?.id_zone && zoneId !== options.id_zone) continue;
+      if (options?.id_user && !userZones.includes(zoneId)) continue;
+      if (options?.id_typelocal && local.typelocal?.id_type_local !== options.id_typelocal) continue;
+
       const isLoued = local.statut === 'LOUE';
       const currentLocation = this.getCurrentLocation(local);
       const periodicite = currentLocation
         ? currentLocation.periodicite
         : local.typelocal?.type_contrat;
 
-      // Filtre par zone si fourni
-      if (options?.id_zone && zoneId !== options.id_zone) continue;
-
       const isScanned = this.isLocalScanned(local, periodicite);
 
       if (!statsByZone[zoneName]) statsByZone[zoneName] = {};
 
-      // Cas 1 : Non scanné
-      if (!isScanned) {
-        const key = 'Non Scanned';
-        if (!statsByZone[zoneName][key]) statsByZone[zoneName][key] = this.initZoneStats(zoneName);
+      // Récupérer l'id du contrôleur s’il y a un scan
+      const controllerId = isScanned
+        ? await this.notifService.findUserIdByLocalId(local.id_local)
+        : null;
 
-        const zoneStats = statsByZone[zoneName][key];
-        zoneStats.totalLocaux++;
-
-        if (isLoued) {
-          if (periodicite === 'MENSUEL') {
-            zoneStats.louesMensuels.nonScanned.push(summarizeLocal(local));
-          } else if (periodicite === 'JOURNALIER') {
-            zoneStats.louesJournaliers.nonScanned.push(summarizeLocal(local));
-          }
-        }
-
-        continue;
-      }
-
-      // Cas 2 : Scanné
-      const controllerId = await this.notifService.findUserIdByLocalId(local.id_local);
       const key = controllerId ?? 'Non Scanned';
 
-      if (options?.id_user && controllerId !== options.id_user) continue;
-      if (options?.id_typelocal && local.typelocal?.id_type_local !== options.id_typelocal) continue;
-
-      if (!statsByZone[zoneName][key]) statsByZone[zoneName][key] = this.initZoneStats(zoneName);
+      if (!statsByZone[zoneName][key]) {
+        statsByZone[zoneName][key] = this.initZoneStats(zoneName);
+      }
 
       const zoneStats = statsByZone[zoneName][key];
       zoneStats.totalLocaux++;
@@ -471,16 +473,20 @@ export class LocalService {
 
       if (isLoued) {
         if (periodicite === 'MENSUEL') {
-          zoneStats.louesMensuels.scanned.push(summarizedLocal);
+          isScanned
+            ? zoneStats.louesMensuels.scanned.push(summarizedLocal)
+            : zoneStats.louesMensuels.nonScanned.push(summarizedLocal);
         } else if (periodicite === 'JOURNALIER') {
-          zoneStats.louesJournaliers.scanned.push(summarizedLocal);
+          isScanned
+            ? zoneStats.louesJournaliers.scanned.push(summarizedLocal)
+            : zoneStats.louesJournaliers.nonScanned.push(summarizedLocal);
         }
-      } else {
+      } else if (isScanned) {
         zoneStats.scannedNonLoues.push(summarizedLocal);
       }
     }
 
-    // Reformater le résultat en tableau structuré
+    // Reformater le résultat
     const result: any[] = [];
 
     for (const [zoneName, controllers] of Object.entries(statsByZone)) {
@@ -498,38 +504,42 @@ export class LocalService {
       };
 
       for (const [ctrlId, data] of Object.entries(controllers)) {
-        const controlleurName = ctrlId === 'Non Scanned'
-          ? 'Non Scanned'
-          : await this.getUserNameById(ctrlId);
+        const controlleurName =
+          ctrlId === 'Non Scanned'
+            ? 'Non Scanned'
+            : await this.getUserNameById(ctrlId);
 
         zoneData.controllers.push({
           controlleur: controlleurName,
           controlleurId: ctrlId !== 'Non Scanned' ? ctrlId : null,
           totalLocaux: data.totalLocaux,
-
-          totalLouesMensuels: data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length,
+          totalLouesMensuels:
+            data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length,
           totalScannedLouesMensuels: data.louesMensuels.scanned.length,
           scannedLouesMensuels: data.louesMensuels.scanned,
           totalNonScannedLouesMensuels: data.louesMensuels.nonScanned.length,
           nonScannedLouesMensuels: data.louesMensuels.nonScanned,
-
-          totalLouesJournaliers: data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length,
+          totalLouesJournaliers:
+            data.louesJournaliers.scanned.length +
+            data.louesJournaliers.nonScanned.length,
           totalScannedLouesJournaliers: data.louesJournaliers.scanned.length,
           scannedLouesJournaliers: data.louesJournaliers.scanned,
           totalNonScannedLouesJournaliers: data.louesJournaliers.nonScanned.length,
           nonScannedLouesJournaliers: data.louesJournaliers.nonScanned,
-
           totalScannedNonLoues: data.scannedNonLoues.length,
           scannedNonLoues: data.scannedNonLoues,
         });
 
         zoneData.totalLocaux += data.totalLocaux;
-        zoneData.totalLouesMensuels += data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length;
+        zoneData.totalLouesMensuels +=
+          data.louesMensuels.scanned.length + data.louesMensuels.nonScanned.length;
         zoneData.totalScannedLouesMensuels += data.louesMensuels.scanned.length;
         zoneData.totalNonScannedLouesMensuels += data.louesMensuels.nonScanned.length;
-        zoneData.totalLouesJournaliers += data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length;
+        zoneData.totalLouesJournaliers +=
+          data.louesJournaliers.scanned.length + data.louesJournaliers.nonScanned.length;
         zoneData.totalScannedLouesJournaliers += data.louesJournaliers.scanned.length;
-        zoneData.totalNonScannedLouesJournaliers += data.louesJournaliers.nonScanned.length;
+        zoneData.totalNonScannedLouesJournaliers +=
+          data.louesJournaliers.nonScanned.length;
         zoneData.totalScannedNonLoues += data.scannedNonLoues.length;
       }
 

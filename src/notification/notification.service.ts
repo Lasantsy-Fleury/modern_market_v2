@@ -821,4 +821,19 @@ export class NotificationService {
     };
   }
 
+  async remove(id_notification: string) {
+  // Vérifier si la zone existe
+  const zone = await this.notifRepository.findOne({ where: { id_notification } });
+  if (!zone) {
+    throw new NotFoundException(`Notification avec id ${id_notification} introuvable`);
+  }
+
+  // Supprimer
+  await this.notifRepository.delete(id_notification);
+
+  return {
+    message: `Notification ${id_notification} supprimée avec succès`,
+    success: true,
+  };
+}
 }
