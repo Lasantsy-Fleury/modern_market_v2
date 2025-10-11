@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException, } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException, InternalServerErrorException} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
@@ -619,58 +619,72 @@ export class NotificationService {
   ) {
     const { page = 1, limit = 20, dateFrom, dateTo } = options;
 
-    let query = this.notifRepository
-      .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId })
-      .andWhere('notification.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
-      .andWhere(
-        `EXISTS (
-        SELECT 1 
-        FROM location loc
-        INNER JOIN local l ON l.id_local = loc."localId"
-        INNER JOIN zone z ON z.id_zone = l."zoneId"
-        WHERE (
-          (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
-          OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
-        )
-        AND z."municipalityId" = :municipalityId
-      )`,
-        { municipalityId },
+    try {
+      let query = this.notifRepository
+        .createQueryBuilder('notification')
+        .where('notification.userId = :userId', { userId })
+        .andWhere('notification.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
+        .andWhere(
+          `EXISTS (
+          SELECT 1 
+          FROM location loc
+          INNER JOIN local l ON l.id_local = loc."localId"
+          INNER JOIN zone z ON z.id_zone = l."zoneId"
+          WHERE (
+            (notification.data->>'id_location' IS NOT NULL AND notification.data->>'id_location' = loc.id_location::text)
+            OR (notification.data->>'localId' IS NOT NULL AND notification.data->>'localId' = l.id_local::text)
+          )
+          AND z."municipalityId" = :municipalityId
+        )`,
+          { municipalityId },
+        );
+
+      // ✅ Filtrage par date avec validation
+      if (dateFrom && !isNaN(new Date(dateFrom).getTime())) {
+        query.andWhere('notification.createdAt >= :dateFrom', {
+          dateFrom: new Date(dateFrom),
+        });
+      }
+
+      if (dateTo && !isNaN(new Date(dateTo).getTime())) {
+        query.andWhere('notification.createdAt <= :dateTo', {
+          dateTo: new Date(dateTo),
+        });
+      }
+
+      // Debug (désactivable en prod)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Query SQL générée:', query.getSql());
+        console.log('Paramètres:', query.getParameters());
+      }
+
+      query
+        .orderBy('notification.createdAt', 'DESC')
+        .skip((page - 1) * limit)
+        .take(limit);
+
+      const [result, total] = await query.getManyAndCount();
+
+      return {
+        data: result,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      console.error('❌ Erreur dans getHistorique:', error.message);
+      console.error(error.stack);
+
+      // Envoie une erreur contrôlée à NestJS
+      throw new InternalServerErrorException(
+        'Erreur lors de la récupération de l’historique. Détails: ' + error.message,
       );
-
-    if (dateFrom) {
-      query.andWhere('notification.createdAt >= :dateFrom', {
-        dateFrom: typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom,
-      });
     }
-
-    if (dateTo) {
-      query.andWhere('notification.createdAt <= :dateTo', {
-        dateTo: typeof dateTo === 'string' ? new Date(dateTo) : dateTo,
-      });
-    }
-
-    // Debug: voir la query générée
-    console.log('Query SQL générée:', query.getSql());
-    console.log('Paramètres:', query.getParameters());
-
-    query
-      .orderBy('notification.createdAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [result, total] = await query.getManyAndCount();
-
-    return {
-      data: result,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
   }
+
 
   async openNotification(id_notification: string) {
     const notif = await this.notifRepository.findOne({ where: { id_notification } });
