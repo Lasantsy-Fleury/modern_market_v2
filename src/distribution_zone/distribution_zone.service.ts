@@ -59,16 +59,16 @@ export class DistributionZoneService {
       throw new BadRequestException(`Erreur lors de la vérification du rôle: ${error.message || error}`);
     }
 
-    let verification = await this.distributionZoneRepository.findOne({
-      where: {
-        id_user: createDistributionZoneDto.id_user,
-        zoneId: createDistributionZoneDto.zoneId,
-        status: true
-      }
-    });
-    if (verification) {
-      throw new BadRequestException(`L'utilisateur ${createDistributionZoneDto.id_user} est déjà affecté à la zone ${createDistributionZoneDto.zoneId} avec le statut actif.`);
-    }
+    // let verification = await this.distributionZoneRepository.findOne({
+    //   where: {
+    //     id_user: createDistributionZoneDto.id_user,
+    //     zoneId: createDistributionZoneDto.zoneId,
+    //     status: true
+    //   }
+    // });
+    // if (verification) {
+    //   throw new BadRequestException(`L'utilisateur ${createDistributionZoneDto.id_user} est déjà affecté à la zone ${createDistributionZoneDto.zoneId} avec le statut actif.`);
+    // }
 
     // Création de la nouvelle distribution
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
