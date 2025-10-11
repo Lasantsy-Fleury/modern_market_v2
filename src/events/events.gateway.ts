@@ -3,7 +3,12 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDiscon
 import { Namespace, Server, Socket } from 'socket.io';
 @WebSocketGateway({
   cors: {
-    origin: ["http://192.168.10.10:8080",'*'],
+    origin: ["http://192.168.10.10:8080",
+             "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://localhost:5173",
+      "https://gateway.tsirylab.com",
+      "file://",],
     methods: ['GET', 'POST'],
     credentials: true,
   },
