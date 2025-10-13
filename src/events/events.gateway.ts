@@ -17,7 +17,7 @@ import { Namespace, Server, Socket } from 'socket.io';
   },
   transports: ['websocket', 'polling'],
   namespace: 'servicemodernmarket',
-  path: '/socket.io',
+  path: 'notif/socket.io',
   allowEIO3: true,
 })
 
