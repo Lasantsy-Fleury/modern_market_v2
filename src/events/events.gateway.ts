@@ -2,25 +2,22 @@
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Namespace, Server, Socket } from 'socket.io';
 
+
 @WebSocketGateway({
   cors: {
-    origin: [
-      "http://192.168.10.10:8080",
+    origin: ["http://192.168.10.10:8080",
       "http://localhost:8080",
       "http://127.0.0.1:8080",
       "http://localhost:5173",
       "https://anjaranaka.tsirylab.com",
-    ],
-    methods: ["GET", "POST"],
+      "file://",],
+    methods: ['GET', 'POST'],
     credentials: true,
-    allowedHeaders: ["*"],
   },
   transports: ['websocket', 'polling'],
   namespace: 'servicemodernmarket',
-  path: 'notif/socket.io',
-  allowEIO3: true,
+  path: '/servicemodernmarket/socket.io',
 })
-
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Namespace;
