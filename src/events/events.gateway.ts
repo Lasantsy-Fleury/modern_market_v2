@@ -13,10 +13,12 @@ import { Namespace, Server, Socket } from 'socket.io';
     ],
     methods: ["GET", "POST"],
     credentials: true,
+    allowedHeaders: ["*"],
   },
   transports: ['websocket', 'polling'],
   namespace: 'servicemodernmarket',
   path: '/servicemodernmarket/socket.io',
+  allowEIO3: true,
 })
 
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
