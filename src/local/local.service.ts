@@ -342,7 +342,8 @@ export class LocalService {
       // Le local est considéré comme scanné si c’est le même mois et la même année
       return (
         dateScan.getFullYear() === now.getFullYear() &&
-        dateScan.getMonth() === now.getMonth()
+        dateScan.getMonth() === now.getMonth() &&
+        dateScan.getDate() === now.getDate()
       );
     }
 
