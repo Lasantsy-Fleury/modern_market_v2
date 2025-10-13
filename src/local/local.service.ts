@@ -414,7 +414,7 @@ export class LocalService {
     let userZones: string[] = [];
     if (options?.id_user) {
       const zones = await this.distZoneRepository.find({
-        where: { id_user: options.id_user },
+        where: { id_user: options.id_user, status: true },
       });
       userZones = zones.map((z) => z.zoneId);
 
