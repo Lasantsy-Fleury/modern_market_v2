@@ -5,7 +5,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  
   // Configurer l'adaptateur WebSocket
   app.useWebSocketAdapter(new IoAdapter(app));
 
@@ -13,13 +13,7 @@ async function bootstrap() {
   app.setGlobalPrefix('servicemodernmarket');
 
   app.enableCors({
-    origin: ["http://192.168.10.10:8080",
-      "http://localhost:8080",
-      "http://127.0.0.1:8080",
-      "http://localhost:5173",
-      "https://anjaranaka.tsirylab.com",
-      "https://gateway.tsirylab.com",
-      '*'],
+    origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: false,
@@ -40,7 +34,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
-
+  
   console.log(`🚀 Serveur démarré sur le port ${port}`);
   console.log(`📡 WebSocket: ws://localhost:${port}/servicemodernmarket`);
   console.log(`🌐 API REST: http://localhost:${port}/servicemodernmarket`);

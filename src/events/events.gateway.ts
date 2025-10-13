@@ -17,7 +17,7 @@ import { Namespace, Server, Socket } from 'socket.io';
   },
   transports: ['websocket', 'polling'],
   namespace: 'servicemodernmarket',
-  path: '/servicemodernmarket/socket.io',
+  path: '/socket.io',
   allowEIO3: true,
 })
 
