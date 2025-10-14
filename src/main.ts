@@ -10,9 +10,7 @@ async function bootstrap() {
   app.useWebSocketAdapter(new IoAdapter(app));
 
   // 🔥 Appliquer le prefix seulement aux routes HTTP (pas WebSocket)
-  //app.setGlobalPrefix('servicemodernmarket');
-
-  app.setGlobalPrefix('servicemodernmarket', { exclude: ['/socket.io'] });
+  app.setGlobalPrefix('servicemodernmarket');
 
   app.enableCors({
     origin: ['*'],
