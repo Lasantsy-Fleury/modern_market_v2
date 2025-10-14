@@ -1,39 +1,40 @@
-// events.gateway.ts
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
-import { Namespace, Server, Socket } from 'socket.io';
-
+import { Namespace, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: ["http://192.168.10.10:8080",
-      "http://localhost:8080",
+    origin: [
+      "http://192.168.10.10:8080",
+      "http://localhost:8080", 
       "http://127.0.0.1:8080",
       "http://localhost:5173",
       "https://anjaranaka.tsirylab.com",
-      "file://",],
+      "https://gateway.tsirylab.com", // AJOUT IMPORTANT
+      "file://"
+    ],
     methods: ['GET', 'POST'],
-    credentials: false,
+    credentials: true, // Changé à true si vous avez besoin d'authentification
   },
   transports: ['websocket', 'polling'],
-  namespace: 'servicemodernmarket',
-  path: '/servicemodernmarket/socket.io',
+  namespace: '/servicemodernmarket', // Ajout du slash
+  // SUPPRIMEZ le path ici - laissez Socket.IO gérer le chemin par défaut
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Namespace;
 
-  private userSockets: Map<string, string> = new Map(); // userId -> socketId
-  private socketUsers: Map<string, string> = new Map(); // socketId -> userId
+  private userSockets: Map<string, string> = new Map();
+  private socketUsers: Map<string, string> = new Map();
 
-  handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+  async handleConnection(client: Socket) {
+    console.log(`Client connected: ${client.id} from ${client.handshake.headers.origin}`);
 
-    // 🔥 RÉCUPÉRER LE userId DEPUIS LES QUERY PARAMETERS
+    // Récupérer userId depuis query parameters
     const userId = client.handshake.query.userId as string;
 
     if (!userId) {
       console.warn(`Client ${client.id} attempted connection without userId`);
-      client.disconnect(); // Déconnecter si pas de userId
+      client.disconnect();
       return;
     }
 
@@ -43,25 +44,23 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    // 🔥 ENREGISTRER L'UTILISATEUR
+    // Enregistrer l'utilisateur
     this.registerUser(userId, client.id);
 
     console.log(`User ${userId} registered with socket ${client.id}`);
 
-    // 🔥 ENVOYER UN ACCUSÉ DE RÉCEPTION
+    // Accusé de réception
     client.emit('connected', {
       success: true,
       message: 'Successfully connected to notification service',
       userId
     });
 
-    // Écouter les événements personnalisés
     this.setupEventListeners(client);
   }
 
   handleDisconnect(client: Socket) {
     const userId = this.socketUsers.get(client.id);
-
     if (userId) {
       this.unregisterUser(userId, client.id);
       console.log(`User ${userId} disconnected (socket: ${client.id})`);
@@ -70,7 +69,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // 🔥 MÉTHODE D'ENREGISTREMENT
   private registerUser(userId: string, socketId: string) {
     this.userSockets.set(userId, socketId);
     this.socketUsers.set(socketId, userId);
@@ -82,25 +80,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private setupEventListeners(client: Socket) {
-    // Écouter l'événement de subscription (au cas où)
     client.on('subscribeToNotifications', (data: { userId: string }) => {
       console.log(`User ${data.userId} subscribed to notifications`);
       client.emit('subscribed', { success: true, userId: data.userId });
     });
 
-    // Écouter les pings
     client.on('ping', () => {
       client.emit('pong', { timestamp: new Date().toISOString() });
     });
   }
 
-  // 🔥 VALIDATION UUID
   private isValidUUID(uuid: string): boolean {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
   }
 
-  // Méthode pour envoyer à un utilisateur spécifique
   sendToUser(userId: string, event: string, data: any) {
     const socketId = this.userSockets.get(userId);
     if (socketId) {
@@ -113,21 +107,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Méthode pour diffuser à tous
   broadcastToAll(event: string, data: any) {
     this.server.emit(event, data);
-
   }
 
-  // 🔥 NOUVELLE MÉTHODE : Obtenir le nombre d'utilisateurs connectés
   getConnectedUsersCount(): number {
     return this.userSockets.size;
   }
 
-  // 🔥 NOUVELLE MÉTHODE : Vérifier si un utilisateur est connecté
   isUserConnected(userId: string): boolean {
     return this.userSockets.has(userId);
   }
 }
-
-

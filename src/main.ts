@@ -6,20 +6,27 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Configurer l'adaptateur WebSocket
-  app.useWebSocketAdapter(new IoAdapter(app));
+  // Configuration WebSocket améliorée
+  const ioAdapter = new IoAdapter(app);
+  app.useWebSocketAdapter(ioAdapter);
 
-  app.setGlobalPrefix('servicemodernmarket', {
+  app.setGlobalPrefix('servicemodernmarket');
 
-  });
-
+  // CORS étendu
   app.enableCors({
-    origin: ['*'],
+    origin: [
+      'http://localhost:8080',
+      'http://127.0.0.1:8080', 
+      'http://localhost:5173',
+      'https://anjaranaka.tsirylab.com',
+      'https://gateway.tsirylab.com'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: false,
+    credentials: true,
   });
 
+  // Swagger
   const config = new DocumentBuilder()
     .setTitle('Modern Market')
     .setDescription('Documentation microservice du Modern Market')
