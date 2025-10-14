@@ -4,21 +4,20 @@ import { Namespace, Server, Socket } from 'socket.io';
 
 
 @WebSocketGateway({
-  namespace: 'servicemodernmarket', 
-  path: '/servicemodernmarket/socket.io',
   cors: {
     origin: [
-      "https://anjaranaka.tsirylab.com",
-      "http://localhost:5173",
-      "http://127.0.0.1:8080",
       "http://192.168.10.10:8080",
+      "http://localhost:8080",
+      "http://127.0.0.1:8080",
+      "https://anjaranaka.tsirylab.com",
     ],
     methods: ["GET", "POST"],
     credentials: true,
   },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
+  namespace: '/servicemodernmarket',  // 🔹 namespace logique
+  path: '/socket.io',                  // 🔹 chemin physique standard
 })
+
 
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
