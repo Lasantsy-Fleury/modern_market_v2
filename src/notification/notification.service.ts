@@ -786,7 +786,7 @@ export class NotificationService {
       .createQueryBuilder('notification')
       .where('notification.userId = :userId', { userId })
       .andWhere('notification.type = :type', { type: 'HISTORIQUE CONTROLLEUR' })
-      .andWhere('notification.priority IN (:...priorities)', { priorities: ['URGENT', 'HIGH'] })
+      .andWhere('notification.priority IN (:...priorities)', { priorities: ['URGENT'] })
 
 
 

@@ -4,15 +4,17 @@ import { io, Socket } from 'socket.io-client';
 @Injectable()
 export class EventsService implements OnModuleInit {
   private socketClient: Socket;
-
+  private isConnected: boolean = false;
   onModuleInit() {
     const userId = 'd1126ca8-9e5b-48a2-bbd7-a14a248cb410';
+
     // L'URL de base du serveur Socket.IO, suivi du namespace
     this.socketClient = io('wss://gateway.tsirylab.com/serviceflotte', {
-      
+
       path: '/serviceflotte/socket.io'
     });
     this.socketClient.on('connect', () => {
+      this.isConnected = true;
       console.log('✅ Connecté au serveur Socket.IO');
 
     });
@@ -26,21 +28,28 @@ export class EventsService implements OnModuleInit {
     });
   }
 
-  broadcastToAll(event: string, data: any): void {
-    this.socketClient.emit(event, data);
-    console.log("local created")
+    broadcastToAll(event: string, data: any): boolean {
+    if (this.isConnected === true && this.socketClient) {
+      this.socketClient.emit(event, data);
+      console.log("✅ Message envoyé avec succès");
+      return true;
+    } else {
+      console.log("❌ Erreur d'envoi du message - Non connecté");
+      return false;
+    }
   }
-sendToUser(userId: string, event: string, data: any): boolean {
- 
-  // Émettre l'événement vers le service de notification
-  // Le service se chargera de router vers l'utilisateur spécifique
-  this.socketClient.emit('sendToUser', {
-    targetUserId: userId,
-    event: event,
-    data: data
-  });
+  
+  sendToUser(userId: string, event: string, data: any): boolean {
 
-  console.log(`📤 Event "${event}" routé vers l'utilisateur ${userId} via le service de notification`);
-  return true;
-}
+    // Émettre l'événement vers le service de notification
+    // Le service se chargera de router vers l'utilisateur spécifique
+    this.socketClient.emit('sendToUser', {
+      targetUserId: userId,
+      event: event,
+      data: data
+    });
+
+    console.log(`📤 Event "${event}" routé vers l'utilisateur ${userId} via le service de notification`);
+    return true;
+  }
 }

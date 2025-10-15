@@ -358,7 +358,7 @@ export class LocalService {
       totalLocaux: 0,
       louesMensuels: { scanned: [], nonScanned: [] },
       louesJournaliers: { scanned: [], nonScanned: [] },
-      scannedNonLoues: [],
+
     };
   }
 
@@ -390,9 +390,7 @@ export class LocalService {
       totalNonScannedLouesJournaliers: zone.louesJournaliers.nonScanned.length,
       nonScannedLouesJournaliersNumeros: zone.louesJournaliers.nonScanned,
 
-      // Scannés non loués
-      totalScannedNonLoues: zone.scannedNonLoues.length,
-      scannedNonLouesNumeros: zone.scannedNonLoues,
+
     }));
   }
   private async getUserNameById(id_user: string): Promise<string> {
@@ -483,7 +481,7 @@ export class LocalService {
             : zoneStats.louesJournaliers.nonScanned.push(summarizedLocal);
         }
       } else if (isScanned) {
-        zoneStats.scannedNonLoues.push(summarizedLocal);
+
       }
     }
 
@@ -501,7 +499,7 @@ export class LocalService {
         totalLouesJournaliers: 0,
         totalScannedLouesJournaliers: 0,
         totalNonScannedLouesJournaliers: 0,
-        totalScannedNonLoues: 0,
+
       };
 
       for (const [ctrlId, data] of Object.entries(controllers)) {
@@ -527,8 +525,7 @@ export class LocalService {
           scannedLouesJournaliers: data.louesJournaliers.scanned,
           totalNonScannedLouesJournaliers: data.louesJournaliers.nonScanned.length,
           nonScannedLouesJournaliers: data.louesJournaliers.nonScanned,
-          totalScannedNonLoues: data.scannedNonLoues.length,
-          scannedNonLoues: data.scannedNonLoues,
+
         });
 
         zoneData.totalLocaux += data.totalLocaux;
@@ -541,7 +538,7 @@ export class LocalService {
         zoneData.totalScannedLouesJournaliers += data.louesJournaliers.scanned.length;
         zoneData.totalNonScannedLouesJournaliers +=
           data.louesJournaliers.nonScanned.length;
-        zoneData.totalScannedNonLoues += data.scannedNonLoues.length;
+
       }
 
       result.push(zoneData);

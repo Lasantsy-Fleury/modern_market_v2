@@ -859,20 +859,20 @@ export class LocationService {
 
         return true;
       } else {
-        const histData = {
-          id_location: location.id_location,
-          localId: local.id_local,
-          numero_local: local.numero,
-          type_local: local.typelocal?.typeLoc?.fr || null,
-          resultat: 'Location trouvée mais hors distribution zone',
-          id_contribuable: id_user,
-          nom_contribuable: userNom,
-          zoneName,
-        };
+        // const histData = {
+        //   id_location: location.id_location,
+        //   localId: local.id_local,
+        //   numero_local: local.numero,
+        //   type_local: local.typelocal?.typeLoc?.fr || null,
+        //   resultat: 'Location trouvée mais hors distribution zone',
+        //   id_contribuable: id_user,
+        //   nom_contribuable: userNom,
+        //   zoneName,
+        // };
 
-        await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
-        this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
-        this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
+        // await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
+        // this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
+        // this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
 
         throw new ForbiddenException(
           `Location trouvée pour le local mais pas dans la distributionZone du contrôleur.`,
