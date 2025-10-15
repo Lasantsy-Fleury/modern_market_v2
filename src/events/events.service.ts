@@ -30,7 +30,17 @@ export class EventsService implements OnModuleInit {
     this.socketClient.emit(event, data);
     console.log("local created")
   }
-  sendToUser(user_id: string, event: string, data: any): void {
-    this.socketClient.emit(event, data);
-  }
+sendToUser(userId: string, event: string, data: any): boolean {
+ 
+  // Émettre l'événement vers le service de notification
+  // Le service se chargera de router vers l'utilisateur spécifique
+  this.socketClient.emit('sendToUser', {
+    targetUserId: userId,
+    event: event,
+    data: data
+  });
+
+  console.log(`📤 Event "${event}" routé vers l'utilisateur ${userId} via le service de notification`);
+  return true;
+}
 }
