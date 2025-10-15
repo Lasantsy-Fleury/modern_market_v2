@@ -17,7 +17,7 @@ import { Namespace, Socket } from 'socket.io';
   },
   transports: ['websocket', 'polling'],
   namespace: '/servicemodernmarket', // Ajout du slash
-  // SUPPRIMEZ le path ici - laissez Socket.IO gérer le chemin par défaut
+  path: '/notif/socket.io',// SUPPRIMEZ le path ici - laissez Socket.IO gérer le chemin par défaut
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
