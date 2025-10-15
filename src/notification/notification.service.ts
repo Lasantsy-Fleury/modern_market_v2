@@ -538,7 +538,7 @@ export class NotificationService {
 
       await this.notifRepository.save(historique);
       this.localService.updateDateScan(data.local_id);
-      this.eventsService.sendWebSocketNotification('location_critique', historique);
+      this.eventsService.broadcastToAll('location_critique', historique);
       return {
         message: 'Historique enregistré avec succès',
         historique,

@@ -83,7 +83,7 @@ export class TypeLocalService {
       throw new NotFoundException(`TypeLocal with id ${id_type_local} in municipality ${municipalityId} not found`);
     }
     Object.assign(typeLocal, updateDto);
-    this.eventsService.sendWebSocketNotification('type_local_updated', typeLocal);
+    this.eventsService.broadcastToAll('type_local_updated', typeLocal);
     return await this.typeLocalRepository.save(typeLocal);
   }
 

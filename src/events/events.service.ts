@@ -1,42 +1,36 @@
-// events.service.ts
-import { Injectable } from '@nestjs/common';
-import { EventsGateway } from './events.gateway';
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { io, Socket } from 'socket.io-client';
 
 @Injectable()
-export class EventsService {
-  constructor(private readonly eventsGateway: EventsGateway) {}
+export class EventsService implements OnModuleInit {
+  private socketClient: Socket;
 
-  // 🔥 Méthode déplacée ici
-  sendWebSocketNotification(event: string, data: any) {
-    try {
-      if (this.eventsGateway?.server) {
-        this.eventsGateway.server.emit(event, data);
-        console.log(`WebSocket event "${event}" emitted successfully`);
-      } else {
-        console.warn('WebSocket server not available');
-      }
-    } catch (error) {
-      console.error('Error emitting WebSocket event:', error);
-    }
+  onModuleInit() {
+    const userId = 'd1126ca8-9e5b-48a2-bbd7-a14a248cb410';
+    // L'URL de base du serveur Socket.IO, suivi du namespace
+    this.socketClient = io('wss://gateway.tsirylab.com/serviceflotte', {
+      
+      path: '/serviceflotte/socket.io'
+    });
+    this.socketClient.on('connect', () => {
+      console.log('✅ Connecté au serveur Socket.IO');
+
+    });
+
+    this.socketClient.on('connect_error', (err) => {
+      console.error('❌ Erreur de connexion Socket.IO :', err);
+    });
+
+    this.socketClient.on('local_created', (data) => {
+      console.log('📩 Notification reçue :', data);
+    });
   }
 
-  // 🔥 Envoyer à un utilisateur spécifique
-  sendToUser(userId: string, event: string, data: any) {
-    try {
-      this.eventsGateway.sendToUser(userId, event, data);
-      console.log(`WebSocket event "${event}" sent to user ${userId}`);
-    } catch (error) {
-      console.error('Error sending WebSocket event to user:', error);
-    }
+  broadcastToAll(event: string, data: any): void {
+    this.socketClient.emit(event, data);
+    console.log("local created")
   }
-
-  // 🔥 Diffuser à tous les utilisateurs
-  broadcastToAll(event: string, data: any) {
-    try {
-      this.eventsGateway.broadcastToAll(event, data);
-      console.log(`WebSocket event "${event}" broadcasted to all users`);
-    } catch (error) {
-      console.error('Error broadcasting WebSocket event:', error);
-    }
+  sendToUser(user_id: string, event: string, data: any): void {
+    this.socketClient.emit(event, data);
   }
 }

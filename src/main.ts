@@ -1,30 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { IoAdapter } from '@nestjs/platform-socket.io';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Configuration WebSocket améliorée
-  const ioAdapter = new IoAdapter(app);
-  app.useWebSocketAdapter(ioAdapter);
+
+
 
   app.setGlobalPrefix('servicemodernmarket');
 
   // CORS étendu
   app.enableCors({
-    origin: [
-      'http://localhost:8080',
-      'http://127.0.0.1:8080', 
-      'http://localhost:5173',
-      'https://anjaranaka.tsirylab.com',
-      'https://gateway.tsirylab.com'
-    ],
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true,
+    credentials: false,
   });
+
 
   // Swagger
   const config = new DocumentBuilder()
