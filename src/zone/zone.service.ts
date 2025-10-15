@@ -141,14 +141,14 @@ export class ZoneService {
   ) {
     try {
       // Vérifier si la municipalité existe via API externe
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: { accept: 'application/json' } }),
-      );
+      // const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+      // const response = await firstValueFrom(
+      //   this.httpService.get(url, { headers: { accept: 'application/json' } }),
+      // );
 
-      if (!response.data) {
-        throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
-      }
+      // if (!response.data) {
+      //   throw new NotFoundException(`Municipality with id ${municipalityId} not found`);
+      // }
 
       // Version simple avec calcul JavaScript (recommandée pour simplicité)
       const query = this.zoneRepository

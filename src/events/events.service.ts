@@ -38,11 +38,10 @@ export class EventsService implements OnModuleInit {
       return false;
     }
   }
-  
+
   sendToUser(userId: string, event: string, data: any): boolean {
 
-    // Émettre l'événement vers le service de notification
-    // Le service se chargera de router vers l'utilisateur spécifique
+
     this.socketClient.emit('sendToUser', {
       targetUserId: userId,
       event: event,
