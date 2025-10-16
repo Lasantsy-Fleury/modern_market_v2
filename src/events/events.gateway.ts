@@ -5,22 +5,17 @@ import { Namespace, Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: ["http://192.168.10.10:8080",
-      "http://localhost:8080",
-      "http://127.0.0.1:8080",
-      "http://localhost:5173",
-      "https://anjaranaka.tsirylab.com",
-      "file://",],
+    origin: '*',
     methods: ['GET', 'POST'],
-    credentials: true,
+
   },
   transports: ['websocket', 'polling'],
   namespace: 'servicemodernmarket',
-  path: '/notif/socket.io',
+  path: '/notification/socket.io',
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Namespace;
+  server: Server;
 
   private userSockets: Map<string, string> = new Map(); // userId -> socketId
   private socketUsers: Map<string, string> = new Map(); // socketId -> userId
@@ -32,7 +27,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.handshake.query.userId as string;
 
     if (!userId) {
-      console.warn(`Client ${client.id} attempted connection without userId`);
+      console.warn(`Client  ${client.id} attempted connection without userId`);
       client.disconnect(); // Déconnecter si pas de userId
       return;
     }
