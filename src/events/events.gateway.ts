@@ -10,8 +10,8 @@ import { Namespace, Server, Socket } from 'socket.io';
 
   },
   transports: ['websocket', 'polling'],
-  namespace: 'servicemodernmarket',
-  path: '/notification/socket.io',
+  namespace: '/servicemodernmarket',
+  path: '/socket.io',
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
