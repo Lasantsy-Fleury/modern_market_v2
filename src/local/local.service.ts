@@ -9,7 +9,6 @@ import { Typelocal } from 'src/type_local/entities/type_locale.entity';
 import { validate as isUUID } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { EventsService } from 'src/events/events.service';
 import { Location as LocationEntity } from 'src/location/entities/location.entity';
 import { DistributionZoneService } from 'src/distribution_zone/distribution_zone.service';
 import { NotificationService } from 'src/notification/notification.service';
@@ -34,7 +33,6 @@ export class LocalService {
     private readonly distZoneRepository: Repository<DistributionZone>,
     private readonly httpService: HttpService,
 
-    private readonly eventsService: EventsService,
     private readonly distZoneService: DistributionZoneService,
     private readonly notifService: NotificationService,
   ) { }
@@ -88,7 +86,6 @@ export class LocalService {
 
     try {
       const local = this.localRepository.create(createLocalDto);
-      this.eventsService.broadcastToAll('local_created', local);
       return await this.localRepository.save(local)
     } catch (error) {
       throw new BadRequestException(
@@ -267,7 +264,6 @@ export class LocalService {
     const local = await this.findOne(municipalityId, id_local);
 
     Object.assign(local, updateLocalDto);
-    this.eventsService.broadcastToAll('local_updated', local);
     return await this.localRepository.save(local);
   }
 

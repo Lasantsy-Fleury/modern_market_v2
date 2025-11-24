@@ -5,7 +5,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Local } from './entities/local.entity';
 import { Zone } from 'src/zone/entities/zone.entity';
 import { Typelocal } from 'src/type_local/entities/type_locale.entity';
-import { EventsModule } from 'src/events/events.module';
 import { HttpModule } from '@nestjs/axios';
 import { LocationModule } from 'src/location/location.module';
 import { Location } from 'src/location/entities/location.entity';
@@ -28,7 +27,6 @@ import { Paiementlocation } from 'src/paiement_location/entities/paiement_locati
     ]),
 
     forwardRef(() => NotificationModule),
-    forwardRef(() => EventsModule),
     forwardRef(() => DistributionZoneModule), // ✅ ajout important ici
 
     HttpModule,

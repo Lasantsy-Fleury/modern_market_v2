@@ -7,13 +7,14 @@ import { Location } from 'src/location/entities/location.entity';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { LocationModule } from 'src/location/location.module';
-import { EventsModule } from 'src/events/events.module';
 import { NotificationModule } from 'src/notification/notification.module';
 import { HttpModule } from '@nestjs/axios';
+import { PaiementLocationModule } from 'src/paiement_location/paiement_location.module';
 @Module({
-  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,NotificationModule,EventsModule,HttpModule],
+  imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,NotificationModule,HttpModule,
+PaiementLocationModule],
   controllers: [PaiementController],
-  providers: [PaiementService,PaiementLocationService],
+  providers: [PaiementService],
   exports: [PaiementService],
 })
 export class PaiementModule {}

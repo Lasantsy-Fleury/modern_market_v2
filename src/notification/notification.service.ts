@@ -7,7 +7,6 @@ import { Paiementlocation } from 'src/paiement_location/entities/paiement_locati
 import { Local } from 'src/local/entities/local.entity';
 import axios from 'axios';
 import { Brackets } from 'typeorm';
-import { EventsService } from 'src/events/events.service';
 import { Between } from 'typeorm';
 import { start } from 'repl';
 
@@ -29,7 +28,6 @@ export class NotificationService {
     @InjectRepository(Local)
     private readonly localRepository: Repository<Local>,
 
-    private readonly eventsService: EventsService,
     @Inject(forwardRef(() => LocalService)) // ✅ utilise forwardRef pour briser le cercle
     private localService: LocalService,
 
@@ -127,7 +125,6 @@ export class NotificationService {
 
     const savedNotification = await this.notifRepository.save(notification);
 
-    this.eventsService.sendToUser(userId, 'votre_location_created', savedNotification);
     return savedNotification;
   }
 
@@ -538,7 +535,6 @@ export class NotificationService {
 
       await this.notifRepository.save(historique);
       this.localService.updateDateScan(data.local_id);
-      this.eventsService.broadcastToAll('location_critique', historique);
       return {
         message: 'Historique enregistré avec succès',
         historique,

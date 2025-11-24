@@ -10,7 +10,6 @@ import { NotificationService } from 'src/notification/notification.service';
 import * as PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { join } from 'path';
-import { EventsService } from 'src/events/events.service';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 
@@ -23,7 +22,6 @@ export class PaiementService {
     private readonly paieRepository: Repository<Paiement>,
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
-    private readonly eventsService: EventsService,
     private readonly notificationService: NotificationService,
     private readonly httpService: HttpService
   ) { }
@@ -55,7 +53,6 @@ export class PaiementService {
 
 
       if (savedPaiement) {
-        this.eventsService.broadcastToAll('paiement_created', newPaiement);
 
         console.log("envoie");
       }

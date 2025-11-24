@@ -11,7 +11,6 @@ import { PaiementLocationService } from 'src/paiement_location/paiement_location
 import { NotificationService } from 'src/notification/notification.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
-import { EventsService } from 'src/events/events.service';
 import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
 import { WritableStreamBuffer } from 'stream-buffers';
 import { HttpService } from '@nestjs/axios';
@@ -36,7 +35,6 @@ export class LocationService {
     @InjectRepository(DistributionZone)
     private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly notificationService: NotificationService,
-    private readonly eventsService: EventsService,
     private readonly httpService: HttpService,
     private readonly localService: LocalService,
   ) { }
@@ -107,7 +105,6 @@ export class LocationService {
             local.statut = 'DISPONIBLE';
             await this.localRepository.save(local);
 
-            this.eventsService.broadcastToAll('local_updated', local);
           }
         }
         // S'il y a une location active, le local doit être LOUÉ
@@ -118,7 +115,6 @@ export class LocationService {
             local.statut = 'LOUE';
             await this.localRepository.save(local);
 
-            this.eventsService.broadcastToAll('local_updated', local);
           }
         }
       }
@@ -269,7 +265,6 @@ export class LocationService {
     console.log(notifData);
 
     // Broadcast + Notification
-    this.eventsService.broadcastToAll('location_created', savedLocation);
     await this.notificationService.createLocationNotification(
       savedLocation.id_user,
       "CONFIRMED",
@@ -299,7 +294,6 @@ export class LocationService {
     const local = location.local;
     local.statut = 'LOUE';
     await this.localRepository.save(local);
-    this.eventsService.broadcastToAll('local_updated', local);
   }
 
   async findAllInProgress(municipalityId: string): Promise<Location[]> {
@@ -412,7 +406,6 @@ export class LocationService {
 
       };
 
-      this.eventsService.sendToUser(id_controleur, 'aucune_location,entrer_id_local', histData);
 
       return [];
     }
@@ -604,7 +597,6 @@ export class LocationService {
       local.statut = 'DISPONIBLE';
       await this.localRepository.save(local);
 
-      this.eventsService.broadcastToAll('local_updated', local);
     }
 
     await this.locationRepository.remove(location);
@@ -700,7 +692,6 @@ export class LocationService {
         nextDueDateOnly.getDate()
       );
 
-      this.eventsService.sendToUser(location.id_user, "rappelle_de_paiemnt", reminderData)
     }
 
     // Après échéance, tous les jours si pas encore payé
@@ -710,7 +701,6 @@ export class LocationService {
         reminderData,
         nextDueDateOnly.getDate()
       );
-      this.eventsService.sendToUser(location.id_user, "rappelle_de_paiemnt", reminderData)
     }
   }
 
@@ -855,7 +845,6 @@ export class LocationService {
 
         await this.notificationService.CreateHistorique(id_controleur, histData, 'MEDIUM');
         await this.localService.updateDateScan(id_local);
-        this.eventsService.sendToUser(id_controleur, 'location_en_regle', histData);
 
         return true;
       } else {
@@ -871,9 +860,7 @@ export class LocationService {
         // };
 
         // await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
-        // this.eventsService.sendToUser(id_user, 'ce_n_est_pas_votre_controlleur', histData);
-        // this.eventsService.broadcastToAll('controlleur_hors_zone', histData);
-
+      
         throw new ForbiddenException(
           `Location trouvée pour le local mais pas dans la distributionZone du contrôleur.`,
         );
@@ -890,7 +877,6 @@ export class LocationService {
     };
 
     await this.notificationService.CreateCritiqueHistorique(id_controleur, histData);
-    this.eventsService.sendToUser(id_controleur, 'aucune_location_trouvee', histData);
 
     return false;
   }
@@ -1143,7 +1129,7 @@ export class LocationService {
 
       citizenData = citizen.data;
 
-      const foko= await firstValueFrom(
+      const foko = await firstValueFrom(
         this.httpService.get(`https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/fokontanys/${location.local.zone.formatted_id}`),
       );
 
