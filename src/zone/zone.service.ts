@@ -112,13 +112,26 @@ export class ZoneService {
     }
 
     try {
-      const zone = this.zoneRepository.create({
+      let zone = this.zoneRepository.create({
         ...createZoneDto,
         municipalityId,
       });
 
+      // 2️⃣ Sauvegarde → l'ID est maintenant généré
+      zone = await this.zoneRepository.save(zone);
 
-      return await this.zoneRepository.save(zone);
+      // 3️⃣ Envoi de la notification avec la zone complète
+      const data = {
+        authorId: '550e8400-e29b-41d4-a716-446655440003',
+        destinationId: null,
+        typeNotification: 'broadcastToAll',
+        message: 'zone_created',
+        ressource: zone
+      };
+
+      this.socketService.sendNotification(data);
+
+      return zone;
     } catch (error) {
       throw new BadRequestException(
         `Failed to create zone. Please check your input data. ${error.message}`,
@@ -303,10 +316,22 @@ export class ZoneService {
     }
 
     try {
-      const zone = await this.findOne(id_zone, municipalityId);
+      let zone = await this.findOne(id_zone, municipalityId);
 
       Object.assign(zone, updateZoneDto);
-      return await this.zoneRepository.save(zone);
+
+      zone = await this.zoneRepository.save(zone);
+
+      const data = {
+        authorId: '550e8400-e29b-41d4-a716-446655440003',
+        destinationId: null,
+        typeNotification: 'broadcastToAll',
+        message: 'zone_upated',
+        ressource: zone
+      };
+
+      this.socketService.sendNotification(data);
+      return zone;
     } catch (error) {
       // Vérifier si l'erreur vient de l'API (404)
       if (error instanceof AxiosError && error.response?.status === 404) {
