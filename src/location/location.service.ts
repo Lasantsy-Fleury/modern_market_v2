@@ -18,7 +18,7 @@ import { lastValueFrom } from 'rxjs';
 import * as PDFDocument from 'pdfkit';
 import { LocalService } from 'src/local/local.service';
 import { firstValueFrom } from 'rxjs';
-
+import { SocketService } from 'src/socket/socket.service';
 @Injectable()
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
@@ -37,6 +37,7 @@ export class LocationService {
     private readonly notificationService: NotificationService,
     private readonly httpService: HttpService,
     private readonly localService: LocalService,
+    private readonly socketService: SocketService,
   ) { }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
@@ -270,6 +271,25 @@ export class LocationService {
       "CONFIRMED",
       notifData
     );
+    // 3️⃣ Envoi de la notification avec la zone complète
+    const data = {
+      authorId: '550e8400-e29b-41d4-a716-446655440003',
+      destinationId: null,
+      typeNotification: 'broadcastToAll',
+      message: 'location_created',
+      ressource: savedLocation
+    };
+
+
+    const data1 = {
+      authorId: '550e8400-e29b-41d4-a716-446655440003',
+      destinationId: savedLocation.id_user,
+      typeNotification: 'sendToUser',
+      message: 'votre_location_created',
+      ressource: savedLocation
+    };
+    this.socketService.sendNotification(data);
+    this.socketService.sendNotification(data1);
 
     return savedLocation;
   }
@@ -860,7 +880,7 @@ export class LocationService {
         // };
 
         // await this.notificationService.CreateHistorique(id_controleur, histData, 'HIGH');
-      
+
         throw new ForbiddenException(
           `Location trouvée pour le local mais pas dans la distributionZone du contrôleur.`,
         );
@@ -878,6 +898,14 @@ export class LocationService {
 
     await this.notificationService.CreateCritiqueHistorique(id_controleur, histData);
 
+    const data = {
+      authorId: id_controleur,
+      destinationId: null,
+      typeNotification: 'broadcastToAll',
+      message: 'location_critique',
+      ressource: histData
+    };
+    this.socketService.sendNotification(data);
     return false;
   }
 

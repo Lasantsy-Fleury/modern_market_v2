@@ -20,6 +20,7 @@ import { PaiementLocationModule } from 'src/paiement_location/paiement_location.
 import { NotificationModule } from 'src/notification/notification.module';
 import { DistributionZoneModule } from 'src/distribution_zone/distribution_zone.module';
 import { LocalModule } from 'src/local/local.module';
+import { SocketModule } from 'src/socket/socket.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -35,7 +36,8 @@ import { LocalModule } from 'src/local/local.module';
     ScheduleModule.forRoot(),
     HttpModule,ZoneModule,
     LocalModule,
-    DistributionZoneModule
+    DistributionZoneModule,
+    SocketModule
   ],
   controllers: [LocationController],
   providers: [

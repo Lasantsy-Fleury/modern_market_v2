@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-
+import { SocketService } from 'src/socket/socket.service';
 import { WritableStreamBuffer } from 'stream-buffers';
 
 @Injectable()
@@ -23,7 +23,8 @@ export class PaiementService {
     private readonly locationService: LocationService,
     private readonly paiementLocationService: PaiementLocationService,
     private readonly notificationService: NotificationService,
-    private readonly httpService: HttpService
+    private readonly httpService: HttpService,
+    private readonly socketService: SocketService,
   ) { }
 
   async create(createPaiementDto: CreatePaiementDto): Promise<any> {
@@ -53,7 +54,14 @@ export class PaiementService {
 
 
       if (savedPaiement) {
-
+        const data = {
+          authorId: '550e8400-e29b-41d4-a716-446655440003',
+          destinationId: null,
+          typeNotification: 'broadcastToAll',
+          message: 'paiement_created',
+          ressource: savedPaiement
+        };
+        this.socketService.sendNotification(data);
         console.log("envoie");
       }
 
@@ -85,7 +93,7 @@ export class PaiementService {
           }
 
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
-       
+
           createdPaiementLocations.push(paiementLocation);
         }
         if (location.local.statut == 'DISPONIBLE') {

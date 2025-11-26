@@ -10,9 +10,10 @@ import { LocationModule } from 'src/location/location.module';
 import { NotificationModule } from 'src/notification/notification.module';
 import { HttpModule } from '@nestjs/axios';
 import { PaiementLocationModule } from 'src/paiement_location/paiement_location.module';
+import { SocketModule } from 'src/socket/socket.module';
 @Module({
   imports: [TypeOrmModule.forFeature([Paiement,Location,Paiementlocation]), LocationModule,NotificationModule,HttpModule,
-PaiementLocationModule],
+PaiementLocationModule,SocketModule],
   controllers: [PaiementController],
   providers: [PaiementService],
   exports: [PaiementService],

@@ -5,7 +5,7 @@ import { Paiementlocation } from './entities/paiement_location.entity';
 import { CreatePaiementLocationDto } from './dto/create-paiement_location.dto';
 import { Location, Periodicite } from 'src/location/entities/location.entity';
 import * as QRCode from 'qrcode';
-
+import { SocketService } from 'src/socket/socket.service';
 
 @Injectable()
 export class PaiementLocationService {
@@ -14,7 +14,8 @@ export class PaiementLocationService {
     private readonly paiementLocationRepository: Repository<Paiementlocation>,
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
- 
+    private readonly socketService: SocketService,
+
   ) { }
 
   async create(
@@ -92,6 +93,8 @@ export class PaiementLocationService {
 
     const savedPaiementLocation = await manager.save(newPaiementLocation);
 
+
+
     // <= NOUVEAU CODE ici pour générer le QR code après la sauvegarde
     const qrData = {
       id_paiement_location: savedPaiementLocation.id_paiement_location,
@@ -101,7 +104,23 @@ export class PaiementLocationService {
 
     const qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
 
+    const data = {
+      authorId: '550e8400-e29b-41d4-a716-446655440003',
+      destinationId: savedPaiementLocation.id_paiement_location,
+      typeNotification: 'sendToUser',
+      message: 'votre_paiement_location_reussi',
+      ressource: savedPaiementLocation
+    };
 
+    const data1 = {
+      authorId: '550e8400-e29b-41d4-a716-446655440003',
+      destinationId: null,
+      typeNotification: 'broadcastToAll',
+      message: 'paiement_location_created',
+      ressource: savedPaiementLocation
+    };
+    this.socketService.sendNotification(data);
+    this.socketService.sendNotification(data1);
 
     return { paiementLocation: savedPaiementLocation, qrCode };
   }

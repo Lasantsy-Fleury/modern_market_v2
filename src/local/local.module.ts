@@ -14,7 +14,7 @@ import { DistributionZone } from 'src/distribution_zone/entities/distribution_zo
 import { LocationService } from 'src/location/location.service';
 import { PaiementLocationService } from 'src/paiement_location/paiement_location.service';
 import { Paiementlocation } from 'src/paiement_location/entities/paiement_location.entity';
-
+import { SocketModule } from 'src/socket/socket.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -25,7 +25,7 @@ import { Paiementlocation } from 'src/paiement_location/entities/paiement_locati
       Typelocal,
       DistributionZone,
     ]),
-
+    SocketModule,
     forwardRef(() => NotificationModule),
     forwardRef(() => DistributionZoneModule), // ✅ ajout important ici
 

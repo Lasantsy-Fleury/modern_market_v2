@@ -13,6 +13,7 @@ import { Location as LocationEntity } from 'src/location/entities/location.entit
 import { DistributionZoneService } from 'src/distribution_zone/distribution_zone.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
+import { SocketService } from 'src/socket/socket.service';
 @Injectable()
 export class LocalService {
   constructor(
@@ -35,6 +36,7 @@ export class LocalService {
 
     private readonly distZoneService: DistributionZoneService,
     private readonly notifService: NotificationService,
+    private readonly socketService: SocketService,
   ) { }
 
   async existingLocalTest(createLocalDto: CreateLocalDto) {
