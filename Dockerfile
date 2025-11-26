@@ -27,8 +27,8 @@ ENV POSTGRES_USER=${POSTGRES_USER}
 ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 ENV PORT=5033
 
-# Exposer le port que nous utiliserons pour le serveur 'serve'
+# Exposer le port que nous utiliserons pour le serveur 'serve'e
 EXPOSE 5033
 
 # Command to run the application
-CMD ["node", "dist/main", "--port", "${PORT}"]
+CMD ["npm", "run", "start:prod"]
