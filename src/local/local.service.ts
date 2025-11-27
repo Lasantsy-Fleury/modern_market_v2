@@ -14,8 +14,10 @@ import { DistributionZoneService } from 'src/distribution_zone/distribution_zone
 import { NotificationService } from 'src/notification/notification.service';
 import { DistributionZone } from 'src/distribution_zone/entities/distribution_zone.entity';
 import { SocketService } from 'src/socket/socket.service';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class LocalService {
+  private gatewayBaseUrl: string;
   constructor(
     @InjectRepository(Local)
     private readonly localRepository:
@@ -36,8 +38,12 @@ export class LocalService {
 
     private readonly distZoneService: DistributionZoneService,
     private readonly notifService: NotificationService,
+    private readonly configService: ConfigService,
     private readonly socketService: SocketService,
-  ) { }
+  ) {
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+
+  }
 
   async existingLocalTest(createLocalDto: CreateLocalDto) {
     const existingLocal = await this.localRepository.findOne({
@@ -238,7 +244,7 @@ export class LocalService {
       throw new BadRequestException('La location n’a pas d’utilisateur associé.');
     }
 
-    const url = `https://gateway.tsirylab.com/serviceauth/users/${lastLocation.id_user}`;
+    const url = `${this.gatewayBaseUrl}/serviceauth/users/${lastLocation.id_user}`;
 
     try {
       const response = await firstValueFrom(this.httpService.get(url, {
@@ -393,7 +399,7 @@ export class LocalService {
   }
   private async getUserNameById(id_user: string): Promise<string> {
     const user = await firstValueFrom(
-      this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`)
+      this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${id_user}`)
     );
     return user ? user.data.user_pseudo : 'Inconnu';
   }

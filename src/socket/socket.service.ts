@@ -1,18 +1,25 @@
 // notification-socket.service.ts
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { io, Socket } from 'socket.io-client';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SocketService implements OnModuleInit, OnModuleDestroy {
   private socket: Socket;
+  private gatewayBaseUrl: string;
+
+  constructor(private readonly configService: ConfigService) {
+    // Charger la variable d'environnement
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+  }
 
   onModuleInit() {
-    // Connexion au serveur Socket.IO Express
-    console.log("hello");
-    this.socket = io('https://gateway.agvm.mg/serviceflotte', {
+    console.log("hello - initialisation SocketService");
+
+    // Connexion au serveur Socket.IO
+    this.socket = io(`${this.gatewayBaseUrl}/serviceflotte`, {
       path: '/serviceflotte/socket.io',
-      query: { uuid: '550e8400-e29b-41d4-a716-446655440003' }, // UUID du backend NestJS
-    
+      query: { uuid: '550e8400-e29b-41d4-a716-446655440003' },
     });
 
     this.socket.on('connect', () => {
@@ -24,13 +31,12 @@ export class SocketService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.socket.on('connect_error', (err) => {
-      console.error('❌ Erreur de connexion Socket.IO:', err);
+      console.error('❌ Erreur de connexion Socket.IO:', err.message);
     });
   }
 
-  // Méthode pour envoyer une notification
   sendNotification(payload: any) {
-    if (this.socket && this.socket.connected) {
+    if (this.socket?.connected) {
       this.socket.emit('notifRecetteLocale', payload);
       console.log('📤 Notification envoyée depuis NestJS:', payload);
     }

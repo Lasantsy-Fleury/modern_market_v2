@@ -13,14 +13,19 @@ import { HttpService } from '@nestjs/axios';
 import { AxiosResponse, AxiosError } from 'axios';
 import { SocketService } from 'src/socket/socket.service';
 import * as _ from 'lodash';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class ZoneService {
+  private gatewayBaseUrl: string;
   constructor(
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
     private readonly httpService: HttpService,
     private readonly socketService: SocketService,
-  ) { }
+    private readonly configService: ConfigService,
+  ) {
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+  }
 
   async findOneById(zoneId: string): Promise<Zone | null> {
     return this.zoneRepository.findOne({ where: { id_zone: zoneId } });
@@ -32,9 +37,10 @@ export class ZoneService {
     }
 
     try {
+      console.log(this.gatewayBaseUrl);
       const response: AxiosResponse<any> = await firstValueFrom(
         this.httpService.get(
-          `https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/${formattedId}`,
+          `${this.gatewayBaseUrl}/serviceterritoire-v2/fokotanys/${formattedId}`,
         ),
       );
 
@@ -119,7 +125,7 @@ export class ZoneService {
 
       // 2️⃣ Sauvegarde → l'ID est maintenant généré
       zone = await this.zoneRepository.save(zone);
-
+      console.log("heloooo");
       // 3️⃣ Envoi de la notification avec la zone complète
       const data = {
         authorId: '550e8400-e29b-41d4-a716-446655440003',
@@ -153,7 +159,7 @@ export class ZoneService {
   ) {
     try {
       // Vérifier si la municipalité existe via API externe
-      // const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+      // const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
       // const response = await firstValueFrom(
       //   this.httpService.get(url, { headers: { accept: 'application/json' } }),
       // );
@@ -249,7 +255,7 @@ export class ZoneService {
   // Méthode auxiliaire pour vérifier l'existence de la municipalité
   private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+      const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
       await firstValueFrom(
         this.httpService.get(url, {
           headers: { accept: 'application/json' }
@@ -270,7 +276,8 @@ export class ZoneService {
     if (!keyword) {
       throw new BadRequestException('Le mot-clé de recherche est requis');
     }
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    console.log("happy");
+    const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );
@@ -306,7 +313,7 @@ export class ZoneService {
     id_zone: string,
     updateZoneDto: UpdateZoneDto,
   ) {
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException, InternalServerErrorException} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
@@ -8,13 +8,13 @@ import { Local } from 'src/local/entities/local.entity';
 import axios from 'axios';
 import { Brackets } from 'typeorm';
 import { Between } from 'typeorm';
-import { start } from 'repl';
-
+import { ConfigService } from '@nestjs/config';
 import { LocalService } from 'src/local/local.service';
 import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class NotificationService {
+  private gatewayBaseUrl: string;
   constructor(
     @InjectRepository(Notification)
     private readonly notifRepository: Repository<Notification>,
@@ -30,8 +30,12 @@ export class NotificationService {
 
     @Inject(forwardRef(() => LocalService)) // ✅ utilise forwardRef pour briser le cercle
     private localService: LocalService,
+    private readonly configService: ConfigService,
 
-  ) { }
+  ) {
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+
+  }
 
 
   async createLocationNotification(
@@ -454,7 +458,7 @@ export class NotificationService {
     try {
       // Vérifier que l'utilisateur existe dans le service externe
       const response = await axios.get(
-        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
+        `${this.gatewayBaseUrl}/serviceauth/users/${userId}`
       );
 
       const userData = response.data;
@@ -496,7 +500,7 @@ export class NotificationService {
     try {
       // ✅ Vérifier que l'utilisateur existe dans le service externe
       const response = await axios.get(
-        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
+        `${this.gatewayBaseUrl}/serviceauth/users/${userId}`
       );
 
       const userData = response.data;
@@ -818,18 +822,18 @@ export class NotificationService {
   }
 
   async remove(id_notification: string) {
-  // Vérifier si la zone existe
-  const zone = await this.notifRepository.findOne({ where: { id_notification } });
-  if (!zone) {
-    throw new NotFoundException(`Notification avec id ${id_notification} introuvable`);
+    // Vérifier si la zone existe
+    const zone = await this.notifRepository.findOne({ where: { id_notification } });
+    if (!zone) {
+      throw new NotFoundException(`Notification avec id ${id_notification} introuvable`);
+    }
+
+    // Supprimer
+    await this.notifRepository.delete(id_notification);
+
+    return {
+      message: `Notification ${id_notification} supprimée avec succès`,
+      success: true,
+    };
   }
-
-  // Supprimer
-  await this.notifRepository.delete(id_notification);
-
-  return {
-    message: `Notification ${id_notification} supprimée avec succès`,
-    success: true,
-  };
-}
 }

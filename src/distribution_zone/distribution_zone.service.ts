@@ -9,18 +9,24 @@ import { Zone } from 'src/zone/entities/zone.entity';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { IsNull } from 'typeorm';
-
+import { ConfigService } from '@nestjs/config';
 
 
 @Injectable()
 export class DistributionZoneService {
+  private gatewayBaseUrl: string;
+
   constructor(
     @InjectRepository(DistributionZone)
     private readonly distributionZoneRepository: Repository<DistributionZone>,
     private readonly zoneService: ZoneService,
-   
+    private readonly configService: ConfigService,
     private readonly httpService: HttpService,
-  ) { }
+  ) { 
+        this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+
+
+  }
 
   async create(createDistributionZoneDto: CreateDistributionZoneDto) {
     const zone = await this.zoneService.findOneById(createDistributionZoneDto.zoneId);
@@ -29,9 +35,9 @@ export class DistributionZoneService {
     }
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${createDistributionZoneDto.id_user}`)
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${createDistributionZoneDto.id_user}`)
       );
-
+     
       const userData = response.data;
 
       if (!userData) {
@@ -61,7 +67,7 @@ export class DistributionZoneService {
     }
 
     const distributionZone = this.distributionZoneRepository.create(createDistributionZoneDto);
-   
+
 
     return await this.distributionZoneRepository.save(distributionZone);
   }

@@ -14,9 +14,10 @@ import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { SocketService } from 'src/socket/socket.service';
 import { WritableStreamBuffer } from 'stream-buffers';
-
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class PaiementService {
+  private gatewayBaseUrl: string;
   constructor(
     @InjectRepository(Paiement)
     private readonly paieRepository: Repository<Paiement>,
@@ -24,8 +25,11 @@ export class PaiementService {
     private readonly paiementLocationService: PaiementLocationService,
     private readonly notificationService: NotificationService,
     private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
     private readonly socketService: SocketService,
-  ) { }
+  ) {
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+  }
 
   async create(createPaiementDto: CreatePaiementDto): Promise<any> {
     const queryRunner = this.paieRepository.manager.connection.createQueryRunner();
@@ -335,7 +339,7 @@ export class PaiementService {
     // 🔹 Récupérer les infos du régisseur depuis le microservice
     let regiInfo: any = null;
     try {
-      const url = `https://gateway.tsirylab.com/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
+      const url = `${this.gatewayBaseUrl}/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
       const response = await lastValueFrom(this.httpService.get(url));
       regiInfo = response.data;
     } catch (error: any) {

@@ -19,10 +19,11 @@ import * as PDFDocument from 'pdfkit';
 import { LocalService } from 'src/local/local.service';
 import { firstValueFrom } from 'rxjs';
 import { SocketService } from 'src/socket/socket.service';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
-
+  private gatewayBaseUrl: string;
   constructor(
     @InjectRepository(Location)
     private readonly locationRepository: Repository<Location>,
@@ -38,7 +39,10 @@ export class LocationService {
     private readonly httpService: HttpService,
     private readonly localService: LocalService,
     private readonly socketService: SocketService,
-  ) { }
+    private readonly configService: ConfigService,
+  ) {
+    this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
     timeZone: 'Europe/Paris',
@@ -387,7 +391,7 @@ export class LocationService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`)
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${id_user}`)
       );
 
       const userData = response.data;
@@ -750,7 +754,7 @@ export class LocationService {
   async generateUserQrCode(userId: string): Promise<{ userId: string; qrCode: string }> {
     try {
       // Vérifier que l'utilisateur existe
-      const response = await axios.get(`https://gateway.tsirylab.com/serviceauth/users/${userId}`);
+      const response = await axios.get(`${this.gatewayBaseUrl}/serviceauth/users/${userId}`);
 
       if (!response.data || !response.data.user_id) {
         throw new NotFoundException(`Utilisateur avec ID ${userId} introuvable`);
@@ -823,7 +827,7 @@ export class LocationService {
     // 🔹 Récupération du pseudo du contribuable via API externe
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${id_user}`),
       );
       const userData = response.data;
       userNom = userData?.user_pseudo || 'Inconnu';
@@ -935,12 +939,12 @@ export class LocationService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${location.id_user}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${location.id_user}`),
       );
       userData = response.data;
 
       const citizen = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
       );
 
       citizenData = citizen.data
@@ -959,7 +963,7 @@ export class LocationService {
 
     // 🔹 Tenter de récupérer la commune, mais ignorer si erreur
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
+      const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/noForm//${municipalityId}`;
       const response = await lastValueFrom(this.httpService.get(url));
       commune = response.data;
     } catch (error) {
@@ -1147,18 +1151,18 @@ export class LocationService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${location.id_user}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${location.id_user}`),
       );
       userData = response.data;
 
       const citizen = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
       );
 
       citizenData = citizen.data;
 
       const foko = await firstValueFrom(
-        this.httpService.get(`https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/fokontanys/${location.local.zone.formatted_id}`),
+        this.httpService.get(`${this.gatewayBaseUrl}/serviceterritoire-v2/fokotanys/fokontanys/${location.local.zone.formatted_id}`),
       );
 
       fokontany = foko.data
@@ -1177,7 +1181,7 @@ export class LocationService {
 
     // 🔹 Tenter de récupérer la commune, mais ignorer si erreur
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/noForm//${municipalityId}`;
+      const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/noForm//${municipalityId}`;
       const response = await lastValueFrom(this.httpService.get(url));
       commune = response.data;
     } catch (error) {
