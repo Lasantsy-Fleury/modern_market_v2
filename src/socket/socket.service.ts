@@ -9,7 +9,7 @@ export class SocketService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     // Connexion au serveur Socket.IO Express
     console.log("hello");
-    this.socket = io('https://gateway.tsirylab.com/serviceflotte', {
+    this.socket = io('https://gateway.agvm.mg/serviceflotte', {
       path: '/serviceflotte/socket.io',
       query: { uuid: '550e8400-e29b-41d4-a716-446655440003' }, // UUID du backend NestJS
     
