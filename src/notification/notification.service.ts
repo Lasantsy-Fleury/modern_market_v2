@@ -11,7 +11,7 @@ import { Between } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { LocalService } from 'src/local/local.service';
 import { forwardRef, Inject } from '@nestjs/common';
-
+import { SocketService } from 'src/socket/socket.service';
 @Injectable()
 export class NotificationService {
   private gatewayBaseUrl: string;
@@ -31,6 +31,7 @@ export class NotificationService {
     @Inject(forwardRef(() => LocalService)) // ✅ utilise forwardRef pour briser le cercle
     private localService: LocalService,
     private readonly configService: ConfigService,
+    private readonly socketService: SocketService,
 
   ) {
     this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;

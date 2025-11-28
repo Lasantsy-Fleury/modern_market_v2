@@ -93,8 +93,18 @@ export class LocalService {
 
 
     try {
-      const local = this.localRepository.create(createLocalDto);
-      return await this.localRepository.save(local)
+      let local = this.localRepository.create(createLocalDto);
+      local = await this.localRepository.save(local);
+      const data = {
+        authorId: '550e8400-e29b-41d4-a716-446655440003',
+        destinationId: null,
+        typeNotification: 'broadcastToAll',
+        message: 'local_created',
+        ressource: local
+      };
+
+      this.socketService.sendNotification(data);
+      return local;
     } catch (error) {
       throw new BadRequestException(
         `Failed to create zone. Please check your input data.`,
@@ -269,10 +279,21 @@ export class LocalService {
     id_local: string,
     updateLocalDto: UpdateLocalDto
   ) {
-    const local = await this.findOne(municipalityId, id_local);
+    let local = await this.findOne(municipalityId, id_local);
 
     Object.assign(local, updateLocalDto);
-    return await this.localRepository.save(local);
+    local = await this.localRepository.save(local);
+
+    const data = {
+      authorId: '550e8400-e29b-41d4-a716-446655440003',
+      destinationId: null,
+      typeNotification: 'broadcastToAll',
+      message: 'local_updated',
+      ressource: local
+    };
+
+    this.socketService.sendNotification(data);
+    return local;
   }
 
   async updateDateScan(id_local: string) {
