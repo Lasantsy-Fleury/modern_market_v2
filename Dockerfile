@@ -1,33 +1,23 @@
-########## BUILD STAGE ##########
-FROM node:22-slim AS builder
+# 1 — Build stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install all dependencies including devDependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm ci
 
-# Copy the rest of the project
 COPY . .
-
-# Build the NestJS project
 RUN npm run build
 
-
-########## RUNTIME STAGE ##########
-FROM node:22-slim
+# 2 — Runtime stage
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy only production dependencies
-COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
-
-# Copy compiled dist folder from builder
-COPY --from=builder /app/dist ./dist
-
-# Copy any additional config files needed at runtime
+# Copy only what is needed for production
+COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
 
 # Environment variables
 ARG POSTGRES_HOST=""
