@@ -40,7 +40,7 @@ export class ZoneService {
       console.log(this.gatewayBaseUrl);
       const response: AxiosResponse<any> = await firstValueFrom(
         this.httpService.get(
-          `${this.gatewayBaseUrl}/serviceterritoire-v2/fokotanys/${formattedId}`,
+          `${this.gatewayBaseUrl}/serviceterritoire-v2/fokotanys/fokontanys/${formattedId}`,
         ),
       );
 
