@@ -99,13 +99,15 @@ export class PaiementService {
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
 
           createdPaiementLocations.push(paiementLocation);
-          if (location.local.statut == 'DISPONIBLE') {
+
+          const updatedLocation = await this.locationService.findOne(locationId);
+
+          if (updatedLocation.local.statut === 'DISPONIBLE') {
             await this.locationService.updateLocalStatusToRented(locationId);
-            console.log(`🏠 Local ${location.local.numero || location.localId} marqué comme LOUE.`);
+            console.log(`🏠 Local ${updatedLocation.local.numero} marqué comme LOUE.`);
             contratPdf = await this.locationService.generateContratBail(locationId);
-            console.log('📄 Contrat de bail généré (car le local vient d’être loué)');
           } else {
-            console.log(`ℹ️ Local ${location.local.numero || location.localId} déjà marqué comme LOUE, aucune mise à jour.`);
+            console.log(`ℹ️ Local déjà loué.`);
           }
         }
 
