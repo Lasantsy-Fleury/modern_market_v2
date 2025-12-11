@@ -99,15 +99,16 @@ export class PaiementService {
           const { paiementLocation, qrCode } = await this.paiementLocationService.create(locDto, queryRunner);
 
           createdPaiementLocations.push(paiementLocation);
+          if (location.local.statut == 'DISPONIBLE') {
+            await this.locationService.updateLocalStatusToRented(locationId);
+            console.log(`🏠 Local ${location.local.numero || location.localId} marqué comme LOUE.`);
+            contratPdf = await this.locationService.generateContratBail(locationId);
+            console.log('📄 Contrat de bail généré (car le local vient d’être loué)');
+          } else {
+            console.log(`ℹ️ Local ${location.local.numero || location.localId} déjà marqué comme LOUE, aucune mise à jour.`);
+          }
         }
-        if (location.local.statut == 'DISPONIBLE') {
-          await this.locationService.updateLocalStatusToRented(locationId);
-          console.log(`🏠 Local ${location.local.numero || location.localId} marqué comme LOUE.`);
-          contratPdf = await this.locationService.generateContratBail(locationId);
-          console.log('📄 Contrat de bail généré (car le local vient d’être loué)');
-        } else {
-          console.log(`ℹ️ Local ${location.local.numero || location.localId} déjà marqué comme LOUE, aucune mise à jour.`);
-        }
+
 
         // Création de la notification de succès
         const userId = location.id_user;
@@ -339,7 +340,7 @@ export class PaiementService {
     // 🔹 Récupérer les infos du régisseur depuis le microservice
     let regiInfo: any = null;
     try {
-      const url = `${this.gatewayBaseUrl}/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
+      const url = `https://gateway.tsirylab.com/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
       const response = await lastValueFrom(this.httpService.get(url));
       regiInfo = response.data;
     } catch (error: any) {

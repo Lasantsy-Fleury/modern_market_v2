@@ -254,7 +254,7 @@ export class LocalService {
       throw new BadRequestException('La location n’a pas d’utilisateur associé.');
     }
 
-    const url = `${this.gatewayBaseUrl}/serviceauth/users/${lastLocation.id_user}`;
+    const url = `https://gateway.tsirylab.com/serviceauth/users/${lastLocation.id_user}`;
 
     try {
       const response = await firstValueFrom(this.httpService.get(url, {
@@ -420,7 +420,7 @@ export class LocalService {
   }
   private async getUserNameById(id_user: string): Promise<string> {
     const user = await firstValueFrom(
-      this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${id_user}`)
+      this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${id_user}`)
     );
     return user ? user.data.user_pseudo : 'Inconnu';
   }

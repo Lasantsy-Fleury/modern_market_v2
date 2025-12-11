@@ -459,7 +459,7 @@ export class NotificationService {
     try {
       // Vérifier que l'utilisateur existe dans le service externe
       const response = await axios.get(
-        `${this.gatewayBaseUrl}/serviceauth/users/${userId}`
+        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
       );
 
       const userData = response.data;
@@ -501,7 +501,7 @@ export class NotificationService {
     try {
       // ✅ Vérifier que l'utilisateur existe dans le service externe
       const response = await axios.get(
-        `${this.gatewayBaseUrl}/serviceauth/users/${userId}`
+        `https://gateway.tsirylab.com/serviceauth/users/${userId}`
       );
 
       const userData = response.data;
