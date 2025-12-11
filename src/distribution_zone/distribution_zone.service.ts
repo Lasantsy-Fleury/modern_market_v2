@@ -36,7 +36,7 @@ export class DistributionZoneService {
     }
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${createDistributionZoneDto.id_user}`)
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${createDistributionZoneDto.id_user}`)
       );
 
       const userData = response.data;
