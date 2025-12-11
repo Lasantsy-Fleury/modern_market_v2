@@ -939,12 +939,12 @@ export class LocationService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.gatewayBaseUrl}/serviceauth/users/${location.id_user}`),
+        this.httpService.get(`https://gateway.tsirylab.com/serviceauth/users/${location.id_user}`),
       );
       userData = response.data;
 
       const citizen = await firstValueFrom(
-        this.httpService.get(`${this.gatewayBaseUrl}/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
+        this.httpService.get(`https://gateway.tsirylab.com/servicecitoyen/citizens/getCitizenById/${userData.id_citizen}`),
       );
 
       citizenData = citizen.data
