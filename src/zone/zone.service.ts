@@ -73,10 +73,11 @@ export class ZoneService {
 
   async create(createZoneDto: CreateZoneDto) {
     // Vérifier que la fokontany existe dans le service externe
-    const fokontany = await this.existingFokontany(createZoneDto.formatted_id);
+    //const fokontany = await this.existingFokontany(createZoneDto.formatted_id);
 
-    const municipalityId = fokontany?.commune?.formatted_id;
 
+   // const municipalityId = fokontany?.commune?.formatted_id;
+  const municipalityId ="701635700000";
     if (!municipalityId) {
       throw new NotFoundException(
         `Municipality formatted_id not found for fokontany ${createZoneDto.formatted_id}`,
