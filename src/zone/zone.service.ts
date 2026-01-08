@@ -75,12 +75,11 @@ export class ZoneService {
     // Vérifier que la fokontany existe dans le service externe
     //const fokontany = await this.existingFokontany(createZoneDto.formatted_id);
 
-
-   // const municipalityId = fokontany?.commune?.formatted_id;
-  const municipalityId ="701635700000";
+    const municipalityId = createZoneDto.municipalityId;
+    
     if (!municipalityId) {
-      throw new NotFoundException(
-        `Municipality formatted_id not found for fokontany ${createZoneDto.formatted_id}`,
+      throw new BadRequestException(
+        `municipalityId est requis dans la requête`,
       );
     }
 
