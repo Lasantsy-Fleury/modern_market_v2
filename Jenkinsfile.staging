@@ -3,11 +3,11 @@ pipeline {
 
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
-        HARBOR_PROJECT   = 'pnud-agvm'
+        HARBOR_PROJECT   = 'ilafitany'
         IMAGE_NAME       = 'servicemodernmarket'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
-        NAMESPACE        = 'pnud-agvm'
+        NAMESPACE        = 'servicemodernmarket-staging'
         K8S_DIR          = 'k8s'
         DEPLOYMENT_NAME  = 'servicemodernmarket'
         SERVICE_NAME     = 'servicemodernmarket-service'
@@ -48,7 +48,7 @@ pipeline {
         stage('Test Cluster Access') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')
+                    file(credentialsId: 'kubeconfig-jenkins-staging', variable: 'KUBECONFIG')
                 ]) {
                     sh '''
                         set -e
@@ -63,13 +63,12 @@ pipeline {
         stage('Deploy to K3s') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
-                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
-                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
-                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL'),
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                    string(credentialsId: 'POSTGRES_HOST_ID_STAGING', variable: 'POSTGRES_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID_STAGING', variable: 'POSTGRES_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID_STAGING', variable: 'POSTGRES_USER'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID_STAGING', variable: 'POSTGRES_PASSWORD'),
+                    string(credentialsId: 'GATEWAY_URL_ID_STAGING', variable: 'API_GATEWAY_URL'),
+                    file(credentialsId: 'kubeconfig-jenkins-staging', variable: 'KUBECONFIG'),
                     usernamePassword(
                         credentialsId: 'harbor-credentials',
                         usernameVariable: 'HARBOR_USER',
@@ -87,10 +86,25 @@ pipeline {
                             echo "=== Création du secret registry Harbor ==="
                             kubectl delete secret harbor-registry-secret -n ${NAMESPACE} --ignore-not-found=true
                             kubectl create secret docker-registry harbor-registry-secret \
-                              --docker-server=${REGISTRY} \
-                              --docker-username="${HARBOR_USER}" \
-                              --docker-password="${HARBOR_PASS}" \
-                              --namespace=${NAMESPACE}
+                                --docker-server=${REGISTRY} \
+                                --docker-username="${HARBOR_USER}" \
+                                --docker-password="${HARBOR_PASS}" \
+                                --namespace=${NAMESPACE}
+
+                            
+                            echo " Creation de la base de donnees s'il n'existe pas deja "
+                            # Utiliser une image Docker contenant psql pour interroger le serveur Postgres
+                            if ! docker run --rm \
+                                -e PGPASSWORD="${POSTGRES_PASSWORD}" \
+                                postgres:13 \
+                                psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -tc "SELECT 1 FROM pg_database WHERE datname = '${POSTGRES_DATABASE}'" | grep -q 1; then
+                                docker run --rm \
+                                    -e PGPASSWORD="${POSTGRES_PASSWORD}" \
+                                    postgres:13 \
+                                    psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -c "CREATE DATABASE ${POSTGRES_DATABASE}"
+                            else
+                                echo "La base de données ${POSTGRES_DATABASE} existe déjà"
+                            fi
 
                             echo "=== Création du secret applicatif ==="
                             kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true

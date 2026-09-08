@@ -97,8 +97,8 @@ export class ZoneController {
   }
 
   @Delete(':id_zone')
+  @ApiOperation({ summary: 'Supprimer une zone et tout ce qui est lié avec elle.' })
   remove(
-
     @Param('id_zone') id_zone: string,
   ) {
     return this.zoneService.remove(id_zone);

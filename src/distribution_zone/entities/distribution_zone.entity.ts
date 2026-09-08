@@ -4,16 +4,18 @@ import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "t
 @Entity('distribution_zone')
 export class DistributionZone {
     @PrimaryGeneratedColumn('uuid')
-    id_distribution_zone : string;
+    id_distribution_zone: string;
 
     @Column({ type: 'uuid' })
-    id_user : string
+    id_user: string
 
     @Column({ type: 'uuid' })
-    zoneId: string; 
+    zoneId: string;
 
-    @ManyToOne(() => Zone, zone => zone.distributionZones)
-    @JoinColumn({ name: 'zoneId' }) // Assurez-vous que 'zoneId' est le bon nom de la colonne de clé étrangère
+    @ManyToOne(() => Zone, zone => zone.distributionZones, {
+        onDelete: 'CASCADE',
+    })
+    @JoinColumn({ name: 'zoneId' })
     zone: Zone;
 
     @Column({ type: 'boolean', default: true })
