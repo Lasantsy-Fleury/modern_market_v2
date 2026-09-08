@@ -1,7 +1,8 @@
 import {
   Injectable, NotFoundException, BadRequestException,
   ConflictException,
-  ServiceUnavailableException, Query
+  ServiceUnavailableException, Query,
+
 } from '@nestjs/common';
 import { InjectRepository, } from '@nestjs/typeorm';
 import { Repository, ILike, } from 'typeorm';
@@ -10,7 +11,8 @@ import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { AxiosResponse, AxiosError } from 'axios';
+import { AxiosError } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { SocketService } from 'src/socket/socket.service';
 import * as _ from 'lodash';
 import { ConfigService } from '@nestjs/config';
@@ -38,33 +40,39 @@ export class ZoneService {
 
     try {
       console.log(this.gatewayBaseUrl);
+
       const response: AxiosResponse<any> = await firstValueFrom(
         this.httpService.get(
-          `https://gateway.tsirylab.com/serviceterritoire-v2/fokotanys/${formattedId}`,
+          `${this.gatewayBaseUrl}/serviceterritoire-v2/fokotanys/fokontanys/${formattedId}`,
         ),
       );
 
       if (!response.data) {
         throw new NotFoundException(
-          `Fokontany avec l' id '${formattedId}' n'existe pas`,
+          `Fokontany avec l'id '${formattedId}' n'existe pas`,
         );
       }
 
       return response.data;
-    } catch (error) {
-      // Erreur côté API externe
-      if (error.response?.status === 404) {
-        throw new NotFoundException(
-          `Fokontany with id '${formattedId}' not found in gateway`,
-        );
-      }
-      if (error.response?.status === 400) {
-        throw new BadRequestException(
-          `Invalid Fokontany ID '${formattedId}' provided`,
-        );
+    } catch (error: unknown) {
+      // Erreur provenant d'Axios
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+
+        if (status === 404) {
+          throw new NotFoundException(
+            `Fokontany with id '${formattedId}' not found in gateway`,
+          );
+        }
+
+        if (status === 400) {
+          throw new BadRequestException(
+            `Invalid Fokontany ID '${formattedId}' provided`,
+          );
+        }
       }
 
-      // Erreur générique (API down ou problème réseau)
+      // Erreur générique : réseau, gateway indisponible, timeout...
       throw new ServiceUnavailableException(
         `Unable to reach the gateway service for fokontany validation`,
       );
@@ -76,7 +84,7 @@ export class ZoneService {
     const fokontany = await this.existingFokontany(createZoneDto.formatted_id);
 
     const municipalityId = createZoneDto.municipalityId;
-    
+
     if (!municipalityId) {
       throw new BadRequestException(
         `municipalityId est requis dans la requête`,
@@ -138,9 +146,10 @@ export class ZoneService {
       this.socketService.sendNotification(data);
 
       return zone;
-    } catch (error) {
+    } catch (error: unknown) {
       throw new BadRequestException(
-        `Failed to create zone. Please check your input data. ${error.message}`,
+        `Failed to create zone. Please check your input data. ${error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
@@ -255,7 +264,7 @@ export class ZoneService {
   // Méthode auxiliaire pour vérifier l'existence de la municipalité
   private async verifyMunicipalityExists(municipalityId: string): Promise<void> {
     try {
-      const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+      const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
       await firstValueFrom(
         this.httpService.get(url, {
           headers: { accept: 'application/json' }
@@ -277,7 +286,7 @@ export class ZoneService {
       throw new BadRequestException('Le mot-clé de recherche est requis');
     }
     console.log("happy");
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );
@@ -313,7 +322,7 @@ export class ZoneService {
     id_zone: string,
     updateZoneDto: UpdateZoneDto,
   ) {
-    const url = `https://gateway.tsirylab.com/serviceterritoire-v2/communes/${municipalityId}`;
+    const url = `${this.gatewayBaseUrl}/serviceterritoire-v2/communes/${municipalityId}`;
     const response = await firstValueFrom(
       this.httpService.get(url, { headers: { accept: 'application/json' } })
     );
@@ -353,21 +362,31 @@ export class ZoneService {
   }
   // Supprimer une zone via son nom et la municipalité
   async remove(id_zone: string) {
-    // Vérifier si la zone existe
-    const zone = await this.zoneRepository.findOne({ where: { id_zone } });
+    const zone = await this.zoneRepository.findOne({
+      where: { id_zone },
+    });
+
     if (!zone) {
-      throw new NotFoundException(`Zone avec id ${id_zone} introuvable`);
+      throw new NotFoundException(
+        `Zone avec id ${id_zone} introuvable`,
+      );
     }
 
-    // Supprimer
-    await this.zoneRepository.delete(id_zone);
+    try {
+      await this.zoneRepository.delete(id_zone);
 
-    return {
-      message: `Zone ${id_zone} supprimée avec succès`,
-      success: true,
-    };
+      return {
+        message: `Zone ${id_zone} et toutes ses données associées ont été supprimées avec succès`,
+        success: true,
+      };
+    } catch (error: unknown) {
+      console.error('Erreur suppression zone:', error);
+
+      throw new BadRequestException(
+        `Impossible de supprimer la zone ${id_zone}.`,
+      );
+    }
   }
-
 
   async findAll1(): Promise<Zone[]> {
     const data = {

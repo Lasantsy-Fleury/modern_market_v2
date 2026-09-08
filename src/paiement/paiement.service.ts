@@ -342,7 +342,7 @@ export class PaiementService {
     // 🔹 Récupérer les infos du régisseur depuis le microservice
     let regiInfo: any = null;
     try {
-      const url = `https://gateway.tsirylab.com/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
+      const url = `${this.gatewayBaseUrl}/serviceregis/recus/regisseur-by-reference/${referencePaiement}`;
       const response = await lastValueFrom(this.httpService.get(url));
       regiInfo = response.data;
     } catch (error: any) {
