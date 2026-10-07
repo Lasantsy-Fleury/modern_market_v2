@@ -15,9 +15,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DATABASE'),
         entities: [__dirname + '/../**/*.entity.{js,ts}'],
-        synchronize: true,
-        logger: 'advanced-console', 
-        logging: ['error'], 
+        // Migrations versionnées (src/migrations) — synchronize désactivé :
+        // aucune modification de schéma hors migration explicite.
+        synchronize: false,
+        migrations: [__dirname + '/../migrations/*.{js,ts}'],
+        migrationsRun: false,
+        logger: 'advanced-console',
+        logging: ['error'],
       }),
     }),
   ],

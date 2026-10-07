@@ -14,6 +14,13 @@ import { DistributionZoneModule } from './distribution_zone/distribution_zone.mo
 import { TypeLocalModule } from './type_local/type_locale.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SocketModule } from './socket/socket.module';
+import { SigrnfModule } from './sigrnf/sigrnf.module';
+import { CommercantModule } from './commercant/commercant.module';
+import { DroitsModule } from './droits/droits.module';
+import { TerrainModule } from './terrain/terrain.module';
+import { PerceptionModule } from './perception/perception.module';
+import { QuittanceModule } from './quittance/quittance.module';
+import { SuiviModule } from './suivi/suivi.module';
 
 
 
@@ -29,6 +36,15 @@ import { SocketModule } from './socket/socket.module';
         POSTGRES_PASSWORD: Joi.string().required(),
         POSTGRES_DATABASE: Joi.string().required(),
         PORT: Joi.number(),
+        // --- Configuration SIGRNF (intégration désactivée par défaut) ---
+        SIGRNF_ENABLED: Joi.boolean().default(false),
+        SIGRNF_BASE_URL: Joi.string()
+          .uri({ scheme: ['http', 'https'] })
+          .allow('')
+          .default(''),
+        SIGRNF_API_KEY: Joi.string().allow('').default(''),
+        SIGRNF_TIMEOUT_MS: Joi.number().integer().min(0).default(10000),
+        SIGRNF_RETRY_ATTEMPTS: Joi.number().integer().min(1).default(3),
       })
     }),
     DatabaseModule,
@@ -41,8 +57,13 @@ import { SocketModule } from './socket/socket.module';
     TypeLocalModule,
     DistributionZoneModule,
     SocketModule,
-
-
+    SigrnfModule,
+    CommercantModule,
+    DroitsModule,
+    TerrainModule,
+    PerceptionModule,
+    QuittanceModule,
+    SuiviModule,
   ],
   controllers: [AppController],
   providers: [AppService],

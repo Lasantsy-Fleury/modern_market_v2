@@ -15,6 +15,7 @@ import { lastValueFrom } from 'rxjs';
 import { SocketService } from 'src/socket/socket.service';
 import { WritableStreamBuffer } from 'stream-buffers';
 import { ConfigService } from '@nestjs/config';
+import { SigrnfService } from 'src/sigrnf/sigrnf.service';
 @Injectable()
 export class PaiementService {
   private gatewayBaseUrl: string;
@@ -27,6 +28,7 @@ export class PaiementService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly socketService: SocketService,
+    private readonly sigrnfService: SigrnfService,
   ) {
     this.gatewayBaseUrl = this.configService.get<string>('GATEWAY_BASE_URL')!;
   }
@@ -144,6 +146,31 @@ export class PaiementService {
       await queryRunner.manager.save(savedPaiement);
 
       await queryRunner.commitTransaction();
+
+      // --- Point d'intégration SIGRNF ---------------------------------------
+      // Émis UNIQUEMENT après un paiement réussi, après le commit, et isolé :
+      // une panne SIGRNF ne doit jamais faire échouer le paiement local.
+      if (savedPaiement.status === 'success') {
+        try {
+          const montantTotalPaye = savedPaiement.paiement_locations.reduce(
+            (total, loc) => total + loc.montant_paye,
+            0,
+          );
+          await this.sigrnfService.handleRevenueEvent({
+            reference: savedPaiement.reference,
+            amount: montantTotalPaye,
+            paymentDate: savedPaiement.date_creation,
+            metadata: {
+              id_paiement: savedPaiement.id_paiement,
+            },
+          });
+        } catch (error) {
+          console.warn(
+            `[SIGRNF] revenue event emission failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+          );
+        }
+      }
+      // ----------------------------------------------------------------------
 
       return {
         message: 'Paiement créé avec succès.',

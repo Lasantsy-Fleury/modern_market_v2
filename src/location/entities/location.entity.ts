@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn, CreateDateColumn, Check } from "typeorm";
 import { Paiementlocation } from "src/paiement_location/entities/paiement_location.entity";
 import { Local } from "src/local/entities/local.entity";
+import { Commercant } from "src/modele_cible/entities/commercant.entity";
 import { UUID } from "typeorm/driver/mongodb/bson.typings";
 
 export enum Periodicite {
@@ -9,6 +10,7 @@ export enum Periodicite {
 }
 
 @Entity('location')
+@Check('CK_location_dates_coherentes', '"date_debut_loc" <= "date_fin_loc"')
 export class Location {
     @PrimaryGeneratedColumn('uuid')
     id_location: string;
@@ -25,6 +27,18 @@ export class Location {
 
     @Column({ length: 10 })
     nif: string;
+
+    /**
+     * P0 — relation préparatoire vers l'entité Commercant (modèle cible) :
+     * nullable, aucun backfill (id_user reste la référence existante).
+     * ON DELETE SET NULL : ne bloque ni ne supprime jamais une location existante.
+     */
+    @Column({ type: 'uuid', nullable: true })
+    commercantId: string | null;
+
+    @ManyToOne(() => Commercant, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'commercantId' })
+    commercant: Commercant | null;
 
     @Column({ type: 'date' })
     date_debut_loc: Date;
